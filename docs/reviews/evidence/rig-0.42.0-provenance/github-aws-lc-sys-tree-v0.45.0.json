@@ -1,0 +1,3262 @@
+{
+  "_normalization": "Normalized evidence, not a raw response: each tree entry keeps \"path\", \"type\", and \"mode\"; per-entry \"sha\" and \"url\" fields were removed on 2026-09-04. The root \"sha\" and \"truncated\" fields are unmodified.",
+  "sha": "7943223c99d909bc399bdf1b856821bb04f1f3c5",
+  "truncated": false,
+  "tree": [
+    {
+      "path": ".cargo",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": ".cargo/config.toml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".githooks",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": ".githooks/pre-commit",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": ".github",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": ".github/CODEOWNERS",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/build-issue.md",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/config.yml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/general-issue.md",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/PULL_REQUEST_TEMPLATE.md",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/codecov.yml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/dependabot.yml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/docker_images",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": ".github/docker_images/alpine-3.20",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": ".github/docker_images/alpine-3.20/Dockerfile",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/docker_images/alpine-3.20/aws_lc_rs_build.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": ".github/docker_images/alpine-3.20/build_image.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": ".github/docker_images/alpine-3.20/entry.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": ".github/docker_images/cmake_build_versions",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": ".github/docker_images/cmake_build_versions/Dockerfile",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/docker_images/cmake_build_versions/aws_lc_rs_build.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": ".github/docker_images/cmake_build_versions/cmake_build.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": ".github/docker_images/cmake_build_versions/entry.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": ".github/docker_images/ohos-5.0.0",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": ".github/docker_images/ohos-5.0.0/Dockerfile",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/docker_images/ohos-5.0.0/aws_lc_rs_build.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": ".github/docker_images/ohos-5.0.0/build_image.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": ".github/docker_images/ohos-5.0.0/entry.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": ".github/docker_images/openwrt-24.10",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": ".github/docker_images/openwrt-24.10/Dockerfile",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/docker_images/openwrt-24.10/aws_lc_rs_build.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": ".github/docker_images/openwrt-24.10/build_image.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": ".github/docker_images/openwrt-24.10/entry.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": ".github/workflows",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": ".github/workflows/analysis.yml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/workflows/binary-size.yml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/workflows/cmake.yml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/workflows/compilers.yml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/workflows/cross.yml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/workflows/deploy-docs.yml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/workflows/fips-bindings-generator.yml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/workflows/fips.yml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/workflows/integration.yml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/workflows/misc-tests.yml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/workflows/pregen-bindings.yml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/workflows/sys-bindings-generator.yml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/workflows/system-lib-tests-fips.yml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/workflows/system-lib-tests.yml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/workflows/tests.yml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".github/workflows/zig.yml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".gitignore",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".gitmodules",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".rustfmt.toml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".valgrind",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": ".valgrind/README.md",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": ".valgrind/rust-test.supp",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "BUILDING.md",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "CODE_OF_CONDUCT.md",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "Cargo.toml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "Cross.toml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "Cross.toml.passthrough-only",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "LICENSE",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "Makefile",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "NOTICE",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "README.md",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "STYLE.md",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-fips-sys",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-fips-sys/CMakeLists.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-fips-sys/Cargo.toml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-fips-sys/LICENSE",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-fips-sys/Makefile",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-fips-sys/README.md",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-fips-sys/aws-lc",
+      "type": "commit",
+      "mode": "160000"
+    },
+    {
+      "path": "aws-lc-fips-sys/builder",
+      "type": "blob",
+      "mode": "120000"
+    },
+    {
+      "path": "aws-lc-fips-sys/generated-include",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-fips-sys/generated-include/openssl",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-fips-sys/generated-include/openssl/boringssl_prefix_symbols.h",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-fips-sys/generated-include/openssl/boringssl_prefix_symbols_asm.h",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-fips-sys/generated-include/openssl/boringssl_prefix_symbols_nasm.inc",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-fips-sys/include",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-fips-sys/include/rust_wrapper.h",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-fips-sys/rust_wrapper.c",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-fips-sys/src",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-fips-sys/src/aarch64_apple_darwin_crypto.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-fips-sys/src/aarch64_unknown_linux_gnu_crypto.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-fips-sys/src/aarch64_unknown_linux_musl_crypto.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-fips-sys/src/lib.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-fips-sys/src/x86_64_apple_darwin_crypto.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-fips-sys/src/x86_64_unknown_linux_gnu_crypto.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-fips-sys/src/x86_64_unknown_linux_musl_crypto.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-fips-sys/symbols",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-fips-sys/symbols/aarch64-apple-darwin.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-fips-sys/symbols/aarch64-unknown-linux-gnu.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-fips-sys/symbols/aarch64-unknown-linux-musl.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-fips-sys/symbols/x86_64-apple-darwin.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-fips-sys/symbols/x86_64-unknown-linux-gnu.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-fips-sys/symbols/x86_64-unknown-linux-musl.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-fips-sys/tests",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-fips-sys/tests/sanity-tests.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs-testing/Cargo.toml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/Makefile",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/aead_benchmark.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/agreement_benchmark.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/cipher_benchmark.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/data",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/data/aead_aes_128_gcm_benchmarks.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/data/aead_aes_256_gcm_benchmarks.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/data/aead_chacha20_poly1305_benchmarks.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/data/agreement_benchmarks.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/data/cipher_aes_128_cbc.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/data/cipher_aes_128_ctr.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/data/cipher_aes_256_cbc.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/data/cipher_aes_256_ctr.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/data/ecdsa_benchmarks.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/data/ed25519_benchmarks.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/data/quic_aes_128_benchmarks.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/data/quic_aes_256_benchmarks.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/data/quic_chacha20_benchmarks.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/data/rsa_benchmarks.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/digest_benchmark.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/ecdsa_benchmark.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/ed25519_benchmark.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/hkdf_benchmark.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/hmac_benchmark.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/kem_benchmark.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/pbkdf2_benchmark.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/quic_benchmark.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/benches/rsa_benchmark.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/tests",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs-testing/tests/aead_test.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/tests/agreement_tests.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/tests/hkdf_test.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/tests/quic_test.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs-testing/tests/rsa_test.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/Cargo.toml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/LICENSE",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/Makefile",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/README.md",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/README.tpl",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/build.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/examples",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/examples/cipher.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/examples/digest.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/scripts",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/scripts/run-rustls-integration.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "aws-lc-rs/scripts/run-s2n-quic-integration.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "aws-lc-rs/scripts/run-valgrind.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "aws-lc-rs/scripts/run-windows-debug-crt-static-test.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "aws-lc-rs/src",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/aead.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/aead",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/aead/aead_ctx.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/aead/aes_gcm.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/aead/chacha.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/aead/chacha20_poly1305_openssh.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/aead/data",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/aead/data/poly1305_test.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/aead/nonce.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/aead/nonce_sequence.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/aead/nonce_sequence",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/aead/nonce_sequence/counter32.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/aead/nonce_sequence/counter64.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/aead/poly1305.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/aead/quic.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/aead/rand_nonce.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/aead/tests",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/aead/tests/fips.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/aead/tests/fips",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/aead/tests/fips/chacha20_poly1305_openssh.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/aead/tests/fips/quic.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/aead/tls.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/aead/unbound_key.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/agreement.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/agreement",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/agreement/agreement_tests.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/agreement/data",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/agreement/data/agreement_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/agreement/ephemeral.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/agreement/parsed_public_key_tests.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/agreement/tests",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/agreement/tests/fips.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/bn.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/buffer.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/cbb.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/cbs.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/cipher.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/cipher",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/cipher/aes.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/cipher/block.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/cipher/chacha.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/cipher/data",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/cipher/data/chacha_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/cipher/des.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/cipher/key.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/cipher/padded.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/cipher/streaming.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/cipher/tests",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/cipher/tests/fips.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/cmac.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/cmac",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/cmac/tests",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/cmac/tests/fips.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/constant_time.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/data",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/data/hmac_generate_serializable_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/debug.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/digest.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/digest",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/digest/digest_ctx.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/digest/sha.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/digest/tests",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/digest/tests/fips.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/ec.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/ec",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/ec/encoding.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/ec/key_pair.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/ec/signature.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/ed25519.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/encoding.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/endian.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/error.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/evp_pkey.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/fips.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/hex.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/hkdf.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/hkdf",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/hkdf/tests",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/hkdf/tests/fips.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/hmac.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/hmac",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/hmac/tests",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/hmac/tests/fips.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/io.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/io",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/io/der.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/io/positive.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/iv.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/kdf.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/kdf",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/kdf/kbkdf.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/kdf/sskdf.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/kem.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/key_wrap.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/key_wrap",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/key_wrap/tests.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/key_wrap/tests",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/key_wrap/tests/fips.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/lib.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/pbkdf2.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/pbkdf2",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/pbkdf2/tests",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/pbkdf2/tests/fips.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/pkcs8.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/pqdsa.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/pqdsa",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/pqdsa/key_pair.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/pqdsa/signature.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/ptr.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/rand.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/rsa.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/rsa",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/rsa/encoding.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/rsa/encryption.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/rsa/encryption",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/rsa/encryption/oaep.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/rsa/encryption/pkcs1.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/rsa/key.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/rsa/signature.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/rsa/tests",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/rsa/tests/fips.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/signature.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/signature",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/signature/parsed_public_key_tests.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/signature/tests",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/signature/tests/fips.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/signature/tests/fips",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/signature/tests/fips/keys.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/test.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/test",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/test/test_1_syntax_error_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/test/test_1_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/test/test_3_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/tls_prf.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/tls_prf",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/tls_prf/tests",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/tls_prf/tests/fips.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/unstable.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/src/unstable",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/src/unstable/signature.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/tests/aead_out_of_place.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/aead_out_of_place_tls.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/aead_test.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/basic_aead_test.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/basic_openssh_test.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/basic_quic_test.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/basic_rsa_test.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/cipher_test.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/cmac_tests.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/MLDSA_44_ACVP_keyGen.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/MLDSA_44_sigVer.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/MLDSA_65_ACVP_keyGen.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/MLDSA_65_sigVer.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/MLDSA_87_ACVP_keyGen.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/MLDSA_87_sigVer.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/aead_aes_128_gcm_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/aead_aes_192_gcm_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/aead_aes_256_gcm_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/aead_chacha20_poly1305_openssh_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/aead_chacha20_poly1305_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/aes_128_gcm_siv_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/aes_256_gcm_siv_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/cavp_3des_cmac_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/cavp_aes128_cmac_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/cavp_aes192_cmac_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/cavp_aes256_cmac_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/digest_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/ecdsa_from_pkcs8_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/ecdsa_sign_asn1_sha3_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/ecdsa_sign_asn1_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/ecdsa_sign_fixed_sha3_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/ecdsa_sign_fixed_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/ecdsa_test_private_key_p256.p8",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/ecdsa_test_public_key_p256.der",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/ecdsa_test_public_key_p256_debug.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/ecdsa_verify_asn1_sha3_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/ecdsa_verify_asn1_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/ecdsa_verify_fixed_sha3_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/ecdsa_verify_fixed_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/ed25519_from_pkcs8_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/ed25519_test_private_key.bin",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/ed25519_test_private_key.p8",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/ed25519_test_public_key.bin",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/ed25519_test_public_key.der",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/ed25519_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/ed25519_verify_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/hkdf_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/hmac_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/kbkdf_counter.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/pbkdf2_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/quic_aes_128_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/quic_aes_256_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/quic_chacha20_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/rsa_from_components_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/rsa_from_pkcs8_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/rsa_pkcs1_sign_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/rsa_pkcs1_verify_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/rsa_primitive_verify_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/rsa_pss_sign_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/rsa_pss_verify_tests.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/rsa_test_private_key_1024.p8",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/rsa_test_private_key_16384.p8",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/rsa_test_private_key_2048.der",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/rsa_test_private_key_2048.p8",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/rsa_test_private_key_8192.p8",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/rsa_test_public_key_1024.x509",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/rsa_test_public_key_2048.der",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/rsa_test_public_key_2048.x509",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/rsa_test_public_key_2048_debug.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/rsa_test_public_key_8192.x509",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/signature_rsa_example_private_key.der",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/signature_rsa_example_public_key.der",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/data/sskdf.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/digest_test.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/ecdsa_tests.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/ed25519_tests.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/hkdf_test.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/hmac_test.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/kdf_test.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/pbkdf2_test.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/pqdsa_test.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/quic_test.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/rand_test.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/rsa_test.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/tests/unsealed_rand_test.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/.gitattributes",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/README.md",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/SHAVS",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/SHAVS/SHA1LongMsg.rsp",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/SHAVS/SHA1Monte.rsp",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/SHAVS/SHA1ShortMsg.rsp",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/SHAVS/SHA224LongMsg.rsp",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/SHAVS/SHA224Monte.rsp",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/SHAVS/SHA224ShortMsg.rsp",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/SHAVS/SHA256LongMsg.rsp",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/SHAVS/SHA256Monte.rsp",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/SHAVS/SHA256ShortMsg.rsp",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/SHAVS/SHA384LongMsg.rsp",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/SHAVS/SHA384Monte.rsp",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/SHAVS/SHA384ShortMsg.rsp",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/SHAVS/SHA3_256LongMsg.rsp",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/SHAVS/SHA3_256Monte.rsp",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/SHAVS/SHA3_256ShortMsg.rsp",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/SHAVS/SHA3_384LongMsg.rsp",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/SHAVS/SHA3_384Monte.rsp",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/SHAVS/SHA3_384ShortMsg.rsp",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/SHAVS/SHA3_512LongMsg.rsp",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/SHAVS/SHA3_512Monte.rsp",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/SHAVS/SHA3_512ShortMsg.rsp",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/SHAVS/SHA512LongMsg.rsp",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/SHAVS/SHA512Monte.rsp",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/SHAVS/SHA512ShortMsg.rsp",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/third_party/NIST/sha256sums.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-rs/util",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-rs/util/process-criterion-csv.rs",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "aws-lc-sys",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-sys/.cargo",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-sys/.cargo/config.toml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/CMakeLists.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/Cargo.toml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/LICENSE",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/Makefile",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/README.md",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/aws-lc",
+      "type": "commit",
+      "mode": "160000"
+    },
+    {
+      "path": "aws-lc-sys/builder",
+      "type": "blob",
+      "mode": "120000"
+    },
+    {
+      "path": "aws-lc-sys/generated-include",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-sys/generated-include/openssl",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-sys/generated-include/openssl/boringssl_prefix_symbols.h",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/generated-include/openssl/boringssl_prefix_symbols_asm.h",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/generated-include/openssl/boringssl_prefix_symbols_nasm.inc",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/include",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-sys/include/rust_wrapper.h",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/scripts",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-sys/scripts/cc_builder",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-sys/scripts/cc_builder/.common.sh",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/scripts/cc_builder/apple_aarch64.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "aws-lc-sys/scripts/cc_builder/apple_x86_64.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "aws-lc-sys/scripts/cc_builder/linux_aarch64.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "aws-lc-sys/scripts/cc_builder/linux_arm.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "aws-lc-sys/scripts/cc_builder/linux_ppc64le.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "aws-lc-sys/scripts/cc_builder/linux_x86.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "aws-lc-sys/scripts/cc_builder/linux_x86_64.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "aws-lc-sys/scripts/cc_builder/universal.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "aws-lc-sys/scripts/cc_builder/win_aarch64.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "aws-lc-sys/scripts/cc_builder/win_x86.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "aws-lc-sys/scripts/cc_builder/win_x86_64.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "aws-lc-sys/src",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-sys/src/aarch64_apple_darwin_crypto.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/src/aarch64_linux_android_crypto.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/src/aarch64_pc_windows_msvc_crypto.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/src/aarch64_unknown_linux_gnu_crypto.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/src/aarch64_unknown_linux_musl_crypto.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/src/i686_pc_windows_msvc_crypto.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/src/i686_unknown_linux_gnu_crypto.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/src/lib.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/src/riscv64gc_unknown_linux_gnu_crypto.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/src/universal_crypto.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/src/universal_no_u1_crypto.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/src/universal_no_u1_prefixed_crypto.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/src/universal_prefixed_crypto.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/src/x86_64_apple_darwin_crypto.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/src/x86_64_pc_windows_gnu_crypto.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/src/x86_64_pc_windows_msvc_crypto.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/src/x86_64_unknown_linux_gnu_crypto.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/src/x86_64_unknown_linux_musl_crypto.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/symbols",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-sys/symbols/.gitkeep",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/symbols/aarch64-apple-darwin.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/symbols/aarch64-pc-windows-msvc.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/symbols/aarch64-unknown-linux-gnu.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/symbols/aarch64-unknown-linux-musl.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/symbols/arm-unknown-linux-gnueabi.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/symbols/armv7-unknown-linux-gnueabihf.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/symbols/i686-pc-windows-msvc.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/symbols/i686-unknown-linux-gnu.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/symbols/powerpc-unknown-linux-gnu.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/symbols/powerpc64le-unknown-linux-gnu.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/symbols/x86_64-apple-darwin.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/symbols/x86_64-pc-windows-gnu.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/symbols/x86_64-pc-windows-msvc.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/symbols/x86_64-unknown-linux-gnu.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/symbols/x86_64-unknown-linux-musl.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "aws-lc-sys/tests",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "aws-lc-sys/tests/sanity-tests.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "book",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "book/.gitignore",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "book/book.toml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "book/src",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "book/src/README.md",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "book/src/SUMMARY.md",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "book/src/faq.md",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "book/src/platform_support.md",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "book/src/requirements",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "book/src/requirements/README.md",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "book/src/requirements/apple.md",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "book/src/requirements/linux.md",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "book/src/requirements/windows.md",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "book/src/resources.md",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder-test",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "builder-test/Cargo.toml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "builder/cc_builder.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/cc_builder",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "builder/cc_builder/apple_aarch64.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/cc_builder/apple_x86_64.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/cc_builder/linux_aarch64.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/cc_builder/linux_arm.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/cc_builder/linux_ppc64le.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/cc_builder/linux_x86.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/cc_builder/linux_x86_64.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/cc_builder/universal.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/cc_builder/win_aarch64.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/cc_builder/win_x86.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/cc_builder/win_x86_64.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/cmake_builder.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/fips_link_probe.c",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/fips_probe.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/fips_probe_tests.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/fips_runtime_check.c",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/main.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/nasm_builder.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm.bat",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "builder/prebuilt-nasm",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "builder/prebuilt-nasm/aes128gcmsiv-x86_64-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/aes128gcmsiv-x86_64.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/aesni-gcm-avx512-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/aesni-gcm-avx512.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/aesni-gcm-x86_64-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/aesni-gcm-x86_64.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/aesni-sha1-x86_64-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/aesni-sha1-x86_64.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/aesni-sha256-x86_64-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/aesni-sha256-x86_64.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/aesni-x86_64-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/aesni-x86_64.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/aesni-xts-avx512-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/aesni-xts-avx512.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/chacha-x86_64-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/chacha-x86_64.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/chacha20_poly1305_x86_64-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/chacha20_poly1305_x86_64.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/ghash-ssse3-x86_64-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/ghash-ssse3-x86_64.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/ghash-x86_64-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/ghash-x86_64.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/md5-x86_64-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/md5-x86_64.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/p256-x86_64-asm-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/p256-x86_64-asm.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/p256_beeu-x86_64-asm-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/p256_beeu-x86_64-asm.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/rdrand-x86_64-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/rdrand-x86_64.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/rsaz-2k-avx512-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/rsaz-2k-avx512.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/rsaz-3k-avx512-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/rsaz-3k-avx512.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/rsaz-4k-avx512-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/rsaz-4k-avx512.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/rsaz-avx2-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/rsaz-avx2.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/sha1-x86_64-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/sha1-x86_64.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/sha256-x86_64-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/sha256-x86_64.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/sha512-x86_64-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/sha512-x86_64.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/trampoline-x86_64-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/trampoline-x86_64.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/vpaes-x86_64-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/vpaes-x86_64.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/x86_64-mont-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/x86_64-mont.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/x86_64-mont5-disasm.txt",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/prebuilt-nasm/x86_64-mont5.obj",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/printenv.bat",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/sys_bindgen.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/system_detect.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/system_detect_tests.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/system_library.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "builder/system_library_tests.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "docker",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "docker/README.md",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "docker/build_images.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "docker/emscripten",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "docker/emscripten/Dockerfile",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "docker/linux-386",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "docker/linux-386/Dockerfile",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "docker/linux-arm64",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "docker/linux-arm64/Dockerfile",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "docker/linux-cross",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "docker/linux-cross/Dockerfile",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "docker/linux-x86_64",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "docker/linux-x86_64/Dockerfile",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "docker/ubuntu-18.04",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "docker/ubuntu-18.04/Dockerfile",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "links-testing",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "links-testing/Cargo.toml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "links-testing/build.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "links-testing/src",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "links-testing/src/main.rs",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "links-testing/src/testing.c",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "scripts",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "scripts/build",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "scripts/build/collect_build_src.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/build/collect_nasm_obj.sh",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "scripts/build/collect_symbols.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/ci",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "scripts/ci/assert_wasm_unshared.py",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/ci/check_sys_crate_compatibility.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/ci/ci_add_commit_rebase_push.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/ci/ios-simulator-runner.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/ci/tvos-simulator-runner.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/ci/update_sys_crate_metadata.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/generate",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "scripts/generate/_collect_symbols_build.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/generate/_crate_test_build.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/generate/_generate_all_bindings_flavors.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/generate/_generate_bindings.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/generate/_generate_prefix_headers.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/generate/_generation_tools.sh",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "scripts/generate/_run_supported_symbol_builds.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/generate/_test_supported_builds.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/generate/_verify_crate_api_diff.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/generate/_verify_crate_packaging.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/generate/generate-aws-lc-fips-sys.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/generate/generate-aws-lc-sys.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/publish",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "scripts/publish/_prepublish_checks.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/publish/_publish_tools.sh",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "scripts/publish/publish-aws-lc-fips-sys.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/publish/publish-aws-lc-rs.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/publish/publish-aws-lc-sys.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/tests",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "scripts/tests/assert_cpu_jitter_entropy.rs",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/tests/assert_cpu_jitter_entropy_fips.rs",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/tests/first_random_byte_latency.rs",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/tests/prefix_test.rs",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/tests/test-bindings-pregen-fips.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/tests/test-bindings-pregen.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/tests/test_system_lib.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/tests/test_system_lib_fips.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/tools",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "scripts/tools/cargo-dig.rs",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/tools/copyright_check.sh",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/tools/semver.rs",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "scripts/tools/target-platform.rs",
+      "type": "blob",
+      "mode": "100755"
+    },
+    {
+      "path": "tests",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "tests/binary-size",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "tests/binary-size/Cargo.toml",
+      "type": "blob",
+      "mode": "100644"
+    },
+    {
+      "path": "tests/binary-size/src",
+      "type": "tree",
+      "mode": "040000"
+    },
+    {
+      "path": "tests/binary-size/src/main.rs",
+      "type": "blob",
+      "mode": "100644"
+    }
+  ]
+}
