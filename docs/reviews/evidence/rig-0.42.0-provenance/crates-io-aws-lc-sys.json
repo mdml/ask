@@ -1,0 +1,2661 @@
+{
+  "_normalization": "Normalized evidence, not a raw response: the \"crate\" object is unmodified; each entry in \"versions\" keeps number, timestamps, downloads, yank state, license, checksum, size, publisher identity, trusted-publishing data, and audit actions, while \"features\", \"links\", \"dl_path\", \"readme_path\", \"description\", \"homepage\", \"documentation\", \"repository\", \"linecounts\", \"lib_links\", \"has_lib\", and \"bin_names\" were removed on 2026-09-04.",
+  "crate": {
+    "id": "aws-lc-sys",
+    "name": "aws-lc-sys",
+    "updated_at": "2026-09-01T13:00:11.051728Z",
+    "versions": [
+      3126981,
+      2949176,
+      2808947,
+      2679103,
+      2391970,
+      2261868,
+      2176983,
+      2143162,
+      2080370,
+      2020134,
+      1967910,
+      1944428,
+      1884845,
+      1836640,
+      1822026,
+      1774462,
+      1752558,
+      1747655,
+      1744408,
+      1721796,
+      1636345,
+      1555847,
+      1533235,
+      1530072,
+      1505648,
+      1491458,
+      1483301,
+      1478883,
+      1452597,
+      1435480,
+      1410840,
+      1390747,
+      1378090,
+      1349527,
+      1341552,
+      1289558,
+      1274585,
+      1265399,
+      1262093,
+      1219252,
+      1207766,
+      1186294,
+      1171438,
+      1153587,
+      1134197,
+      1117030,
+      1102799,
+      1100414,
+      1073485,
+      1053199,
+      1052140,
+      1029162,
+      961992,
+      957395,
+      937484,
+      892812,
+      886320,
+      843282,
+      830179,
+      807829,
+      798384,
+      785119,
+      780505,
+      722424,
+      713052,
+      696859,
+      679001,
+      675582,
+      665084,
+      660482,
+      660252
+    ],
+    "keywords": [],
+    "categories": [],
+    "badges": [],
+    "created_at": "2022-11-09T14:51:37.712153Z",
+    "downloads": 213376698,
+    "recent_downloads": 79136107,
+    "default_version": "0.45.0",
+    "num_versions": 71,
+    "yanked": false,
+    "max_version": "0.45.0",
+    "newest_version": "0.45.0",
+    "max_stable_version": "0.45.0",
+    "description": "AWS-LC is a general-purpose cryptographic library maintained by the AWS Cryptography team for AWS and their customers. It \u0456s based on code from the Google BoringSSL project and the OpenSSL project.",
+    "homepage": null,
+    "documentation": null,
+    "repository": "https://github.com/aws/aws-lc-rs",
+    "links": {
+      "version_downloads": "/api/v1/crates/aws-lc-sys/downloads",
+      "versions": null,
+      "owners": "/api/v1/crates/aws-lc-sys/owners",
+      "owner_team": "/api/v1/crates/aws-lc-sys/owner_team",
+      "owner_user": "/api/v1/crates/aws-lc-sys/owner_user",
+      "reverse_dependencies": "/api/v1/crates/aws-lc-sys/reverse_dependencies"
+    },
+    "exact_match": false,
+    "trustpub_only": false
+  },
+  "versions": [
+    {
+      "id": 3126981,
+      "num": "0.45.0",
+      "created_at": "2026-09-01T13:00:11.051728Z",
+      "updated_at": "2026-09-01T13:00:11.051728Z",
+      "downloads": 477927,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND Apache-2.0 AND MIT AND BSD-3-Clause AND (Apache-2.0 OR ISC OR MIT) AND (Apache-2.0 OR ISC OR MIT-0)",
+      "checksum": "9bff6c3b54fad79a2e60b8102caf565819711497c1f5f092f49508e2f5c31b27",
+      "crate_size": 9725710,
+      "rust_version": "1.71.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2026-09-01T13:00:11.051728Z"
+        }
+      ]
+    },
+    {
+      "id": 2949176,
+      "num": "0.44.0",
+      "created_at": "2026-08-07T16:24:43.574780Z",
+      "updated_at": "2026-08-07T16:24:43.574780Z",
+      "downloads": 6327423,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND Apache-2.0 AND MIT AND BSD-3-Clause AND (Apache-2.0 OR ISC OR MIT) AND (Apache-2.0 OR ISC OR MIT-0)",
+      "checksum": "f09fae7be8bb3174e05c6afdb34199e6dc0c7c04ba9fa237b1967adfbde27483",
+      "crate_size": 9679450,
+      "rust_version": "1.71.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2026-08-07T16:24:43.574780Z"
+        }
+      ]
+    },
+    {
+      "id": 2808947,
+      "num": "0.43.0",
+      "created_at": "2026-07-17T17:37:59.460021Z",
+      "updated_at": "2026-07-17T17:37:59.460021Z",
+      "downloads": 8055986,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND Apache-2.0 AND MIT AND BSD-3-Clause AND (Apache-2.0 OR ISC OR MIT) AND (Apache-2.0 OR ISC OR MIT-0)",
+      "checksum": "43103168cc76fe62678a375e722fc9cb3a0146159ac5828bc4f0dfd755c2224c",
+      "crate_size": 9662543,
+      "rust_version": "1.71.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2026-07-17T17:37:59.460021Z"
+        }
+      ]
+    },
+    {
+      "id": 2679103,
+      "num": "0.42.0",
+      "created_at": "2026-06-30T12:42:57.760733Z",
+      "updated_at": "2026-06-30T12:42:57.760733Z",
+      "downloads": 8414043,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND Apache-2.0 AND MIT AND BSD-3-Clause AND (Apache-2.0 OR ISC OR MIT) AND (Apache-2.0 OR ISC OR MIT-0)",
+      "checksum": "6d9ceb1da931507a12f4fccea479dccd00da1943e1b4ae72d8e502d707361444",
+      "crate_size": 9649430,
+      "rust_version": "1.71.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2026-06-30T12:42:57.760733Z"
+        }
+      ]
+    },
+    {
+      "id": 2391970,
+      "num": "0.41.0",
+      "created_at": "2026-05-13T11:34:11.571877Z",
+      "updated_at": "2026-05-13T11:34:11.571877Z",
+      "downloads": 25805143,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND Apache-2.0 AND MIT AND BSD-3-Clause AND (Apache-2.0 OR ISC OR MIT) AND (Apache-2.0 OR ISC OR MIT-0)",
+      "checksum": "1a2f9779ce85b93ab6170dd940ad0169b5766ff848247aff13bb788b832fe3f4",
+      "crate_size": 9517046,
+      "rust_version": "1.71.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2026-05-13T11:34:11.571877Z"
+        }
+      ]
+    },
+    {
+      "id": 2261868,
+      "num": "0.40.0",
+      "created_at": "2026-04-15T19:52:38.977110Z",
+      "updated_at": "2026-04-15T19:52:38.977110Z",
+      "downloads": 20607098,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND Apache-2.0 AND MIT AND BSD-3-Clause AND (Apache-2.0 OR ISC OR MIT) AND (Apache-2.0 OR ISC OR MIT-0)",
+      "checksum": "f50037ee5e1e41e7b8f9d161680a725bd1626cb6f8c7e901f91f942850852fe7",
+      "crate_size": 9515863,
+      "rust_version": "1.71.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2026-04-15T19:52:38.977110Z"
+        }
+      ]
+    },
+    {
+      "id": 2176983,
+      "num": "0.39.1",
+      "created_at": "2026-03-27T20:52:13.230767Z",
+      "updated_at": "2026-03-27T20:52:13.230767Z",
+      "downloads": 17299416,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND Apache-2.0 AND MIT AND BSD-3-Clause AND (Apache-2.0 OR ISC OR MIT) AND (Apache-2.0 OR ISC OR MIT-0)",
+      "checksum": "83a25cf98105baa966497416dbd42565ce3a8cf8dbfd59803ec9ad46f3126399",
+      "crate_size": 9461553,
+      "rust_version": "1.71.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2026-03-27T20:52:13.230767Z"
+        }
+      ]
+    },
+    {
+      "id": 2143162,
+      "num": "0.39.0",
+      "created_at": "2026-03-19T20:58:18.315884Z",
+      "updated_at": "2026-03-19T20:58:18.315884Z",
+      "downloads": 13882056,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND Apache-2.0 AND MIT AND BSD-3-Clause AND (Apache-2.0 OR ISC OR MIT) AND (Apache-2.0 OR ISC OR MIT-0)",
+      "checksum": "1fa7e52a4c5c547c741610a2c6f123f3881e409b714cd27e6798ef020c514f0a",
+      "crate_size": 9461007,
+      "rust_version": "1.71.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2026-03-19T20:58:18.315884Z"
+        }
+      ]
+    },
+    {
+      "id": 2080370,
+      "num": "0.38.0",
+      "created_at": "2026-03-02T22:05:08.107375Z",
+      "updated_at": "2026-03-02T22:05:08.107375Z",
+      "downloads": 8366749,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "4321e568ed89bb5a7d291a7f37997c2c0df89809d7b6d12062c81ddb54aa782e",
+      "crate_size": 9678972,
+      "rust_version": "1.71.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2026-03-02T22:05:08.107375Z"
+        }
+      ]
+    },
+    {
+      "id": 2020134,
+      "num": "0.37.1",
+      "created_at": "2026-02-11T21:50:01.741347Z",
+      "updated_at": "2026-02-11T21:50:01.741347Z",
+      "downloads": 6776906,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "b092fe214090261288111db7a2b2c2118e5a7f30dc2569f1732c4069a6840549",
+      "crate_size": 9648620,
+      "rust_version": "1.71.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2026-02-11T21:50:01.741347Z"
+        }
+      ]
+    },
+    {
+      "id": 1967910,
+      "num": "0.37.0",
+      "created_at": "2026-01-23T20:03:11.392534Z",
+      "updated_at": "2026-01-23T20:03:11.392534Z",
+      "downloads": 7107474,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "5c34dda4df7017c8db52132f0f8a2e0f8161649d15723ed63fc00c82d0f2081a",
+      "crate_size": 9589032,
+      "rust_version": "1.70.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2026-01-23T20:03:11.392534Z"
+        }
+      ]
+    },
+    {
+      "id": 1944428,
+      "num": "0.36.0",
+      "created_at": "2026-01-14T20:45:09.378169Z",
+      "updated_at": "2026-01-14T20:45:09.378169Z",
+      "downloads": 2683830,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "43a442ece363113bd4bd4c8b18977a7798dd4d3c3383f34fb61936960e8f4ad8",
+      "crate_size": 9568999,
+      "rust_version": "1.70.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2026-01-14T20:45:09.378169Z"
+        }
+      ]
+    },
+    {
+      "id": 1884845,
+      "num": "0.35.0",
+      "created_at": "2025-12-16T20:44:01.543609Z",
+      "updated_at": "2025-12-16T20:44:01.543609Z",
+      "downloads": 6152083,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "b45afffdee1e7c9126814751f88dddc747f41d91da16c9551a0f1e8a11e788a1",
+      "crate_size": 9489582,
+      "rust_version": "1.70.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2025-12-16T20:44:01.543609Z"
+        }
+      ]
+    },
+    {
+      "id": 1836640,
+      "num": "0.34.0",
+      "created_at": "2025-11-21T18:49:06.470826Z",
+      "updated_at": "2025-11-21T18:49:06.470826Z",
+      "downloads": 5140189,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "179c3777a8b5e70e90ea426114ffc565b2c1a9f82f6c4a0c5a34aa6ef5e781b6",
+      "crate_size": 9487891,
+      "rust_version": "1.70.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2025-11-21T18:49:06.470826Z"
+        }
+      ]
+    },
+    {
+      "id": 1822026,
+      "num": "0.33.0",
+      "created_at": "2025-11-12T18:36:21.931501Z",
+      "updated_at": "2025-11-12T18:36:21.931501Z",
+      "downloads": 1825066,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "1826f2e4cfc2cd19ee53c42fbf68e2f81ec21108e0b7ecf6a71cf062137360fc",
+      "crate_size": 9485869,
+      "rust_version": "1.70.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2025-11-12T18:36:21.931501Z"
+        }
+      ]
+    },
+    {
+      "id": 1774462,
+      "num": "0.32.3",
+      "created_at": "2025-10-14T20:26:00.872367Z",
+      "updated_at": "2025-10-14T20:26:00.872367Z",
+      "downloads": 6182365,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "107a4e9d9cab9963e04e84bb8dee0e25f2a987f9a8bad5ed054abd439caa8f8c",
+      "crate_size": 9361125,
+      "rust_version": "1.70.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2025-10-14T20:26:00.872367Z"
+        }
+      ]
+    },
+    {
+      "id": 1752558,
+      "num": "0.32.2",
+      "created_at": "2025-09-30T18:29:42.369126Z",
+      "updated_at": "2025-09-30T18:29:42.369126Z",
+      "downloads": 1946704,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "a2b715a6010afb9e457ca2b7c9d2b9c344baa8baed7b38dc476034c171b32575",
+      "crate_size": 9358097,
+      "rust_version": "1.70.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2025-09-30T18:29:42.369126Z"
+        }
+      ]
+    },
+    {
+      "id": 1747655,
+      "num": "0.32.1",
+      "created_at": "2025-09-26T22:14:38.235837Z",
+      "updated_at": "2025-09-26T22:14:38.235837Z",
+      "downloads": 427072,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "1ba2e2516bdf37af57fc6ff047855f54abad0066e5c4fdaaeb76dabb2e05bcf5",
+      "crate_size": 9357889,
+      "rust_version": "1.70.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2025-09-26T22:14:38.235837Z"
+        }
+      ]
+    },
+    {
+      "id": 1744408,
+      "num": "0.32.0",
+      "created_at": "2025-09-24T18:12:34.366422Z",
+      "updated_at": "2025-09-24T18:12:34.366422Z",
+      "downloads": 858840,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "ee74396bee4da70c2e27cf94762714c911725efe69d9e2672f998512a67a4ce4",
+      "crate_size": 9357507,
+      "rust_version": "1.70.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2025-09-24T18:12:34.366422Z"
+        }
+      ]
+    },
+    {
+      "id": 1721796,
+      "num": "0.31.0",
+      "created_at": "2025-09-09T17:57:09.355993Z",
+      "updated_at": "2025-09-09T17:57:09.355993Z",
+      "downloads": 3811176,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "0e44d16778acaf6a9ec9899b92cebd65580b83f685446bf2e1f5d3d732f99dcd",
+      "crate_size": 9255328,
+      "rust_version": "1.70.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2025-09-09T17:57:09.355993Z"
+        }
+      ]
+    },
+    {
+      "id": 1636345,
+      "num": "0.30.0",
+      "created_at": "2025-07-10T18:37:03.145507Z",
+      "updated_at": "2025-07-10T18:37:03.145507Z",
+      "downloads": 11735967,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "dbfd150b5dbdb988bcc8fb1fe787eb6b7ee6180ca24da683b61ea5405f3d43ff",
+      "crate_size": 9168798,
+      "rust_version": "1.63.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2025-07-10T18:37:03.145507Z"
+        }
+      ]
+    },
+    {
+      "id": 1555847,
+      "num": "0.29.0",
+      "created_at": "2025-05-08T20:39:59.943234Z",
+      "updated_at": "2025-05-08T20:39:59.943234Z",
+      "downloads": 9793164,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "61b1d86e7705efe1be1b569bab41d4fa1e14e220b60a160f78de2db687add079",
+      "crate_size": 9021128,
+      "rust_version": "1.63.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2025-05-08T20:39:59.943234Z"
+        }
+      ]
+    },
+    {
+      "id": 1533235,
+      "num": "0.28.2",
+      "created_at": "2025-04-21T18:05:47.654002Z",
+      "updated_at": "2025-04-21T18:05:47.654002Z",
+      "downloads": 9798796,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "bfa9b6986f250236c27e5a204062434a773a13243d2ffc2955f37bdba4c5c6a1",
+      "crate_size": 8422483,
+      "rust_version": "1.63.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2025-04-21T18:05:47.654002Z"
+        }
+      ]
+    },
+    {
+      "id": 1530072,
+      "num": "0.28.1",
+      "created_at": "2025-04-18T20:43:34.533287Z",
+      "updated_at": "2025-04-18T20:43:34.533287Z",
+      "downloads": 111756,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "0ddeb19ee86cb16ecfc871e5b0660aff6285760957aaedda6284cf0e790d3769",
+      "crate_size": 8518007,
+      "rust_version": "1.63.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2025-04-18T20:43:34.533287Z"
+        }
+      ]
+    },
+    {
+      "id": 1505648,
+      "num": "0.28.0",
+      "created_at": "2025-04-01T18:55:06.080537Z",
+      "updated_at": "2025-04-01T18:55:06.080537Z",
+      "downloads": 5791616,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "b9f7720b74ed28ca77f90769a71fd8c637a0137f6fae4ae947e1050229cff57f",
+      "crate_size": 8517214,
+      "rust_version": "1.63.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2025-04-01T18:55:06.080537Z"
+        }
+      ]
+    },
+    {
+      "id": 1491458,
+      "num": "0.27.2",
+      "created_at": "2025-03-21T18:40:48.098408Z",
+      "updated_at": "2025-03-21T22:46:38.857231Z",
+      "downloads": 5688,
+      "yanked": true,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "02864f6f8061f14ca73c85d261838dcb87b6a9a4259781bd0e1031821b280167",
+      "crate_size": 8498165,
+      "rust_version": "1.63.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2025-03-21T18:40:48.098408Z"
+        },
+        {
+          "action": "yank",
+          "user": {
+            "id": 185257,
+            "login": "samuel40791765",
+            "name": "Samuel Chiang",
+            "avatar": "https://avatars.githubusercontent.com/u/11924508?v=4",
+            "url": "https://github.com/samuel40791765",
+            "github_username_matches": true,
+            "created_at": "2015-04-13T12:25:08Z"
+          },
+          "time": "2025-03-21T22:46:38.865551Z"
+        }
+      ]
+    },
+    {
+      "id": 1483301,
+      "num": "0.27.1",
+      "created_at": "2025-03-14T20:43:04.359329Z",
+      "updated_at": "2025-03-14T20:43:04.359329Z",
+      "downloads": 4340421,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "77926887776171ced7d662120a75998e444d3750c951abfe07f90da130514b1f",
+      "crate_size": 8495439,
+      "rust_version": "1.63.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 184010,
+        "login": "skmcgrail",
+        "name": "Sean McGrail"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 184010,
+            "login": "skmcgrail",
+            "name": "Sean McGrail",
+            "avatar": "https://avatars.githubusercontent.com/u/549813?v=4",
+            "url": "https://github.com/skmcgrail",
+            "github_username_matches": true,
+            "created_at": "2011-01-06T05:08:17Z"
+          },
+          "time": "2025-03-14T20:43:04.359329Z"
+        }
+      ]
+    },
+    {
+      "id": 1478883,
+      "num": "0.27.0",
+      "created_at": "2025-03-11T18:11:21.646565Z",
+      "updated_at": "2025-03-11T18:11:21.646565Z",
+      "downloads": 968935,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "6bbe221bbf523b625a4dd8585c7f38166e31167ec2ca98051dbcb4c3b6e825d2",
+      "crate_size": 8491780,
+      "rust_version": "1.63.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2025-03-11T18:11:21.646565Z"
+        }
+      ]
+    },
+    {
+      "id": 1452597,
+      "num": "0.26.0",
+      "created_at": "2025-02-19T20:15:21.981562Z",
+      "updated_at": "2025-02-19T20:15:21.981562Z",
+      "downloads": 1065417,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "0f9dd2e03ee80ca2822dd6ea431163d2ef259f2066a4d6ccaca6d9dcb386aa43",
+      "crate_size": 8330008,
+      "rust_version": "1.63.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2025-02-19T20:15:21.981562Z"
+        }
+      ]
+    },
+    {
+      "id": 1435480,
+      "num": "0.25.1",
+      "created_at": "2025-02-05T18:29:08.226478Z",
+      "updated_at": "2025-02-05T18:29:08.226478Z",
+      "downloads": 1059860,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "54ac4f13dad353b209b34cbec082338202cbc01c8f00336b55c750c13ac91f8f",
+      "crate_size": 8277025,
+      "rust_version": "1.63.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2025-02-05T18:29:08.226478Z"
+        }
+      ]
+    },
+    {
+      "id": 1410840,
+      "num": "0.25.0",
+      "created_at": "2025-01-16T19:17:43.556838Z",
+      "updated_at": "2025-01-16T19:17:43.556838Z",
+      "downloads": 2562092,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "71b2ddd3ada61a305e1d8bb6c005d1eaa7d14d903681edfc400406d523a9b491",
+      "crate_size": 8276994,
+      "rust_version": "1.63.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2025-01-16T19:17:43.556838Z"
+        }
+      ]
+    },
+    {
+      "id": 1390747,
+      "num": "0.24.1",
+      "created_at": "2024-12-30T21:40:53.441008Z",
+      "updated_at": "2024-12-30T21:40:53.441008Z",
+      "downloads": 1040061,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "923ded50f602b3007e5e63e3f094c479d9c8a9b42d7f4034e4afe456aa48bfd2",
+      "crate_size": 8132691,
+      "rust_version": "1.63.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2024-12-30T21:40:53.441008Z"
+        }
+      ]
+    },
+    {
+      "id": 1378090,
+      "num": "0.24.0",
+      "created_at": "2024-12-17T19:37:10.547365Z",
+      "updated_at": "2024-12-17T19:37:10.547365Z",
+      "downloads": 2559730,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "8478a5c29ead3f3be14aff8a202ad965cf7da6856860041bfca271becf8ba48b",
+      "crate_size": 8132761,
+      "rust_version": "1.63.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2024-12-17T19:37:10.547365Z"
+        }
+      ]
+    },
+    {
+      "id": 1349527,
+      "num": "0.23.1",
+      "created_at": "2024-11-22T21:11:53.054497Z",
+      "updated_at": "2024-11-22T21:11:53.054497Z",
+      "downloads": 2262968,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "a2101df3813227bbaaaa0b04cd61c534c7954b22bd68d399b440be937dc63ff7",
+      "crate_size": 8026946,
+      "rust_version": "1.63.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2024-11-22T21:11:53.054497Z"
+        }
+      ]
+    },
+    {
+      "id": 1341552,
+      "num": "0.23.0",
+      "created_at": "2024-11-15T23:48:36.340111Z",
+      "updated_at": "2024-11-15T23:48:36.340111Z",
+      "downloads": 172031,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "ad3a619a9de81e1d7de1f1186dcba4506ed661a0e483d84410fdef0ee87b2f96",
+      "crate_size": 8026739,
+      "rust_version": "1.63.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2024-11-15T23:48:36.340111Z"
+        }
+      ]
+    },
+    {
+      "id": 1289558,
+      "num": "0.22.0",
+      "created_at": "2024-10-03T21:06:41.270320Z",
+      "updated_at": "2024-10-03T21:06:41.270320Z",
+      "downloads": 2248422,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "df7a4168111d7eb622a31b214057b8509c0a7e1794f44c546d742330dc793972",
+      "crate_size": 7961062,
+      "rust_version": "1.63.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2024-10-03T21:06:41.270320Z"
+        }
+      ]
+    },
+    {
+      "id": 1274585,
+      "num": "0.21.2",
+      "created_at": "2024-09-19T00:06:22.929611Z",
+      "updated_at": "2024-09-19T00:06:22.929611Z",
+      "downloads": 618660,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "b3ddc4a5b231dd6958b140ff3151b6412b3f4321fab354f399eec8f14b06df62",
+      "crate_size": 7936976,
+      "rust_version": "1.63.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2024-09-19T00:06:22.929611Z"
+        }
+      ]
+    },
+    {
+      "id": 1265399,
+      "num": "0.21.1",
+      "created_at": "2024-09-09T22:14:54.093922Z",
+      "updated_at": "2024-09-09T22:14:54.093922Z",
+      "downloads": 318438,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "234314bd569802ec87011d653d6815c6d7b9ffb969e9fee5b8b20ef860e8dce9",
+      "crate_size": 7936850,
+      "rust_version": "1.63.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2024-09-09T22:14:54.093922Z"
+        }
+      ]
+    },
+    {
+      "id": 1262093,
+      "num": "0.21.0",
+      "created_at": "2024-09-06T17:24:05.557385Z",
+      "updated_at": "2024-09-06T17:24:05.557385Z",
+      "downloads": 39282,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "5055edc4a9a1b2a917a818258cdfb86a535947feebd9981adc99667a062c6f85",
+      "crate_size": 7936792,
+      "rust_version": "1.63.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2024-09-06T17:24:05.557385Z"
+        }
+      ]
+    },
+    {
+      "id": 1219252,
+      "num": "0.20.1",
+      "created_at": "2024-07-30T19:11:47.720619Z",
+      "updated_at": "2024-07-30T19:11:47.720619Z",
+      "downloads": 842518,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "0f0e249228c6ad2d240c2dc94b714d711629d52bad946075d8e9b2f5391f0703",
+      "crate_size": 7922847,
+      "rust_version": "1.63.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2024-07-30T19:11:47.720619Z"
+        }
+      ]
+    },
+    {
+      "id": 1207766,
+      "num": "0.20.0",
+      "created_at": "2024-07-18T19:03:54.829462Z",
+      "updated_at": "2024-07-18T19:03:54.829462Z",
+      "downloads": 449990,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "2e89b6941c2d1a7045538884d6e760ccfffdf8e1ffc2613d8efa74305e1f3752",
+      "crate_size": 7919542,
+      "rust_version": "1.63.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2024-07-18T19:03:54.829462Z"
+        }
+      ]
+    },
+    {
+      "id": 1186294,
+      "num": "0.19.0",
+      "created_at": "2024-06-26T18:42:12.315862Z",
+      "updated_at": "2024-06-26T18:42:12.315862Z",
+      "downloads": 581741,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "2927c7af777b460b7ccd95f8b67acd7b4c04ec8896bf0c8e80ba30523cffc057",
+      "crate_size": 7906410,
+      "rust_version": "1.63.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2024-06-26T18:42:12.315862Z"
+        }
+      ]
+    },
+    {
+      "id": 1171438,
+      "num": "0.18.0",
+      "created_at": "2024-06-11T21:34:13.275292Z",
+      "updated_at": "2024-06-11T21:34:13.275292Z",
+      "downloads": 523686,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "c3a2c29203f6bf296d01141cc8bb9dbd5ecd4c27843f2ee0767bcd5985a927da",
+      "crate_size": 7888978,
+      "rust_version": "1.63.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2024-06-11T21:34:13.275292Z"
+        }
+      ]
+    },
+    {
+      "id": 1153587,
+      "num": "0.17.0",
+      "created_at": "2024-05-23T16:56:41.326011Z",
+      "updated_at": "2024-05-23T16:56:41.326011Z",
+      "downloads": 288060,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "7505fc3cb7acbf42699a43a79dd9caa4ed9e99861dfbb837c5c0fb5a0a8d2980",
+      "crate_size": 7886886,
+      "rust_version": "1.63.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2024-05-23T16:56:41.326011Z"
+        }
+      ]
+    },
+    {
+      "id": 1134197,
+      "num": "0.16.0",
+      "created_at": "2024-05-03T19:28:13.883012Z",
+      "updated_at": "2024-05-03T19:28:13.883012Z",
+      "downloads": 296453,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "c15eb61145320320eb919d9bab524617a7aa4216c78d342fae3a758bc33073e4",
+      "crate_size": 7878259,
+      "rust_version": "1.61.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2024-05-03T19:28:13.883012Z"
+        }
+      ]
+    },
+    {
+      "id": 1117030,
+      "num": "0.15.0",
+      "created_at": "2024-04-16T19:50:26.059795Z",
+      "updated_at": "2024-04-16T19:50:26.059795Z",
+      "downloads": 401020,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "8d5d317212c2a78d86ba6622e969413c38847b62f48111f8b763af3dac2f9840",
+      "crate_size": 7879845,
+      "rust_version": "1.61.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2024-04-16T19:50:26.059795Z"
+        }
+      ]
+    },
+    {
+      "id": 1102799,
+      "num": "0.14.1",
+      "created_at": "2024-04-03T18:40:19.420352Z",
+      "updated_at": "2024-04-03T18:40:19.420352Z",
+      "downloads": 70174,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "68aa3d613f42dbf301dbbcaf3dc260805fd33ffd95f6d290ad7231a9e5d877a7",
+      "crate_size": 7842092,
+      "rust_version": "1.61.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2024-04-03T18:40:19.420352Z"
+        }
+      ]
+    },
+    {
+      "id": 1100414,
+      "num": "0.14.0",
+      "created_at": "2024-04-01T18:03:19.406737Z",
+      "updated_at": "2024-04-01T23:26:16.600457Z",
+      "downloads": 2794,
+      "yanked": true,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "8d05dbd77fa008adb51de4e8259226881ffb46f5bfbfdbcfb235f18c571a521d",
+      "crate_size": 7842063,
+      "rust_version": "1.61.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2024-04-01T18:03:19.406737Z"
+        },
+        {
+          "action": "yank",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2024-04-01T23:26:16.605053Z"
+        }
+      ]
+    },
+    {
+      "id": 1073485,
+      "num": "0.13.3",
+      "created_at": "2024-03-05T19:26:58.069559Z",
+      "updated_at": "2024-03-05T19:26:58.069559Z",
+      "downloads": 230722,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC) AND OpenSSL",
+      "checksum": "37ede3d6e360a48436fee127cb81710834407b1ec0c48a001cc29dec9005f73e",
+      "crate_size": 7153583,
+      "rust_version": "1.61.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2024-03-05T19:26:58.069559Z"
+        }
+      ]
+    },
+    {
+      "id": 1053199,
+      "num": "0.13.2",
+      "created_at": "2024-02-15T19:16:41.026149Z",
+      "updated_at": "2024-02-15T19:16:41.026149Z",
+      "downloads": 98724,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC)",
+      "checksum": "a5f269b176dc4aeb593910fa56ed6f956cde19542e496bb0bfc1ad9a6ce18815",
+      "crate_size": 7150001,
+      "rust_version": "1.61.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2024-02-15T19:16:41.026149Z"
+        }
+      ]
+    },
+    {
+      "id": 1052140,
+      "num": "0.13.1",
+      "created_at": "2024-02-14T21:22:08.669887Z",
+      "updated_at": "2024-02-15T14:52:10.910954Z",
+      "downloads": 2939,
+      "yanked": true,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC)",
+      "checksum": "92574ba73283b4c67e0920e9ce07ab9cc5d93d5d982260d672ea6f6d6dcdc7ae",
+      "crate_size": 7150008,
+      "rust_version": "1.61.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2024-02-14T21:22:08.669887Z"
+        },
+        {
+          "action": "yank",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2024-02-15T14:52:10.915296Z"
+        }
+      ]
+    },
+    {
+      "id": 1029162,
+      "num": "0.13.0",
+      "created_at": "2024-01-26T21:19:45.896581Z",
+      "updated_at": "2024-01-26T21:19:45.896581Z",
+      "downloads": 108853,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC)",
+      "checksum": "b6e564487156f6ea22217c06263abd92ee65e4d9ff3dbc1f99f703f060f94715",
+      "crate_size": 7149997,
+      "rust_version": "1.60.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2024-01-26T21:19:45.896581Z"
+        }
+      ]
+    },
+    {
+      "id": 961992,
+      "num": "0.12.1",
+      "created_at": "2023-11-20T21:57:12.175580Z",
+      "updated_at": "2023-11-20T21:57:12.175580Z",
+      "downloads": 244188,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC)",
+      "checksum": "c2c6f9497a1bd3bed0a28a01b8836dbe9c7a2c521e47a14b165c64c4df592331",
+      "crate_size": 6722254,
+      "rust_version": "1.60.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 184010,
+        "login": "skmcgrail",
+        "name": "Sean McGrail"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 184010,
+            "login": "skmcgrail",
+            "name": "Sean McGrail",
+            "avatar": "https://avatars.githubusercontent.com/u/549813?v=4",
+            "url": "https://github.com/skmcgrail",
+            "github_username_matches": true,
+            "created_at": "2011-01-06T05:08:17Z"
+          },
+          "time": "2023-11-20T21:57:12.175580Z"
+        }
+      ]
+    },
+    {
+      "id": 957395,
+      "num": "0.12.0",
+      "created_at": "2023-11-16T21:46:01.237417Z",
+      "updated_at": "2023-11-16T21:46:01.237417Z",
+      "downloads": 30866,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC)",
+      "checksum": "fa851b9955e1c4ab862c022a23b87b90237fd69ee715b91f9c13a20306d781e4",
+      "crate_size": 6722182,
+      "rust_version": "1.60.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 184010,
+        "login": "skmcgrail",
+        "name": "Sean McGrail"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 184010,
+            "login": "skmcgrail",
+            "name": "Sean McGrail",
+            "avatar": "https://avatars.githubusercontent.com/u/549813?v=4",
+            "url": "https://github.com/skmcgrail",
+            "github_username_matches": true,
+            "created_at": "2011-01-06T05:08:17Z"
+          },
+          "time": "2023-11-16T21:46:01.237417Z"
+        }
+      ]
+    },
+    {
+      "id": 937484,
+      "num": "0.11.0",
+      "created_at": "2023-10-27T19:20:53.358768Z",
+      "updated_at": "2023-10-27T19:20:53.358768Z",
+      "downloads": 61019,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC)",
+      "checksum": "de27c152edd365909b8fe952bce7617c910bd413b5b4bb9b0238d37e412f7e2a",
+      "crate_size": 6734142,
+      "rust_version": "1.60.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 184010,
+        "login": "skmcgrail",
+        "name": "Sean McGrail"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 184010,
+            "login": "skmcgrail",
+            "name": "Sean McGrail",
+            "avatar": "https://avatars.githubusercontent.com/u/549813?v=4",
+            "url": "https://github.com/skmcgrail",
+            "github_username_matches": true,
+            "created_at": "2011-01-06T05:08:17Z"
+          },
+          "time": "2023-10-27T19:20:53.358768Z"
+        }
+      ]
+    },
+    {
+      "id": 892812,
+      "num": "0.10.1",
+      "created_at": "2023-09-08T17:44:33.310888Z",
+      "updated_at": "2023-09-08T17:44:33.310888Z",
+      "downloads": 128490,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC)",
+      "checksum": "1204ffc70f0ef919e9810f2f3e34fa41e217234bb1a31f082095ffde646584c8",
+      "crate_size": 6707631,
+      "rust_version": "1.60.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2023-09-08T17:44:33.310888Z"
+        }
+      ]
+    },
+    {
+      "id": 886320,
+      "num": "0.10.0",
+      "created_at": "2023-08-31T17:36:30.713480Z",
+      "updated_at": "2023-08-31T17:36:30.713480Z",
+      "downloads": 5701,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC)",
+      "checksum": "f339da9a656dc40bc2a891166a6ce8334cb5a7705442a4bd18cfe0b3868b9738",
+      "crate_size": 6542016,
+      "rust_version": "1.60.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2023-08-31T17:36:30.713480Z"
+        }
+      ]
+    },
+    {
+      "id": 843282,
+      "num": "0.9.0",
+      "created_at": "2023-07-10T18:22:25.098959Z",
+      "updated_at": "2023-07-10T18:22:25.098959Z",
+      "downloads": 138279,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC)",
+      "checksum": "1d6bd58f070795f89c3c66f1cf9446703e4cc8240f894558eaf977f9f89c8a78",
+      "crate_size": 6485083,
+      "rust_version": "1.60.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2023-07-10T18:22:25.098959Z"
+        }
+      ]
+    },
+    {
+      "id": 830179,
+      "num": "0.8.0",
+      "created_at": "2023-06-23T17:53:42.806014Z",
+      "updated_at": "2023-06-23T17:53:42.806014Z",
+      "downloads": 88177,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC)",
+      "checksum": "2b37b4af8e0c9d68204098ef86a871e1776723be570bfd96e45f9fa52914c2dd",
+      "crate_size": 6465191,
+      "rust_version": "1.60.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2023-06-23T17:53:42.806014Z"
+        }
+      ]
+    },
+    {
+      "id": 807829,
+      "num": "0.7.0",
+      "created_at": "2023-05-24T20:15:56.603734Z",
+      "updated_at": "2023-05-24T20:15:56.603734Z",
+      "downloads": 71787,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC)",
+      "checksum": "9e63301f0c20f3c7a75dc1cad2d2b04057ba124237813f8de2c1b5c3b98c71fc",
+      "crate_size": 6384859,
+      "rust_version": "1.60.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2023-05-24T20:15:56.603734Z"
+        }
+      ]
+    },
+    {
+      "id": 798384,
+      "num": "0.6.1",
+      "created_at": "2023-05-12T20:32:35.606926Z",
+      "updated_at": "2023-05-12T20:32:35.606926Z",
+      "downloads": 23563,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC)",
+      "checksum": "fe9402560dc1c27689dd717a233a22d38082e2f57401bf519bb1eaf2de938d78",
+      "crate_size": 6329568,
+      "rust_version": "1.60.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2023-05-12T20:32:35.606926Z"
+        }
+      ]
+    },
+    {
+      "id": 785119,
+      "num": "0.6.0",
+      "created_at": "2023-04-25T19:45:23.223163Z",
+      "updated_at": "2023-04-25T19:45:23.223163Z",
+      "downloads": 4461,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC)",
+      "checksum": "c7eabba29df3eb5adb5122ffc1b39d3bff8cf89db7b579b4f5456b02013afb02",
+      "crate_size": 6579676,
+      "rust_version": "1.60.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2023-04-25T19:45:23.223163Z"
+        }
+      ]
+    },
+    {
+      "id": 780505,
+      "num": "0.5.0",
+      "created_at": "2023-04-19T16:23:29.454712Z",
+      "updated_at": "2023-04-19T16:23:29.454712Z",
+      "downloads": 3322,
+      "yanked": false,
+      "yank_message": null,
+      "license": "ISC AND (Apache-2.0 OR ISC)",
+      "checksum": "e4d5708a91d197ffaa8d27bcc3dfe613347cf0c607f548dcf55bbdb66c637d56",
+      "crate_size": 6287449,
+      "rust_version": "1.60.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2023-04-19T16:23:29.454712Z"
+        }
+      ]
+    },
+    {
+      "id": 722424,
+      "num": "0.4.0",
+      "created_at": "2023-02-08T19:11:21.415451Z",
+      "updated_at": "2023-02-08T19:11:21.415451Z",
+      "downloads": 6642,
+      "yanked": false,
+      "yank_message": null,
+      "license": "Apache-2.0 OR ISC",
+      "checksum": "66188fb37b6cff5f15d2228768111ddf1e83b6c3d9c2b79b1da1c4c179a4c6cf",
+      "crate_size": 5892698,
+      "rust_version": "1.57.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2023-02-08T19:11:21.415451Z"
+        }
+      ]
+    },
+    {
+      "id": 713052,
+      "num": "0.3.1",
+      "created_at": "2023-01-27T14:30:46.801423Z",
+      "updated_at": "2023-01-27T14:30:46.801423Z",
+      "downloads": 2538,
+      "yanked": false,
+      "yank_message": null,
+      "license": "Apache-2.0 OR ISC",
+      "checksum": "00f33587797dcd045d9d5a5b43111f7fe6986a37bdb48b4f3fbe6fa163f4bb2a",
+      "crate_size": 5897760,
+      "rust_version": "1.57.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2023-01-27T14:30:46.801423Z"
+        }
+      ]
+    },
+    {
+      "id": 696859,
+      "num": "0.3.0",
+      "created_at": "2023-01-05T18:03:34.747919Z",
+      "updated_at": "2023-01-05T18:03:34.747919Z",
+      "downloads": 3602,
+      "yanked": false,
+      "yank_message": null,
+      "license": "Apache-2.0 OR ISC",
+      "checksum": "a3203bcc5741c20cca1649dfc0fb7bbf470313b4a0091e4b45cca918bb863a4c",
+      "crate_size": 5895223,
+      "rust_version": "1.57.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2023-01-05T18:03:34.747919Z"
+        }
+      ]
+    },
+    {
+      "id": 679001,
+      "num": "0.2.2",
+      "created_at": "2022-12-08T01:41:02.891886Z",
+      "updated_at": "2022-12-08T01:41:02.891886Z",
+      "downloads": 5975,
+      "yanked": false,
+      "yank_message": null,
+      "license": "Apache-2.0 OR ISC",
+      "checksum": "e82945b8a3aedb36264431f5b6a1d097631e56b1b455805d918681ef38da58e3",
+      "crate_size": 4756461,
+      "rust_version": "1.57.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 185257,
+        "login": "samuel40791765",
+        "name": "Samuel Chiang"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 185257,
+            "login": "samuel40791765",
+            "name": "Samuel Chiang",
+            "avatar": "https://avatars.githubusercontent.com/u/11924508?v=4",
+            "url": "https://github.com/samuel40791765",
+            "github_username_matches": true,
+            "created_at": "2015-04-13T12:25:08Z"
+          },
+          "time": "2022-12-08T01:41:02.891886Z"
+        }
+      ]
+    },
+    {
+      "id": 675582,
+      "num": "0.2.1",
+      "created_at": "2022-12-02T19:23:07.056834Z",
+      "updated_at": "2022-12-02T19:23:07.056834Z",
+      "downloads": 2639,
+      "yanked": false,
+      "yank_message": null,
+      "license": "Apache-2.0 OR ISC",
+      "checksum": "ed7082353ca047daea58afc9eed266205c1fa7e33f1922fb9df083e3e26ec7cb",
+      "crate_size": 4755267,
+      "rust_version": "1.57.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 185257,
+        "login": "samuel40791765",
+        "name": "Samuel Chiang"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 185257,
+            "login": "samuel40791765",
+            "name": "Samuel Chiang",
+            "avatar": "https://avatars.githubusercontent.com/u/11924508?v=4",
+            "url": "https://github.com/samuel40791765",
+            "github_username_matches": true,
+            "created_at": "2015-04-13T12:25:08Z"
+          },
+          "time": "2022-12-02T19:23:07.056834Z"
+        }
+      ]
+    },
+    {
+      "id": 665084,
+      "num": "0.2.0",
+      "created_at": "2022-11-16T23:11:09.052406Z",
+      "updated_at": "2022-11-16T23:11:09.052406Z",
+      "downloads": 2597,
+      "yanked": false,
+      "yank_message": null,
+      "license": "Apache-2.0",
+      "checksum": "d2702fb0eb22d28bdbb18817063b6e5e71caf926b3814bd1bc32d4f3e69d2931",
+      "crate_size": 4473117,
+      "rust_version": "1.57.0",
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2022-11-16T23:11:09.052406Z"
+        }
+      ]
+    },
+    {
+      "id": 660482,
+      "num": "0.1.1",
+      "created_at": "2022-11-09T23:48:35.659038Z",
+      "updated_at": "2022-11-09T23:48:35.659038Z",
+      "downloads": 3213,
+      "yanked": false,
+      "yank_message": null,
+      "license": "Apache-2.0",
+      "checksum": "94327e46f2e449f09f9c20c11b3f811fac97782c46d6338d2caf49c45e457370",
+      "crate_size": 4456231,
+      "rust_version": null,
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2022-11-09T23:48:35.659038Z"
+        }
+      ]
+    },
+    {
+      "id": 660252,
+      "num": "0.1.0",
+      "created_at": "2022-11-09T14:51:37.712153Z",
+      "updated_at": "2022-11-09T16:17:29.398208Z",
+      "downloads": 2336,
+      "yanked": false,
+      "yank_message": null,
+      "license": "Apache-2.0",
+      "checksum": "1ff6dcd8726bc2d65c48fe4991852a0d8d6d9c71118b4b0f4c96aaa9dfd579bc",
+      "crate_size": 4441953,
+      "rust_version": null,
+      "edition": "2021",
+      "published_by": {
+        "id": 156764,
+        "login": "justsmth",
+        "name": "Justin W Smith"
+      },
+      "trustpub_data": null,
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2022-11-09T14:51:37.712153Z"
+        },
+        {
+          "action": "yank",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2022-11-09T16:16:45.442772Z"
+        },
+        {
+          "action": "unyank",
+          "user": {
+            "id": 156764,
+            "login": "justsmth",
+            "name": "Justin W Smith",
+            "avatar": "https://avatars.githubusercontent.com/u/103147162?v=4",
+            "url": "https://github.com/justsmth",
+            "github_username_matches": true,
+            "created_at": "2022-04-06T20:21:22Z"
+          },
+          "time": "2022-11-09T16:17:29.400994Z"
+        }
+      ]
+    }
+  ],
+  "keywords": [],
+  "categories": []
+}
