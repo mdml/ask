@@ -35,8 +35,8 @@ ensure_cs() {
         return 0
     fi
 
-    if [ -x "$CS_INSTALL_DIR/bin/cs" ]; then
-        CS_CMD="$CS_INSTALL_DIR/bin/cs"
+    if [ -x "$CS_INSTALL_DIR/.local/bin/cs" ]; then
+        CS_CMD="$CS_INSTALL_DIR/.local/bin/cs"
         return 0
     fi
 
@@ -45,8 +45,8 @@ ensure_cs() {
     curl -fsSL https://downloads.codescene.io/enterprise/cli/install-cs-tool.sh |
         HOME="$CS_INSTALL_DIR" sh -s -- -y
 
-    if [ -x "$CS_INSTALL_DIR/bin/cs" ]; then
-        CS_CMD="$CS_INSTALL_DIR/bin/cs"
+    if [ -x "$CS_INSTALL_DIR/.local/bin/cs" ]; then
+        CS_CMD="$CS_INSTALL_DIR/.local/bin/cs"
     else
         echo "codescene.sh: cs installation failed" >&2
         exit 127
