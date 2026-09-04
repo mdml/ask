@@ -6,6 +6,8 @@ Thank you for helping build `ask`. This document describes the repository workfl
 
 Install Rust 1.97.1 with [rustup](https://rustup.rs/) or rely on the pinned toolchain in `rust-toolchain.toml`.
 
+Clean builds require a C toolchain and CMake because Rig's Rustls path builds the bundled AWS-LC C and assembly sources.
+
 Install pinned helper tools with [mise](https://mise.jdx.dev/):
 
 ```sh
@@ -38,6 +40,8 @@ The single verification entrypoint is `scripts/verify.sh`, exposed through `just
 The fast gate runs formatting, Clippy (warnings denied), build, documentation (warnings denied), line-coverage threshold (default 90%), and CodeScene on staged Rust files. The full gate adds `cargo deny` policy checks and CodeScene on Rust files changed relative to the base branch (default `origin/staging`).
 
 Override the coverage minimum with `ASK_COVERAGE_MIN` and the full-gate base ref with `ASK_VERIFY_BASE` when needed.
+
+CI runs the full gate on pull requests into `staging`; the per-commit workflow can also be dispatched manually to run the fast gate on a branch.
 
 ## Dependency updates
 
