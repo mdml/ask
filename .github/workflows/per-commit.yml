@@ -1,10 +1,7 @@
 name: per-commit
 
 on:
-  push:
-    branches-ignore:
-      - main
-      - staging
+  workflow_dispatch:
   pull_request:
     branches:
       - staging
@@ -39,7 +36,7 @@ jobs:
           tool: cargo-llvm-cov@0.8.7,cargo-deny@0.20.2
 
       - name: Fast gate
-        if: github.event_name == 'push'
+        if: github.event_name == 'workflow_dispatch'
         run: scripts/verify.sh
 
       - name: Full gate

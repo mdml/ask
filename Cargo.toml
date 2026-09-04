@@ -14,3 +14,6 @@ path = "src/lib.rs"
 [[bin]]
 name = "ask"
 path = "src/main.rs"
+
+[dependencies]
+rig-core = { version = "=0.42.0", default-features = false, features = ["reqwest", "rustls"] }
