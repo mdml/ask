@@ -1,0 +1,27 @@
+rig-core
+An opinionated library for building LLM powered applications.
+version: 0.42.0
+license: MIT
+rust-version: unknown
+documentation: https://docs.rs/rig-core/0.42.0
+repository: https://github.com/0xPlaygrounds/rig
+crates.io: https://crates.io/crates/rig-core/0.42.0
+features:
+ +default                       = [reqwest, derive, rustls]
+  derive                        = [dep:rig-derive]
+  reqwest                       = [reqwest/charset, reqwest/http2, reqwest/system-proxy]
+  rustls                        = [reqwest/rustls, tokio-tungstenite?/rustls-tls-webpki-roots]
+  audio                         = []
+  epub                          = [dep:epub, dep:quick-xml]
+  image                         = []
+  native-tls                    = [reqwest/native-tls, tokio-tungstenite?/native-tls]
+  pdf                           = [dep:lopdf]
+  rayon                         = [dep:rayon]
+  reqwest-middleware            = [reqwest-middleware-rustls]
+  reqwest-middleware-native-tls = [dep:reqwest-middleware, native-tls]
+  reqwest-middleware-rustls     = [dep:reqwest-middleware, rustls, reqwest-middleware/rustls]
+  socks                         = [reqwest/socks]
+  test-utils                    = []
+  websocket                     = [websocket-rustls]
+  websocket-native-tls          = [dep:tokio-tungstenite, tokio-tungstenite/connect, native-tls]
+  websocket-rustls              = [dep:tokio-tungstenite, tokio-tungstenite/connect, rustls]

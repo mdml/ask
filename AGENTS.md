@@ -35,6 +35,13 @@ Ordinary implementation choices belong to the repository. Decide those, document
 - The repository exposes one verification entrypoint, `just verify` (fast gate) and `just verify-full` (full gate), that works in Claude Code, Codex, Cursor, and ordinary local or CI shells. GitHub Actions runs the same entrypoint rather than defining a second verification process. Every commit passes the fast gate.
 - Documentation describes the current state of the repository on `staging` and `main` and ships in the same change as the behavior it describes.
 
+## Public repository hygiene
+
+- Before committing generated evidence or diagnostics, remove credentials, absolute filesystem paths, hostnames, private project names, raw prompts or transcripts, and agent-session URLs.
+- Replace necessary machine-specific paths with stable placeholders such as `<repo-root>` and `<cargo-home>`, and document any normalization in the artifact that carries it.
+- Do not publish links to private agent sessions unless the owner explicitly requests it.
+- Review the complete staged diff for accidental disclosure before committing.
+
 ## Handoff
 
 Reload the relevant part of the mental model before reporting. Explain what changed in the mental model's vocabulary, and report any new gap between the mental model and the repository as a candidate change to the mental model, not an edit.

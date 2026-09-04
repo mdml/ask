@@ -1,0 +1,12 @@
+async-stream-impl 0.3.6
+displaydoc 0.2.7
+futures-macro 0.3.34
+pin-project-internal 1.1.13
+ref-cast-impl 1.0.27
+schemars_derive 1.2.2
+serde_derive 1.0.229
+thiserror-impl 2.0.20
+tracing-attributes 0.1.31
+yoke-derive 0.8.2
+zerofrom-derive 0.1.7
+zerovec-derive 0.11.6
