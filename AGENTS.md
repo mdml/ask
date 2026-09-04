@@ -28,10 +28,12 @@ Ordinary implementation choices belong to the repository. Decide those, document
 
 ## Process
 
-- Substantial changes are developed on feature branches in isolated git worktrees, never directly on `main`. Changes merge to `main` only after review and the full verification gate. Use Conventional Commits.
+- Substantial changes are developed on feature branches in isolated git worktrees under `.worktrees/` at the repository root, never directly on `main` or `staging`. Use Conventional Commits.
+- Feature PRs target `staging` and are rebase-merged to keep its history linear. `staging` rejects direct pushes, force-pushes, and deletion, and requires the fast gate checks.
+- `main` is the nightly channel. It receives only fully gated promotion PRs from `staging`, merged by merge commit after a named proof or milestone passes. `main` rejects direct pushes, force-pushes, and deletion, and requires the full gate check. Stable releases are tags from `main`.
 - Delegated work is bounded by a task contract: an explicit outcome, scope, constraints, and the verification evidence the worker must return. A delegated worker leaves its changes uncommitted, does not delegate further, and does not settle human-owned questions. The managing agent reviews the diff and reruns verification before committing.
-- The repository exposes one verification entrypoint, `just verify`, that works in Claude Code, Codex, Cursor, and ordinary local or CI shells. GitHub Actions runs the same entrypoint rather than defining a second verification process. Every commit passes it.
-- Documentation describes the current state of the repository and ships in the same change as the behavior it describes.
+- The repository exposes one verification entrypoint, `just verify` (fast gate) and `just verify-full` (full gate), that works in Claude Code, Codex, Cursor, and ordinary local or CI shells. GitHub Actions runs the same entrypoint rather than defining a second verification process. Every commit passes the fast gate.
+- Documentation describes the current state of the repository on `staging` and `main` and ships in the same change as the behavior it describes.
 
 ## Handoff
 
