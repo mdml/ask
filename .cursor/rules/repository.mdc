@@ -1,0 +1,5 @@
+---
+description: Repository rules for ask; the canonical rules file is AGENTS.md
+alwaysApply: true
+---
+Read and follow `AGENTS.md` at the repository root. It is the canonical rules file for every harness; nothing here overrides it.
