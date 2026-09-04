@@ -1,0 +1,16 @@
+[package]
+name = "ask"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/mdml/ask"
+description = "Fast, opinionated terminal lookup tool for language models"
+publish = false
+
+[lib]
+name = "ask"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ask"
+path = "src/main.rs"
