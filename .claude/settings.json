@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(scripts/verify.sh:*)",
+      "Bash(just:*)",
+      "Bash(cargo:*)",
+      "Bash(mise install:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)"
+    ]
+  }
+}

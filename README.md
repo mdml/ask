@@ -6,7 +6,9 @@
 
 ## Development
 
-Rules for contributors and coding agents are in `AGENTS.md`.
+Rules for contributors and coding agents are in `AGENTS.md`. See `CONTRIBUTING.md` for tooling setup, branch flow, and verification gates.
+
+Run the fast gate with `just verify` before every commit. Pull requests must pass `just verify-full`.
 
 ## License
 
