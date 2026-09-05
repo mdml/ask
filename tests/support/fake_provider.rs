@@ -59,6 +59,10 @@ impl FakeProvider {
         }
     }
 
+    pub fn address(&self) -> SocketAddr {
+        self.address
+    }
+
     pub fn base_url(&self) -> String {
         format!("http://{}/v1", self.address)
     }
@@ -80,7 +84,7 @@ impl Drop for FakeProvider {
         self.stop.store(true, Ordering::SeqCst);
         let _ = TcpStream::connect(self.address);
         if let Some(thread) = self.thread.take() {
-            thread.join().unwrap();
+            let _ = thread.join();
         }
     }
 }
@@ -95,49 +99,55 @@ fn serve(
     if stop.load(Ordering::SeqCst) {
         return;
     }
-    let request = read_request(&mut stream);
+    let Some(request) = read_request(&mut stream) else {
+        return;
+    };
     *recorded.lock().unwrap() = Some(request);
     respond(&mut stream, scenario);
 }
 
-fn read_request(stream: &mut TcpStream) -> RecordedRequest {
+fn read_request(stream: &mut TcpStream) -> Option<RecordedRequest> {
     stream
         .set_read_timeout(Some(Duration::from_secs(2)))
         .unwrap();
-    let bytes = read_http_message(stream);
-    let split = find(&bytes, b"\r\n\r\n").unwrap();
+    let bytes = read_http_message(stream)?;
+    let split = find(&bytes, b"\r\n\r\n")?;
     let headers = String::from_utf8_lossy(&bytes[..split]);
     let body = &bytes[split + 4..];
     let path = headers
         .lines()
         .next()
-        .and_then(|line| line.split_whitespace().nth(1))
-        .unwrap()
+        .and_then(|line| line.split_whitespace().nth(1))?
         .to_string();
     let authorization_present = headers
         .lines()
         .any(|line| line.to_ascii_lowercase().starts_with("authorization:"));
-    let value: Value = rig_core::serde_json::from_slice(body).unwrap();
-    RecordedRequest {
+    let value: Value = rig_core::serde_json::from_slice(body).ok()?;
+    Some(RecordedRequest {
         path,
         authorization_present,
-        model: value["model"].as_str().unwrap().to_string(),
+        model: value["model"].as_str()?.to_string(),
         messages: messages(&value),
-    }
+    })
 }
 
-fn read_http_message(stream: &mut TcpStream) -> Vec<u8> {
+/// Reads one HTTP request. Returns `None` when the client closes or stalls
+/// before the request is complete, so the server thread always terminates.
+fn read_http_message(stream: &mut TcpStream) -> Option<Vec<u8>> {
     let mut bytes = Vec::new();
     let mut buffer = [0; 4096];
     loop {
-        let count = stream.read(&mut buffer).unwrap();
+        let count = stream.read(&mut buffer).ok()?;
+        if count == 0 {
+            return None;
+        }
         bytes.extend_from_slice(&buffer[..count]);
         let Some(split) = find(&bytes, b"\r\n\r\n") else {
             continue;
         };
         let content_length = content_length(&bytes[..split]);
         if bytes.len() >= split + 4 + content_length {
-            return bytes;
+            return Some(bytes);
         }
     }
 }
@@ -188,7 +198,7 @@ fn respond(stream: &mut TcpStream, scenario: Scenario) {
     match scenario {
         Scenario::Stream => stream_answer(stream, true),
         Scenario::StreamWithoutUsage => stream_answer(stream, false),
-        Scenario::Stall => thread::sleep(Duration::from_millis(300)),
+        Scenario::Stall => thread::sleep(Duration::from_millis(2_000)),
         Scenario::Malformed => fixed(stream, 200, "text/event-stream", "data: not-json\n\n"),
         Scenario::Unauthorized => error(stream, 401, "unauthorized"),
         Scenario::RateLimited => error(stream, 429, "rate limited"),
