@@ -1,11 +1,6 @@
-fn main() {
-    ask::run();
-}
+use std::process::ExitCode;
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn main_does_not_panic() {
-        super::main();
-    }
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> ExitCode {
+    ask::run(std::env::args().skip(1)).await
 }

@@ -43,6 +43,16 @@ Override the coverage minimum with `ASK_COVERAGE_MIN` and the full-gate base ref
 
 CI runs the full gate on pull requests into `staging`; the per-commit workflow can also be dispatched manually to run the fast gate on a branch.
 
+## Query proof
+
+Run the end-to-end query proof through the built binary with:
+
+```sh
+cargo test --test query_proof
+```
+
+The test starts a programmable HTTP provider on the local loopback interface and uses deterministic fixtures. It requires no external network access, provider credentials, or paid services.
+
 ## Dependency updates
 
 Dependency updates are proposed for human review through Dependabot and nightly advisory checks. They are never auto-merged.
