@@ -2,7 +2,8 @@ mod support;
 
 use std::{
     fs,
-    net::TcpListener,
+    io::Write,
+    net::{TcpListener, TcpStream},
     path::{Path, PathBuf},
     process::{Command, Output, Stdio},
     sync::atomic::{AtomicUsize, Ordering},
@@ -95,9 +96,9 @@ fn malformed_stream_fails_without_answer_text() {
 #[test]
 fn stalled_response_obeys_configured_timeout() {
     let fake = FakeProvider::start(Scenario::Stall);
-    let home = configured_home(&fake.base_url(), None, Some(40));
+    let home = configured_home(&fake.base_url(), None, Some(250));
     let output = ask(&home, &["question"], true);
-    assert_failure(&output, "timed out after 40 ms");
+    assert_failure(&output, "timed out after 250 ms");
     assert!(output.stdout.is_empty());
 }
 
@@ -161,6 +162,18 @@ fn early_pipe_closure_is_quiet_and_successful() {
     let output = child.wait_with_output().unwrap();
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
+}
+
+#[test]
+fn fake_provider_tolerates_a_truncated_request() {
+    let fake = FakeProvider::start(Scenario::Stall);
+    let mut client = TcpStream::connect(fake.address()).unwrap();
+    client
+        .write_all(b"POST /v1/chat/completions HTTP/1.1\r\nContent-Length: 100\r\n\r\n{\"model")
+        .unwrap();
+    drop(client);
+    assert!(fake.recorded().is_none());
+    drop(fake);
 }
 
 fn assert_http_failure(scenario: Scenario, status: &str) {
