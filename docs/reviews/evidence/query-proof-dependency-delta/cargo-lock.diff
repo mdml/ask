@@ -1,0 +1,189 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 1dad04d..083addb 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -12,7 +12,12 @@ checksum = "b0f477b951e452a0b6b4a10b53ccd569042d1d01729b519e02074a9c0958a063"
+ name = "ask"
+ version = "0.1.0"
+ dependencies = [
++ "directories",
++ "futures-util",
+  "rig-core",
++ "serde",
++ "tokio",
++ "toml",
+ ]
+ 
+ [[package]]
+@@ -229,6 +234,27 @@ dependencies = [
+  "crypto-common",
+ ]
+ 
++[[package]]
++name = "directories"
++version = "6.0.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "16f5094c54661b38d03bd7e50df373292118db60b585c08a411c6d840017fe7d"
++dependencies = [
++ "dirs-sys",
++]
++
++[[package]]
++name = "dirs-sys"
++version = "0.5.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "e01a3366d27ee9890022452ee61b2b63a67e6f13f58900b651ff5665f0bb1fab"
++dependencies = [
++ "libc",
++ "option-ext",
++ "redox_users",
++ "windows-sys 0.61.2",
++]
++
+ [[package]]
+ name = "displaydoc"
+ version = "0.2.7"
+@@ -803,6 +829,15 @@ version = "0.2.189"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2"
+ 
++[[package]]
++name = "libredox"
++version = "0.1.23"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "8d8f1ea3f21fd3405dcaf6c9b5c1630af9afc422d9073ea39c5f6d6c772e08ed"
++dependencies = [
++ "libc",
++]
++
+ [[package]]
+ name = "litemap"
+ version = "0.8.3"
+@@ -891,6 +926,12 @@ version = "0.2.1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "7c87def4c32ab89d880effc9e097653c8da5d6ef28e6b539d313baaacfbafcbe"
+ 
++[[package]]
++name = "option-ext"
++version = "0.2.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
++
+ [[package]]
+ name = "ordered-float"
+ version = "5.5.0"
+@@ -1098,6 +1139,17 @@ dependencies = [
+  "rand_core 0.10.1",
+ ]
+ 
++[[package]]
++name = "redox_users"
++version = "0.5.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "a4e608c6638b9c18977b00b475ac1f28d14e84b27d8d42f70e0bf1e3dec127ac"
++dependencies = [
++ "getrandom 0.2.17",
++ "libredox",
++ "thiserror",
++]
++
+ [[package]]
+ name = "ref-cast"
+ version = "1.0.27"
+@@ -1438,6 +1490,15 @@ dependencies = [
+  "zmij",
+ ]
+ 
++[[package]]
++name = "serde_spanned"
++version = "1.1.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "6662b5879511e06e8999a8a235d848113e942c9124f211511b16466ee2995f26"
++dependencies = [
++ "serde_core",
++]
++
+ [[package]]
+ name = "sha1"
+ version = "0.10.7"
+@@ -1635,9 +1696,21 @@ dependencies = [
+  "mio",
+  "pin-project-lite",
+  "socket2",
++ "tokio-macros",
+  "windows-sys 0.61.2",
+ ]
+ 
++[[package]]
++name = "tokio-macros"
++version = "2.7.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "78773a2a397f451582ce068015985c33193cf6dea8b74d2a639fe457b2f07b0e"
++dependencies = [
++ "proc-macro2",
++ "quote",
++ "syn 3.0.5",
++]
++
+ [[package]]
+ name = "tokio-rustls"
+ version = "0.26.5"
+@@ -1678,6 +1751,45 @@ dependencies = [
+  "tokio",
+ ]
+ 
++[[package]]
++name = "toml"
++version = "1.1.5+spec-1.1.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "12c0ba9680044b4ce98d391a62094047eada0d64860b80166c39f4a6b5640785"
++dependencies = [
++ "indexmap",
++ "serde_core",
++ "serde_spanned",
++ "toml_datetime",
++ "toml_parser",
++ "toml_writer",
++ "winnow",
++]
++
++[[package]]
++name = "toml_datetime"
++version = "1.1.1+spec-1.1.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "3165f65f62e28e0115a00b2ebdd37eb6f3b641855f9d636d3cd4103767159ad7"
++dependencies = [
++ "serde_core",
++]
++
++[[package]]
++name = "toml_parser"
++version = "1.1.3+spec-1.1.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "1d38ac1cf9b95face32296c0a3ede1fdc270627c9d9c02a7274dd6d960dc4d56"
++dependencies = [
++ "winnow",
++]
++
++[[package]]
++name = "toml_writer"
++version = "1.1.2+spec-1.1.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "7d56353a2a665ad0f41a421187180aab746c8c325620617ad883a99a1cbe66d2"
++
+ [[package]]
+ name = "tower"
+ version = "0.5.3"
+@@ -2113,6 +2225,12 @@ version = "0.52.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
+ 
++[[package]]
++name = "winnow"
++version = "1.0.4"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "23b97319f7b8343df12cc98938e5c3eb436064524c8d2b4e30a1d3a36eecdf81"
++
+ [[package]]
+ name = "wit-bindgen"
+ version = "0.57.1"

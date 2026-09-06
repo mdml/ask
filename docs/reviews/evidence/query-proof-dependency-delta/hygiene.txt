@@ -1,0 +1,6 @@
+_normalization: The machine hostname was used only as a search term and was not retained. Public crates.io and GitHub registry hostnames remain where they provide source or request provenance.
+scope: docs/reviews/query-proof-dependency-delta.md and docs/reviews/evidence/query-proof-dependency-delta/
+absolute-machine-path-search: no match
+machine-hostname-search: no match
+credential-token-pattern-search: no match
+RUSTSEC-id-search: no match

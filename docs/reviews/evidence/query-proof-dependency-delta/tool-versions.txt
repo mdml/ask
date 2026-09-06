@@ -1,0 +1,7 @@
+_normalization: No machine-specific paths or environment values are included.
+cargo 1.97.1 (c980f4866 2026-06-30)
+rustc 1.97.1 (8bab26f4f 2026-07-14)
+cargo-deny 0.20.2
+review-date 2026-09-05
+head 754ea944b33db187cd351e6c3348d458a1e08c41
+base origin/staging 69f1c7e17cf008d6f1848f04205f5b539b75b9ba

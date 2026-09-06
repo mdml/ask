@@ -1,0 +1,380 @@
+_normalization: Replaced the worktree absolute path with <repo-root>. This inverse feature tree shows whether non-ask parents already activate the directly requested features at HEAD.
+command:
+for crate in futures-util@0.3.34 serde@1.0.229 tokio@1.53.1; do
+  echo "CRATE $crate"
+  cargo tree --locked -e features -i "$crate" --target x86_64-unknown-linux-gnu --prefix none
+done
+
+CRATE futures-util@0.3.34
+futures-util v0.3.34
+futures-executor v0.3.34
+futures v0.3.34
+futures feature "alloc"
+futures feature "std"
+futures feature "default"
+rig-core v0.42.0
+rig-core feature "reqwest"
+ask v0.1.0 (<repo-root>)
+ask feature "default" (command-line)
+rig-core feature "rustls"
+ask v0.1.0 (<repo-root>) (*)
+tracing-futures v0.2.5
+tracing-futures feature "default"
+rig-core v0.42.0 (*)
+tracing-futures feature "futures"
+tracing-futures feature "futures-03"
+rig-core v0.42.0 (*)
+tracing-futures feature "futures-03" (*)
+tracing-futures feature "futures-task"
+tracing-futures feature "futures-03" (*)
+tracing-futures feature "pin-project"
+tracing-futures feature "std-future"
+tracing-futures feature "default" (*)
+tracing-futures feature "futures-03" (*)
+tracing-futures feature "std"
+tracing-futures feature "default" (*)
+tracing-futures feature "futures-03" (*)
+tracing-futures feature "std-future" (*)
+futures feature "executor"
+futures feature "default" (*)
+futures feature "async-await"
+futures feature "default" (*)
+futures feature "default" (*)
+futures feature "executor" (*)
+futures feature "futures-executor"
+futures feature "executor" (*)
+futures feature "std" (*)
+futures-executor feature "std"
+futures feature "executor" (*)
+hyper-util v0.1.20
+hyper-util feature "client"
+reqwest v0.13.4
+reqwest feature "__rustls"
+reqwest feature "rustls"
+rig-core feature "rustls" (*)
+reqwest feature "__rustls-aws-lc-rs"
+reqwest feature "rustls" (*)
+reqwest feature "__tls"
+reqwest feature "__rustls" (*)
+reqwest feature "charset"
+rig-core feature "reqwest" (*)
+reqwest feature "http2"
+rig-core feature "reqwest" (*)
+reqwest feature "json"
+rig-core v0.42.0 (*)
+reqwest feature "multipart"
+rig-core v0.42.0 (*)
+reqwest feature "rustls" (*)
+reqwest feature "stream"
+rig-core v0.42.0 (*)
+reqwest feature "system-proxy"
+rig-core feature "reqwest" (*)
+hyper-util feature "client-legacy"
+hyper-rustls v0.27.9
+hyper-rustls feature "aws-lc-rs"
+reqwest feature "__rustls-aws-lc-rs" (*)
+hyper-rustls feature "http1"
+reqwest v0.13.4 (*)
+hyper-rustls feature "http2"
+reqwest feature "http2" (*)
+hyper-rustls feature "tls12"
+reqwest v0.13.4 (*)
+reqwest v0.13.4 (*)
+hyper-util feature "client-proxy"
+reqwest v0.13.4 (*)
+hyper-util feature "client-legacy" (*)
+hyper-util feature "client-proxy" (*)
+hyper-util feature "client-proxy-system"
+reqwest feature "system-proxy" (*)
+hyper-util feature "default"
+reqwest v0.13.4 (*)
+hyper-util feature "http1"
+reqwest v0.13.4 (*)
+hyper-rustls feature "http1" (*)
+hyper-util feature "http2"
+reqwest feature "http2" (*)
+hyper-rustls feature "http2" (*)
+hyper-util feature "tokio"
+hyper-rustls v0.27.9 (*)
+reqwest v0.13.4 (*)
+hyper-util feature "client" (*)
+hyper-util feature "client-legacy" (*)
+hyper-util feature "tokio" (*)
+reqwest v0.13.4 (*)
+tower-http v0.6.11
+tower-http feature "follow-redirect"
+reqwest v0.13.4 (*)
+tower-http feature "futures-util"
+tower-http feature "follow-redirect" (*)
+tower-http feature "tower"
+tower-http feature "follow-redirect" (*)
+futures-util feature "alloc"
+tower v0.5.3
+tower feature "default"
+tower-http v0.6.11 (*)
+tower feature "futures-core"
+tower feature "util"
+reqwest v0.13.4 (*)
+tower feature "retry"
+reqwest v0.13.4 (*)
+tower-http feature "follow-redirect" (*)
+tower feature "futures-util"
+tower feature "util" (*)
+tower feature "pin-project-lite"
+tower feature "timeout"
+reqwest v0.13.4 (*)
+tower feature "util" (*)
+tower feature "retry" (*)
+tower feature "sync_wrapper"
+tower feature "util" (*)
+tower feature "timeout" (*)
+tower feature "tokio"
+tower feature "retry" (*)
+tower feature "timeout" (*)
+tower feature "util" (*)
+futures-util feature "std"
+ask v0.1.0 (<repo-root>) (*)
+futures-util feature "channel"
+futures feature "std" (*)
+futures-util feature "io"
+futures feature "std" (*)
+futures feature "std" (*)
+futures-executor feature "std" (*)
+futures feature "alloc" (*)
+futures-util feature "async-await"
+futures-util feature "async-await-macro"
+futures feature "async-await" (*)
+futures feature "async-await" (*)
+futures-util feature "async-await-macro" (*)
+futures-util feature "channel" (*)
+futures-util feature "futures-channel"
+futures-util feature "channel" (*)
+futures-util feature "futures-io"
+futures-util feature "io" (*)
+futures-util feature "futures-macro"
+futures-util feature "async-await-macro" (*)
+futures-util feature "futures-sink"
+futures-util feature "sink"
+futures v0.3.34 (*)
+futures-util feature "io" (*)
+futures-util feature "memchr"
+futures-util feature "io" (*)
+futures-util feature "sink" (*)
+futures-util feature "slab"
+futures-util feature "alloc" (*)
+futures-util feature "std" (*)
+futures-util feature "std" (*)
+CRATE serde@1.0.229
+serde v1.0.229
+serde feature "alloc"
+schemars v1.2.2
+schemars feature "default"
+rig-core v0.42.0
+rig-core feature "reqwest"
+ask v0.1.0 (<repo-root>)
+ask feature "default" (command-line)
+rig-core feature "rustls"
+ask v0.1.0 (<repo-root>) (*)
+schemars feature "derive"
+schemars feature "default" (*)
+schemars feature "schemars_derive"
+schemars feature "derive" (*)
+schemars feature "std"
+schemars feature "default" (*)
+serde feature "default"
+ask v0.1.0 (<repo-root>) (*)
+reqwest v0.13.4
+reqwest feature "__rustls"
+reqwest feature "rustls"
+rig-core feature "rustls" (*)
+reqwest feature "__rustls-aws-lc-rs"
+reqwest feature "rustls" (*)
+reqwest feature "__tls"
+reqwest feature "__rustls" (*)
+reqwest feature "charset"
+rig-core feature "reqwest" (*)
+reqwest feature "http2"
+rig-core feature "reqwest" (*)
+reqwest feature "json"
+rig-core v0.42.0 (*)
+reqwest feature "multipart"
+rig-core v0.42.0 (*)
+reqwest feature "rustls" (*)
+reqwest feature "stream"
+rig-core v0.42.0 (*)
+reqwest feature "system-proxy"
+rig-core feature "reqwest" (*)
+rig-core v0.42.0 (*)
+serde feature "derive"
+ask v0.1.0 (<repo-root>) (*)
+rig-core v0.42.0 (*)
+serde feature "serde_derive"
+serde feature "derive" (*)
+serde feature "std"
+serde feature "default" (*)
+CRATE tokio@1.53.1
+tokio v1.53.1
+hyper-util v0.1.20
+hyper-util feature "client"
+reqwest v0.13.4
+reqwest feature "__rustls"
+reqwest feature "rustls"
+rig-core feature "rustls"
+ask v0.1.0 (<repo-root>)
+ask feature "default" (command-line)
+reqwest feature "__rustls-aws-lc-rs"
+reqwest feature "rustls" (*)
+reqwest feature "__tls"
+reqwest feature "__rustls" (*)
+reqwest feature "charset"
+rig-core feature "reqwest"
+ask v0.1.0 (<repo-root>) (*)
+reqwest feature "http2"
+rig-core feature "reqwest" (*)
+reqwest feature "json"
+rig-core v0.42.0
+rig-core feature "reqwest" (*)
+rig-core feature "rustls" (*)
+reqwest feature "multipart"
+rig-core v0.42.0 (*)
+reqwest feature "rustls" (*)
+reqwest feature "stream"
+rig-core v0.42.0 (*)
+reqwest feature "system-proxy"
+rig-core feature "reqwest" (*)
+hyper-util feature "client-legacy"
+hyper-rustls v0.27.9
+hyper-rustls feature "aws-lc-rs"
+reqwest feature "__rustls-aws-lc-rs" (*)
+hyper-rustls feature "http1"
+reqwest v0.13.4 (*)
+hyper-rustls feature "http2"
+reqwest feature "http2" (*)
+hyper-rustls feature "tls12"
+reqwest v0.13.4 (*)
+reqwest v0.13.4 (*)
+hyper-util feature "client-proxy"
+reqwest v0.13.4 (*)
+hyper-util feature "client-legacy" (*)
+hyper-util feature "client-proxy" (*)
+hyper-util feature "client-proxy-system"
+reqwest feature "system-proxy" (*)
+hyper-util feature "default"
+reqwest v0.13.4 (*)
+hyper-util feature "http1"
+reqwest v0.13.4 (*)
+hyper-rustls feature "http1" (*)
+hyper-util feature "http2"
+reqwest feature "http2" (*)
+hyper-rustls feature "http2" (*)
+hyper-util feature "tokio"
+hyper-rustls v0.27.9 (*)
+reqwest v0.13.4 (*)
+hyper-util feature "client" (*)
+hyper-util feature "client-legacy" (*)
+hyper-util feature "tokio" (*)
+tokio feature "bytes"
+tokio feature "io-util"
+h2 v0.4.19
+h2 feature "default"
+hyper v1.11.1
+hyper-rustls v0.27.9 (*)
+hyper feature "client"
+reqwest v0.13.4 (*)
+hyper-util feature "client" (*)
+hyper feature "default"
+hyper-util v0.1.20 (*)
+reqwest v0.13.4 (*)
+hyper feature "http1"
+reqwest v0.13.4 (*)
+hyper-util feature "http1" (*)
+hyper feature "http2"
+reqwest feature "http2" (*)
+hyper-util feature "http2" (*)
+reqwest v0.13.4 (*)
+reqwest feature "__tls" (*)
+tokio feature "default"
+ask v0.1.0 (<repo-root>) (*)
+h2 v0.4.19 (*)
+hyper v1.11.1 (*)
+hyper-rustls v0.27.9 (*)
+rig-core v0.42.0 (*)
+tokio-rustls v0.26.5
+hyper-rustls v0.27.9 (*)
+tokio-rustls feature "aws-lc-rs"
+reqwest feature "__rustls-aws-lc-rs" (*)
+tokio-rustls feature "aws_lc_rs"
+tokio-rustls feature "aws-lc-rs" (*)
+tokio-rustls feature "tls12"
+reqwest v0.13.4 (*)
+hyper-rustls feature "tls12" (*)
+tokio-util v0.7.19
+tokio-util feature "codec"
+h2 v0.4.19 (*)
+tokio-util feature "default"
+h2 v0.4.19 (*)
+tokio-util feature "io"
+h2 v0.4.19 (*)
+reqwest v0.13.4 (*)
+tokio-util feature "libc"
+tokio-util feature "codec" (*)
+tower v0.5.3
+tower feature "default"
+tower-http v0.6.11
+tower-http feature "follow-redirect"
+reqwest v0.13.4 (*)
+tower-http feature "futures-util"
+tower-http feature "follow-redirect" (*)
+tower-http feature "tower"
+tower-http feature "follow-redirect" (*)
+tower feature "futures-core"
+tower feature "util"
+reqwest v0.13.4 (*)
+tower feature "retry"
+reqwest v0.13.4 (*)
+tower-http feature "follow-redirect" (*)
+tower feature "futures-util"
+tower feature "util" (*)
+tower feature "pin-project-lite"
+tower feature "timeout"
+reqwest v0.13.4 (*)
+tower feature "util" (*)
+tower feature "retry" (*)
+tower feature "sync_wrapper"
+tower feature "util" (*)
+tower feature "timeout" (*)
+tower feature "tokio"
+tower feature "retry" (*)
+tower feature "timeout" (*)
+tower feature "util" (*)
+tokio feature "fs"
+reqwest feature "stream" (*)
+tokio feature "io-util" (*)
+tokio feature "libc"
+tokio feature "net"
+reqwest v0.13.4 (*)
+hyper-util feature "client" (*)
+tokio feature "macros"
+ask v0.1.0 (<repo-root>) (*)
+tokio feature "mio"
+tokio feature "net" (*)
+tokio feature "net" (*)
+tokio feature "rt"
+ask v0.1.0 (<repo-root>) (*)
+rig-core v0.42.0 (*)
+hyper-util feature "tokio" (*)
+tokio feature "socket2"
+tokio feature "net" (*)
+tokio feature "sync"
+hyper v1.11.1 (*)
+rig-core v0.42.0 (*)
+tokio-util v0.7.19 (*)
+hyper-util feature "client-legacy" (*)
+tokio feature "time"
+ask v0.1.0 (<repo-root>) (*)
+reqwest v0.13.4 (*)
+hyper-util feature "tokio" (*)
+tower feature "retry" (*)
+tower feature "timeout" (*)
+tokio feature "tokio-macros"
+tokio feature "macros" (*)

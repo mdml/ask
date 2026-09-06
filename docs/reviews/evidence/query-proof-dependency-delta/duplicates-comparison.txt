@@ -1,0 +1,29 @@
+_normalization: Derived package/version inventories from origin/staging:Cargo.lock and HEAD Cargo.lock; no paths were present.
+method: git show origin/staging:Cargo.lock for the base; local Cargo.lock for HEAD. No base checkout or stash was used.
+
+staging-package-count
+228
+head-package-count
+240
+staging-lock-duplicates
+core-foundation	0.10.1, 0.9.4
+cpufeatures	0.2.17, 0.3.1
+getrandom	0.2.17, 0.3.4, 0.4.3
+r-efi	5.3.0, 6.0.0
+rand	0.10.2, 0.9.5
+rand_core	0.10.1, 0.9.5
+syn	2.0.119, 3.0.5
+webpki-roots	0.26.11, 1.0.9
+windows-sys	0.52.0, 0.61.2
+head-lock-duplicates
+core-foundation	0.10.1, 0.9.4
+cpufeatures	0.2.17, 0.3.1
+getrandom	0.2.17, 0.3.4, 0.4.3
+r-efi	5.3.0, 6.0.0
+rand	0.10.2, 0.9.5
+rand_core	0.10.1, 0.9.5
+syn	2.0.119, 3.0.5
+webpki-roots	0.26.11, 1.0.9
+windows-sys	0.52.0, 0.61.2
+comparison
+No duplicate package-name/version set was introduced, removed, or changed by the delta.
