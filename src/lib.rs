@@ -2,6 +2,7 @@
 
 mod cli;
 mod config;
+mod configure;
 mod output;
 mod provider;
 mod runner;
@@ -27,7 +28,8 @@ async fn execute(
 ) -> ExitCode {
     let wall_start = Instant::now();
     let prompt = match cli::parse(args) {
-        Ok(prompt) => prompt,
+        Ok(cli::Command::Query(prompt)) => prompt,
+        Ok(cli::Command::Configure) => return configure(stderr),
         Err(message) => return report(stderr, &message, ExitCode::from(2)),
     };
     let target = match config::load().and_then(config::Config::resolve) {
@@ -43,6 +45,17 @@ async fn execute(
     match runner::run(&provider, &target, &prompt, wall_start, &mut answer).await {
         Ok(statistics) => report(stderr, &statistics.to_string(), ExitCode::SUCCESS),
         Err(error) if error.is_broken_pipe() => ExitCode::SUCCESS,
+        Err(error) => report(stderr, &error.to_string(), ExitCode::FAILURE),
+    }
+}
+
+fn configure(stderr: &mut impl io::Write) -> ExitCode {
+    let path = match config::config_path() {
+        Ok(path) => path,
+        Err(error) => return report(stderr, &error.to_string(), ExitCode::FAILURE),
+    };
+    match configure::run(&path, &mut io::stdin().lock(), stderr) {
+        Ok(()) => ExitCode::SUCCESS,
         Err(error) => report(stderr, &error.to_string(), ExitCode::FAILURE),
     }
 }

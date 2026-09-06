@@ -1,31 +1,34 @@
 use std::{collections::HashMap, env, fmt, fs, path::PathBuf};
 
 use directories::ProjectDirs;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-const DEFAULT_TIMEOUT_MS: u64 = 30_000;
+pub(crate) const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
-    default_profile: String,
-    providers: HashMap<String, ProviderConfig>,
-    profiles: HashMap<String, ProfileConfig>,
+    pub(crate) default_profile: String,
+    pub(crate) providers: HashMap<String, ProviderConfig>,
+    pub(crate) profiles: HashMap<String, ProfileConfig>,
 }
 
-#[derive(Debug, Deserialize)]
-struct ProviderConfig {
-    kind: String,
-    base_url: String,
-    api_key_env: String,
-    #[serde(default = "default_timeout_ms")]
-    timeout_ms: u64,
+#[derive(Debug, Deserialize, Serialize)]
+pub(crate) struct ProviderConfig {
+    pub(crate) kind: String,
+    pub(crate) base_url: String,
+    pub(crate) api_key_env: String,
+    #[serde(
+        default = "default_timeout_ms",
+        skip_serializing_if = "is_default_timeout"
+    )]
+    pub(crate) timeout_ms: u64,
 }
 
-#[derive(Debug, Deserialize)]
-struct ProfileConfig {
-    provider: String,
-    model: String,
-    system_prompt: Option<String>,
+#[derive(Debug, Deserialize, Serialize)]
+pub(crate) struct ProfileConfig {
+    pub(crate) provider: String,
+    pub(crate) model: String,
+    pub(crate) system_prompt: Option<String>,
 }
 
 #[derive(Debug)]
@@ -41,6 +44,12 @@ pub struct Target {
 pub struct ConfigError(String);
 
 impl Config {
+    /// Renders the configuration as TOML in the schema `load` reads.
+    pub fn to_toml(&self) -> Result<String, ConfigError> {
+        toml::to_string(self)
+            .map_err(|error| ConfigError(format!("cannot render configuration: {error}")))
+    }
+
     pub fn resolve(self) -> Result<Target, ConfigError> {
         let profile = self.profiles.get(&self.default_profile).ok_or_else(|| {
             ConfigError(format!(
@@ -86,11 +95,11 @@ pub fn load() -> Result<Config, ConfigError> {
     })
 }
 
-fn parse(contents: &str) -> Result<Config, toml::de::Error> {
+pub(crate) fn parse(contents: &str) -> Result<Config, toml::de::Error> {
     toml::from_str(contents)
 }
 
-fn config_path() -> Result<PathBuf, ConfigError> {
+pub fn config_path() -> Result<PathBuf, ConfigError> {
     if let Some(home) = env::var_os("ASK_HOME") {
         return Ok(PathBuf::from(home).join("config.toml"));
     }
@@ -110,6 +119,10 @@ fn validate_kind(name: &str, kind: &str) -> Result<(), ConfigError> {
 
 const fn default_timeout_ms() -> u64 {
     DEFAULT_TIMEOUT_MS
+}
+
+const fn is_default_timeout(timeout_ms: &u64) -> bool {
+    *timeout_ms == DEFAULT_TIMEOUT_MS
 }
 
 #[cfg(test)]
