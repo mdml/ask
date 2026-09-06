@@ -5,14 +5,14 @@ use std::{
     io::Write,
     net::{TcpListener, TcpStream},
     path::{Path, PathBuf},
-    process::{Command, Output, Stdio},
-    sync::atomic::{AtomicUsize, Ordering},
+    process::{Output, Stdio},
 };
 
-use support::fake_provider::{FakeProvider, Scenario};
-
-const CREDENTIAL: &str = "credential-secret-never-print";
-static HOME_ID: AtomicUsize = AtomicUsize::new(0);
+use support::{
+    CREDENTIAL, command,
+    fake_provider::{FakeProvider, Scenario},
+    fresh_home,
+};
 
 #[test]
 fn happy_path_separates_answer_and_statistics() {
@@ -76,12 +76,12 @@ fn missing_usage_is_shown_as_unknown() {
 
 #[test]
 fn authentication_failure_is_one_line_and_safe() {
-    assert_http_failure(Scenario::Unauthorized, "401");
+    assert_http_failure(Scenario::Unauthorized, 401);
 }
 
 #[test]
 fn rate_limit_failure_is_one_line_and_safe() {
-    assert_http_failure(Scenario::RateLimited, "429");
+    assert_http_failure(Scenario::RateLimited, 429);
 }
 
 #[test]
@@ -143,7 +143,7 @@ fn no_prompt_is_a_usage_error_with_status_two() {
     assert!(output.stdout.is_empty());
     assert_eq!(
         output.stderr,
-        b"ask: usage: ask [new|n] <prompt words...>\n"
+        b"ask: usage: ask [new|n] <prompt words...> | ask [configure|c]\n"
     );
 }
 
@@ -176,11 +176,11 @@ fn fake_provider_tolerates_a_truncated_request() {
     drop(fake);
 }
 
-fn assert_http_failure(scenario: Scenario, status: &str) {
+fn assert_http_failure(scenario: Scenario, status: u16) {
     let fake = FakeProvider::start(scenario);
     let home = configured_home(&fake.base_url(), None, None);
     let output = ask(&home, &["question"], true);
-    assert_failure(&output, status);
+    assert_failure(&output, &status.to_string());
     assert!(!String::from_utf8_lossy(&output.stderr).contains(CREDENTIAL));
 }
 
@@ -205,15 +205,6 @@ fn ask(home: &Path, args: &[&str], with_credential: bool) -> Output {
     command(home, with_credential).args(args).output().unwrap()
 }
 
-fn command(home: &Path, with_credential: bool) -> Command {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_ask"));
-    command.env("ASK_HOME", home).env_remove("LOCAL_API_KEY");
-    if with_credential {
-        command.env("LOCAL_API_KEY", CREDENTIAL);
-    }
-    command
-}
-
 fn configured_home(base_url: &str, system_prompt: Option<&str>, timeout: Option<u64>) -> PathBuf {
     let home = fresh_home();
     let timeout = timeout.map_or_else(String::new, |value| format!("timeout_ms = {value}\n"));
@@ -224,14 +215,5 @@ fn configured_home(base_url: &str, system_prompt: Option<&str>, timeout: Option<
         "default_profile = \"default\"\n\n[providers.local]\nkind = \"openai-compatible\"\nbase_url = \"{base_url}\"\napi_key_env = \"LOCAL_API_KEY\"\n{timeout}\n[profiles.default]\nprovider = \"local\"\nmodel = \"fake-model\"\n{system}"
     );
     fs::write(home.join("config.toml"), config).unwrap();
-    home
-}
-
-fn fresh_home() -> PathBuf {
-    let id = HOME_ID.fetch_add(1, Ordering::SeqCst);
-    let home = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("target/query-proof-tests")
-        .join(format!("{}-{id}", std::process::id()));
-    fs::create_dir_all(&home).unwrap();
     home
 }

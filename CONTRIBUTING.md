@@ -43,15 +43,16 @@ Override the coverage minimum with `ASK_COVERAGE_MIN` and the full-gate base ref
 
 CI runs the full gate on pull requests into `staging`; the per-commit workflow can also be dispatched manually to run the fast gate on a branch.
 
-## Query proof
+## Proofs
 
-Run the end-to-end query proof through the built binary with:
+Run the end-to-end proofs through the built binary with:
 
 ```sh
+cargo test --test configure_proof
 cargo test --test query_proof
 ```
 
-The test starts a programmable HTTP provider on the local loopback interface and uses deterministic fixtures. It requires no external network access, provider credentials, or paid services.
+The configure proof drives `ask configure` with redirected stdin, then runs a query against the file it wrote. The query proof exercises response, streaming, error, and timeout behavior. Both start a programmable HTTP provider on the local loopback interface and use deterministic fixtures. They require no external network access, provider credentials, or paid services. Shared helpers for the proofs live in `tests/support/`.
 
 ## Dependency updates
 
