@@ -1,0 +1,142 @@
+{
+  "date": "2026-09-06",
+  "normalization": "Selected public metadata only; no local paths. Hashes measure registry archive integrity, not trusted-publisher provenance.",
+  "packages": {
+    "rusqlite-0.40.2": {
+      "registry": {
+        "num": "0.40.2",
+        "checksum": "23f2a97da3e3873c73cb2a2e71b35c40ff95e0b1eefa8d72d8499a6928c3b5b3",
+        "created_at": "2026-08-08T14:21:52.570893Z",
+        "license": "MIT",
+        "published_by": {
+          "login": "gwenn"
+        }
+      },
+      "archive_sha256": "23f2a97da3e3873c73cb2a2e71b35c40ff95e0b1eefa8d72d8499a6928c3b5b3",
+      "checksum_matches": true,
+      "vcs": {
+        "git": {
+          "sha1": "e88f112bef7899234a497baed5cc3c3d553deeb8"
+        },
+        "path_in_vcs": ""
+      },
+      "repository": {
+        "full_name": "rusqlite/rusqlite",
+        "archived": false,
+        "pushed_at": "2026-09-06T07:01:19Z",
+        "html_url": "https://github.com/rusqlite/rusqlite"
+      },
+      "commit": {
+        "sha": "e88f112bef7899234a497baed5cc3c3d553deeb8",
+        "verification": {
+          "verified": false,
+          "reason": "unsigned",
+          "verified_at": null
+        },
+        "url": "https://github.com/rusqlite/rusqlite/commit/e88f112bef7899234a497baed5cc3c3d553deeb8"
+      }
+    },
+    "libsqlite3-sys-0.38.2": {
+      "registry": {
+        "num": "0.38.2",
+        "checksum": "f1d20bef17f513b9b3004532233187769cd072d790971f4e4da0e346eb6401e8",
+        "created_at": "2026-08-08T14:21:30.774453Z",
+        "license": "MIT",
+        "published_by": {
+          "login": "gwenn"
+        }
+      },
+      "archive_sha256": "f1d20bef17f513b9b3004532233187769cd072d790971f4e4da0e346eb6401e8",
+      "checksum_matches": true,
+      "vcs": {
+        "git": {
+          "sha1": "e88f112bef7899234a497baed5cc3c3d553deeb8"
+        },
+        "path_in_vcs": "libsqlite3-sys"
+      },
+      "repository": {
+        "full_name": "rusqlite/rusqlite",
+        "archived": false,
+        "pushed_at": "2026-09-06T07:01:19Z",
+        "html_url": "https://github.com/rusqlite/rusqlite"
+      },
+      "commit": {
+        "sha": "e88f112bef7899234a497baed5cc3c3d553deeb8",
+        "verification": {
+          "verified": false,
+          "reason": "unsigned",
+          "verified_at": null
+        },
+        "url": "https://github.com/rusqlite/rusqlite/commit/e88f112bef7899234a497baed5cc3c3d553deeb8"
+      }
+    },
+    "libsqlite3-sys-0.37.0": {
+      "registry": {
+        "num": "0.37.0",
+        "checksum": "b1f111c8c41e7c61a49cd34e44c7619462967221a6443b0ec299e0ac30cfb9b1",
+        "created_at": "2026-03-15T10:35:25.809035Z",
+        "license": "MIT",
+        "published_by": {
+          "login": "gwenn"
+        }
+      },
+      "archive_sha256": "b1f111c8c41e7c61a49cd34e44c7619462967221a6443b0ec299e0ac30cfb9b1",
+      "checksum_matches": true,
+      "vcs": {
+        "git": {
+          "sha1": "2a1790a69107cd03dae85d501dcbdb11c5b32ef3"
+        },
+        "path_in_vcs": "libsqlite3-sys"
+      },
+      "repository": {
+        "full_name": "rusqlite/rusqlite",
+        "archived": false,
+        "pushed_at": "2026-09-06T07:01:19Z",
+        "html_url": "https://github.com/rusqlite/rusqlite"
+      },
+      "commit": {
+        "sha": "2a1790a69107cd03dae85d501dcbdb11c5b32ef3",
+        "verification": {
+          "verified": true,
+          "reason": "valid",
+          "verified_at": "2026-03-15T10:28:11Z"
+        },
+        "url": "https://github.com/rusqlite/rusqlite/commit/2a1790a69107cd03dae85d501dcbdb11c5b32ef3"
+      }
+    },
+    "sqlx-0.9.0": {
+      "registry": {
+        "num": "0.9.0",
+        "checksum": "378620ccc25c62c89d8be1c819e76a88d59bdcc3304733330788948e619bfd71",
+        "created_at": "2026-05-21T17:35:53.403466Z",
+        "license": "MIT OR Apache-2.0",
+        "published_by": {
+          "login": "abonander"
+        }
+      },
+      "archive_sha256": "378620ccc25c62c89d8be1c819e76a88d59bdcc3304733330788948e619bfd71",
+      "checksum_matches": true,
+      "vcs": {
+        "git": {
+          "sha1": "003b698e99e024f3621b8043a2426fde5b741171"
+        },
+        "path_in_vcs": ""
+      },
+      "repository": {
+        "full_name": "transact-rs/sqlx",
+        "archived": false,
+        "pushed_at": "2026-09-04T00:52:47Z",
+        "html_url": "https://github.com/transact-rs/sqlx"
+      },
+      "commit": {
+        "sha": "003b698e99e024f3621b8043a2426fde5b741171",
+        "verification": {
+          "verified": false,
+          "reason": "unsigned",
+          "verified_at": null
+        },
+        "url": "https://github.com/transact-rs/sqlx/commit/003b698e99e024f3621b8043a2426fde5b741171"
+      }
+    }
+  }
+}

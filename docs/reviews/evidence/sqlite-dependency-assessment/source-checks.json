@@ -1,0 +1,65 @@
+{
+  "date": "2026-09-06",
+  "normalization": "Selected source facts and hashes; source file paths are relative to published crate roots. No complete source audit implied.",
+  "sqlite_latest_release": "3.53.4 (2026-07-24)",
+  "sqlite_amalgamations": {
+    "0.38.2": {
+      "version": "3.53.2",
+      "source_id": "2026-06-03 19:12:13 d6e03d8c777cfa2d35e3b60d8ec3e0187f3e9f99d8e2ee9cac695fd6fcdf1a24",
+      "sqlite3_c_sha3_256": "44fd61b9f93b4155105cb2d80c957ae6c64a8b5bd6ed51a4992f0dbd438e4e11",
+      "hash_present_in_official_release_history": true
+    },
+    "0.37.0": {
+      "version": "3.51.3",
+      "source_id": "2026-03-13 10:38:09 737ae4a34738ffa0c3ff7f9bb18df914dd1cad163f28fd6b6e114a344fe6d618",
+      "sqlite3_c_sha3_256": "32d5424f97e0a7fc5ed2f6335afbb58be4e0298bd7117a34e39d345ff13d859e",
+      "hash_present_in_official_release_history": true
+    }
+  },
+  "release_tags": {
+    "rusqlite/rusqlite": {
+      "ref": "refs/tags/v0.40.2",
+      "node_id": "MDM6UmVmMjYxNzc4MjQ6cmVmcy90YWdzL3YwLjQwLjI=",
+      "url": "https://api.github.com/repos/rusqlite/rusqlite/git/refs/tags/v0.40.2",
+      "object": {
+        "sha": "e88f112bef7899234a497baed5cc3c3d553deeb8",
+        "type": "commit",
+        "url": "https://api.github.com/repos/rusqlite/rusqlite/git/commits/e88f112bef7899234a497baed5cc3c3d553deeb8"
+      }
+    },
+    "transact-rs/sqlx": {
+      "ref": "refs/tags/v0.9.0",
+      "node_id": "MDM6UmVmMjMwNTk1ODkxOnJlZnMvdGFncy92MC45LjA=",
+      "url": "https://api.github.com/repos/transact-rs/sqlx/git/refs/tags/v0.9.0",
+      "object": {
+        "sha": "75bc0487eb661da811bb7a3c5d158f1bd463fef4",
+        "type": "commit",
+        "url": "https://api.github.com/repos/transact-rs/sqlx/git/commits/75bc0487eb661da811bb7a3c5d158f1bd463fef4"
+      }
+    }
+  },
+  "source_spot_checks": [
+    {
+      "crate": "rusqlite-0.40.2",
+      "file": "src/lib.rs",
+      "url": "https://raw.githubusercontent.com/rusqlite/rusqlite/e88f112bef7899234a497baed5cc3c3d553deeb8/src/lib.rs",
+      "matches": true,
+      "sha256": "434fea1c571148b29288a50f8064e125a023ed30fdb7ae9e997b033e3ee73119"
+    },
+    {
+      "crate": "libsqlite3-sys-0.38.2",
+      "file": "build.rs",
+      "url": "https://raw.githubusercontent.com/rusqlite/rusqlite/e88f112bef7899234a497baed5cc3c3d553deeb8/libsqlite3-sys/build.rs",
+      "matches": true,
+      "sha256": "269acf1864de5046ac5b77814926d41fe24108b0d027f635812a1db3c965f81f"
+    },
+    {
+      "crate": "sqlx-0.9.0",
+      "file": "src/lib.rs",
+      "url": "https://raw.githubusercontent.com/transact-rs/sqlx/003b698e99e024f3621b8043a2426fde5b741171/src/lib.rs",
+      "matches": true,
+      "sha256": "002d62dd74e9cf39d0a5d84c7ef96733ed72e7a5e8dac8440a280e691963d65c"
+    }
+  ],
+  "advisory_remote_head": "5a0ebedfe8bdd2e295b171f4162f8c977bcad9a5\tHEAD"
+}

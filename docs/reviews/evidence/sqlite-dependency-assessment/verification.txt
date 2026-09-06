@@ -1,0 +1,42 @@
+Evidence date: 2026-09-06
+Normalization: local paths replaced by <repo-root>, <probe-root>, <cargo-home>.
+Baseline: cfa8420e570deee7839c88cd1d05e00c0b9216eb
+rustc 1.97.1 (8bab26f4f 2026-07-14)
+cargo 1.97.1 (c980f4866 2026-06-30)
+cargo-deny 0.20.2
+Host: x86_64-unknown-linux-gnu
+
+Six copied-baseline probes:
+cargo metadata --format-version 1: exit 0 for all six.
+cargo tree --locked -e normal,build --target <triple> --prefix none --format '{p}': exit 0 for all 24 combinations.
+cargo tree --locked --offline -e normal,build --target x86_64-unknown-linux-gnu --prefix none --format '{p} features={f}': exit 0 for all six and baseline.
+cargo deny --locked --config <probe-root>/deny.toml check: exit 0 for all six; advisories, bans, licenses and sources passed. Full normalized outputs retained.
+No baseline package removal or version change.
+
+Independent native smoke:
+cargo run --offline --manifest-path <probe-root>/native-smoke/Cargo.toml: exit 0.
+Explicit already-installed cargo/rustc executables; temporary CARGO_HOME and CARGO_TARGET_DIR.
+SQLite 3.53.2: transaction, parameter binding, readback, user_version passed.
+This is an in-memory host smoke, not an ask build, file-locking proof, or target matrix build.
+
+Advisory freshness:
+Refreshed local commit 5a0ebedfe8bdd2e295b171f4162f8c977bcad9a5, dated 2026-09-02T11:13:32+02:00.
+git ls-remote https://github.com/RustSec/advisory-db HEAD: same commit on 2026-09-06.
+
+Provenance:
+Four archive SHA-256 checks: match registry checksums.
+Three individual source-file checks: match declared commits.
+Two sqlite3.c SHA3-256 checks: match upstream release history.
+SQLx tag and package source commits differ; relationship unresolved.
+No full source-tree, publishing workflow, attestation, or reproducible-build verification.
+
+Corrected deviations:
+Initial sandbox HTTP requests failed DNS resolution; read-only network requests and temporary Cargo operations succeeded with execution escalation.
+Initial cargo-deny invocation misplaced --config after check (exit 2); corrected command above passed. Retained logs are successful runs.
+cargo audit was unavailable; cargo-deny supplied advisory checking.
+Initial native smoke through mise attempted a read-only toolchain installation and failed. Explicit installed executables succeeded without installation.
+
+Repository verification scope:
+No production behavior or tracked production files changed; no regression test required.
+just verify and just verify-full were not run; no full-gate claim. Integration verification belongs to the managing agent.
+Final checks cover JSON/TOML parsing, evidence counts, local Markdown links, file hygiene, unchanged tracked files, and git diff --check.
