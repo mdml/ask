@@ -8,7 +8,8 @@ use std::{
     collections::HashMap,
     fmt, fs,
     io::{self, BufRead, Write},
-    path::Path,
+    path::{Path, PathBuf},
+    sync::atomic::{AtomicU64, Ordering},
 };
 
 use crate::config::{Config, ProfileConfig, ProviderConfig};
@@ -199,22 +200,54 @@ fn continues_env_var_name(character: char) -> bool {
     character == '_' || character.is_ascii_alphanumeric()
 }
 
-/// Creates the file only if it does not already exist, so a file that appears
-/// during the dialogue is never overwritten.
+/// Publishes a complete file without replacing a destination that appears
+/// during the dialogue. A failed write only affects the temporary file.
 fn write_new(path: &Path, contents: &str) -> Result<(), ConfigureError> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|error| cannot_write(path, &error))?;
     }
-    let mut file = fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(path)
-        .map_err(|error| match error.kind() {
-            io::ErrorKind::AlreadyExists => ConfigureError::Exists(path.display().to_string()),
-            _ => cannot_write(path, &error),
-        })?;
-    file.write_all(contents.as_bytes())
-        .map_err(|error| cannot_write(path, &error))
+    let mut temporary =
+        TemporaryConfig::create(path).map_err(|error| cannot_write(path, &error))?;
+    temporary
+        .file
+        .write_all(contents.as_bytes())
+        .and_then(|()| temporary.file.sync_all())
+        .map_err(|error| cannot_write(path, &error))?;
+    fs::hard_link(&temporary.path, path).map_err(|error| match error.kind() {
+        io::ErrorKind::AlreadyExists => ConfigureError::Exists(path.display().to_string()),
+        _ => cannot_write(path, &error),
+    })
+}
+
+struct TemporaryConfig {
+    path: PathBuf,
+    file: fs::File,
+}
+
+impl TemporaryConfig {
+    fn create(destination: &Path) -> io::Result<Self> {
+        static NEXT_ID: AtomicU64 = AtomicU64::new(0);
+        loop {
+            let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
+            let path =
+                destination.with_file_name(format!(".ask-config-{}-{id}.tmp", std::process::id()));
+            match fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&path)
+            {
+                Ok(file) => return Ok(Self { path, file }),
+                Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
+                Err(error) => return Err(error),
+            }
+        }
+    }
+}
+
+impl Drop for TemporaryConfig {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.path);
+    }
 }
 
 fn cannot_write(path: &Path, error: &io::Error) -> ConfigureError {

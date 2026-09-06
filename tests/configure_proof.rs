@@ -4,7 +4,7 @@ use std::{
     fs,
     io::Write,
     path::Path,
-    process::{Output, Stdio},
+    process::{Command, Output, Stdio},
 };
 
 use support::{
@@ -120,9 +120,41 @@ fn extra_arguments_are_a_usage_error() {
     assert!(stderr(&output).starts_with("ask: usage: "));
 }
 
+#[cfg(unix)]
+#[test]
+fn failed_disk_write_leaves_no_config_and_allows_retry() {
+    let home = fresh_home();
+    let answers = format!(
+        "local\nhttp://127.0.0.1:1/v1\nfake-model\nLOCAL_API_KEY\n{}\n\ny\n",
+        "x".repeat(4096)
+    );
+    let mut limited = Command::new("sh");
+    limited
+        .args([
+            "-c",
+            "trap '' XFSZ; ulimit -f 1; exec \"$1\" configure",
+            "write-limit",
+        ])
+        .arg(env!("CARGO_BIN_EXE_ask"))
+        .env("ASK_HOME", &home)
+        // The disk limit would also truncate this child's coverage profile.
+        .env("LLVM_PROFILE_FILE", "/dev/null");
+    let output = drive(&mut limited, &answers);
+    assert_eq!(output.status.code(), Some(1), "{}", stderr(&output));
+    assert!(stderr(&output).contains("cannot write"));
+    assert!(output.stdout.is_empty());
+    assert!(!home.join("config.toml").exists());
+    assert_eq!(fs::read_dir(&home).unwrap().count(), 0);
+    let retry = configure(&home, "configure", &answers);
+    assert!(retry.status.success(), "{}", stderr(&retry));
+}
+
 fn configure(home: &Path, verb: &str, answers: &str) -> Output {
-    let mut child = command(home, true)
-        .arg(verb)
+    drive(command(home, true).arg(verb), answers)
+}
+
+fn drive(command: &mut Command, answers: &str) -> Output {
+    let mut child = command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
