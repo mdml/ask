@@ -1,0 +1,15 @@
+_normalization: Filtered the cargo tree to lines for the 12 packages added to Cargo.lock; no machine-specific paths remain.
+command: cargo tree --locked -e normal,build --target aarch64-unknown-linux-gnu --prefix depth --format '{p}'
+absent-from-filtered-tree: libredox 0.1.23; redox_users 0.5.2
+
+1directories v6.0.0
+2dirs-sys v0.5.0
+3option-ext v0.2.0
+5tokio-macros v2.7.2 (proc-macro)
+1toml v1.1.5+spec-1.1.0
+2serde_spanned v1.1.1
+2toml_datetime v1.1.1+spec-1.1.0
+2toml_parser v1.1.3+spec-1.1.0
+3winnow v1.0.4
+2toml_writer v1.1.2+spec-1.1.0
+2winnow v1.0.4

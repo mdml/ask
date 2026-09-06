@@ -33,9 +33,9 @@ model = "fake-model"
 # system_prompt = "..."
 ```
 
-`api_key_env` names the environment variable that supplies the credential; `ask` does not store credential values. The request timeout defaults to 30 seconds. A profile can replace the built-in terminal-oriented system prompt.
+`api_key_env` names the environment variable that supplies the credential; `ask` does not store credential values. The request timeout defaults to 30 seconds. When a profile sets no `system_prompt`, `ask` sends this default system prompt: "Answer briefly in plain Markdown suitable for a terminal." A profile's `system_prompt` replaces it.
 
-The answer is streamed to stdout as unstyled Markdown and ends with exactly one newline. Statistics, warnings, usage errors, and diagnostics are written to stderr. A successful query exits 0, provider and configuration failures exit 1, and a missing prompt exits 2. If the stdout reader closes early, `ask` exits 0 without a diagnostic.
+The answer is streamed to stdout as unstyled Markdown and ends with exactly one newline. Statistics, warnings, usage errors, and diagnostics are written to stderr. A successful query exits 0, and provider and configuration failures exit 1. If the stdout reader closes early, `ask` exits 0 without a diagnostic. Running `ask` with no prompt words currently prints a usage message and exits 2; the intended behavior, an interactive multiline `>` prompt, is not yet implemented.
 
 ## Development
 
