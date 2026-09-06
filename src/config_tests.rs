@@ -77,3 +77,23 @@ fn unsupported_provider_kind_is_named() {
 fn config_error(contents: &str) -> String {
     parse(contents).unwrap().resolve().unwrap_err().to_string()
 }
+
+#[test]
+fn rendered_toml_round_trips_and_omits_defaults() {
+    let mut config = parse(CONFIG).unwrap();
+    config.profiles.get_mut("default").unwrap().system_prompt =
+        Some("Say \"yes\"\twith tabs".to_string());
+    let rendered = config.to_toml().unwrap();
+    assert!(!rendered.contains("timeout_ms"));
+    let target = parse(&rendered).unwrap().resolve().unwrap();
+    assert_eq!(target.system_prompt, "Say \"yes\"\twith tabs");
+    assert_eq!(target.base_url, "http://127.0.0.1:1234/v1");
+}
+
+#[test]
+fn rendered_toml_keeps_a_custom_timeout() {
+    let mut config = parse(CONFIG).unwrap();
+    config.providers.get_mut("local").unwrap().timeout_ms = 41;
+    let rendered = config.to_toml().unwrap();
+    assert!(rendered.contains("timeout_ms = 41"));
+}
