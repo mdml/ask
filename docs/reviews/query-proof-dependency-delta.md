@@ -128,12 +128,16 @@ Interpretation: the delta causes no version churn, no new duplicate-version set,
 
 Interpretation: crates.io shows one current user owner for `directories`, `dirs-sys`, and `option-ext`; the TOML-family packages generally show a user plus a team, while `winnow` shows the same user without that team record. Download totals establish widespread registry use but do not establish source quality, release provenance, or owner-account security.
 
-## Open questions for the owner
+## Owner decisions
 
-- Is one crates.io user account controlling `directories`, `dirs-sys`, and `option-ext` within the desired ownership threshold for a direct configuration-path dependency?
-- Does the owner want a separate unsupported-target review of the locked Redox-only `redox_users` and `libredox` packages, even though they are outside the supported release-target gate?
-- Is adding the `tokio-macros` procedural-macro surface acceptable for the entry point, or should a future implementation task compare explicit current-thread runtime construction?
-- Should direct dependency declarations be independently feature-minimal even when the resolved union is unchanged, particularly Serde's default features plus `derive`?
+The owner resolved the review's open questions on 2026-09-05:
+
+- Accept the single-owner `directories` family (`directories`, `dirs-sys`, `option-ext`). Reasons given: versions are exactly pinned, updates require human review, and the family adds no build scripts.
+- Do not review the Redox-only `redox_users` and `libredox` packages further, because they are unreachable on the supported release targets.
+- Accept `tokio-macros`. Its build-time behavior is narrowly understood and the crate is owned by the Tokio team.
+- Keep Serde's current features. `std` is required, and the resolved dependency graph does not grow from the direct declaration.
+
+No open questions remain from this review.
 
 ## Deviations
 
