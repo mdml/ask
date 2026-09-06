@@ -1,0 +1,17 @@
+Normalization: <probe-root> replaces temporary directory paths.
+     Locking 11 packages to latest Rust 1.97.1 compatible versions
+   Compiling shlex v2.0.1
+   Compiling find-msvc-tools v0.1.12
+   Compiling pkg-config v0.3.34
+   Compiling vcpkg v0.2.15
+   Compiling smallvec v1.16.0
+   Compiling fallible-iterator v0.3.0
+   Compiling bitflags v2.13.1
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling cc v1.4.5
+   Compiling libsqlite3-sys v0.38.2
+   Compiling rusqlite v0.40.2
+   Compiling sqlite-native-smoke v0.0.0 (<probe-root>/native-smoke)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.01s
+     Running `<probe-root>/target/debug/sqlite-native-smoke`
+SQLite 3.53.2: transaction, parameter binding, readback, user_version passed

@@ -1,0 +1,6 @@
+[package]
+name="sqlite-native-smoke"
+version="0.0.0"
+edition="2024"
+[dependencies]
+rusqlite = { version = "=0.40.2", default-features = false, features = ["bundled"] }
