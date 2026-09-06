@@ -2,11 +2,46 @@
 
 `ask` is a fast, opinionated terminal lookup tool for asking language models quick questions without starting an agent session.
 
-**Status: pre-alpha.** The repository is being bootstrapped. Nothing here is installable or usable yet, the command surface is not implemented, and every interface may change before the first `0.1.0` release.
+**Status: pre-alpha.** The query command is implemented, but interfaces may change before the first `0.1.0` release. The only provider kind currently supported is `openai-compatible`.
+
+## Usage
+
+The following forms each start a new query. Prompt words are joined with single spaces.
+
+```sh
+ask "what is 2+2"
+ask new "what is 2+2"
+ask n "what is 2+2"
+```
+
+`ask` reads `$ASK_HOME/config.toml` when `ASK_HOME` is set. Otherwise, it reads `config.toml` from the platform-standard configuration directory for an application named `ask`.
+
+The configuration schema is provisional during 0.x:
+
+```toml
+default_profile = "default"
+
+[providers.local]
+kind = "openai-compatible"
+base_url = "http://127.0.0.1:PORT/v1"
+api_key_env = "LOCAL_API_KEY"
+# timeout_ms = 30000
+
+[profiles.default]
+provider = "local"
+model = "fake-model"
+# system_prompt = "..."
+```
+
+`api_key_env` names the environment variable that supplies the credential; `ask` does not store credential values. The request timeout defaults to 30 seconds. When a profile sets no `system_prompt`, `ask` sends this default system prompt: "Answer briefly in plain Markdown suitable for a terminal." A profile's `system_prompt` replaces it.
+
+The answer is streamed to stdout as unstyled Markdown and ends with exactly one newline. Statistics, warnings, usage errors, and diagnostics are written to stderr. A successful query exits 0, and provider and configuration failures exit 1. If the stdout reader closes early, `ask` exits 0 without a diagnostic. Running `ask` with no prompt words currently prints a usage message and exits 2; the intended behavior, an interactive multiline `>` prompt, is not yet implemented.
 
 ## Development
 
-Rules for contributors and coding agents are in `AGENTS.md`.
+Rules for contributors and coding agents are in `AGENTS.md`. See `CONTRIBUTING.md` for tooling setup, branch flow, and verification gates.
+
+Run the fast gate with `just verify` before every commit. Pull requests must pass `just verify-full`.
 
 ## License
 

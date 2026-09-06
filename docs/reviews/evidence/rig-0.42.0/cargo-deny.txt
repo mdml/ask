@@ -1,0 +1,248 @@
+warning[duplicate]: found 2 duplicate entries for crate 'core-foundation'
+   ┌─ <repo-root>/Cargo.lock:18:1
+   │  
+18 │ ╭ core-foundation 0.9.4 registry+https://github.com/rust-lang/crates.io-index
+19 │ │ core-foundation 0.10.1 registry+https://github.com/rust-lang/crates.io-index
+   │ ╰────────────────────────────────────────────────────────────────────────────┘ lock entries
+   │  
+   ├ core-foundation v0.9.4
+     └── system-configuration v0.7.0
+         └── hyper-util v0.1.20
+             ├── hyper-rustls v0.27.9
+             │   └── reqwest v0.13.4
+             │       └── rig-core v0.42.0
+             │           └── ask v0.1.0
+             └── reqwest v0.13.4 (*)
+   ├ core-foundation v0.10.1
+     ├── rustls-platform-verifier v0.7.0
+     │   └── reqwest v0.13.4
+     │       └── rig-core v0.42.0
+     │           └── ask v0.1.0
+     └── security-framework v3.7.0
+         ├── rustls-native-certs v0.8.4
+         │   └── rustls-platform-verifier v0.7.0 (*)
+         └── rustls-platform-verifier v0.7.0 (*)
+
+error[rejected]: failed to satisfy license requirements
+   ┌─ <cargo-home>/registry/src/index.crates.io-1949cf8c6b5b557f/webpki-root-certs-1.0.9/Cargo.toml:26:12
+   │
+26 │ license = "CDLA-Permissive-2.0"
+   │            ━━━━━━━━━━━━━━━━━━━
+   │            │
+   │            rejected: license is not explicitly allowed
+   │
+   ├ CDLA-Permissive-2.0 - Community Data License Agreement Permissive 2.0:
+   ├   - No additional metadata available for license
+   ├ webpki-root-certs v1.0.9
+     └── rustls-platform-verifier v0.7.0
+         └── reqwest v0.13.4
+             └── rig-core v0.42.0
+                 └── ask v0.1.0
+
+warning[duplicate]: found 2 duplicate entries for crate 'syn'
+    ┌─ <repo-root>/Cargo.lock:132:1
+    │  
+132 │ ╭ syn 2.0.119 registry+https://github.com/rust-lang/crates.io-index
+133 │ │ syn 3.0.5 registry+https://github.com/rust-lang/crates.io-index
+    │ ╰───────────────────────────────────────────────────────────────┘ lock entries
+    │  
+    ├ syn v2.0.119
+      ├── async-stream-impl v0.3.6
+      │   └── async-stream v0.3.6
+      │       └── rig-core v0.42.0
+      │           └── ask v0.1.0
+      ├── jni-macros v0.22.4
+      │   └── jni v0.22.4
+      │       └── rustls-platform-verifier v0.7.0
+      │           └── reqwest v0.13.4
+      │               └── rig-core v0.42.0 (*)
+      ├── jni-sys-macros v0.4.1
+      │   └── jni-sys v0.4.1
+      │       └── jni v0.22.4 (*)
+      ├── pin-project-internal v1.1.13
+      │   └── pin-project v1.1.13
+      │       └── tracing-futures v0.2.5
+      │           └── rig-core v0.42.0 (*)
+      ├── synstructure v0.13.2
+      │   ├── yoke-derive v0.8.2
+      │   │   └── yoke v0.8.3
+      │   │       ├── icu_collections v2.3.0
+      │   │       │   ├── icu_normalizer v2.3.0
+      │   │       │   │   └── idna_adapter v1.2.2
+      │   │       │   │       └── idna v1.1.0
+      │   │       │   │           └── url v2.5.8
+      │   │       │   │               ├── reqwest v0.13.4 (*)
+      │   │       │   │               ├── rig-core v0.42.0 (*)
+      │   │       │   │               └── tower-http v0.6.11
+      │   │       │   │                   └── reqwest v0.13.4 (*)
+      │   │       │   └── icu_properties v2.3.0
+      │   │       │       └── idna_adapter v1.2.2 (*)
+      │   │       ├── icu_provider v2.3.1
+      │   │       │   ├── icu_normalizer v2.3.0 (*)
+      │   │       │   └── icu_properties v2.3.0 (*)
+      │   │       ├── zerotrie v0.2.5
+      │   │       │   ├── icu_properties v2.3.0 (*)
+      │   │       │   └── icu_provider v2.3.1 (*)
+      │   │       └── zerovec v0.11.8
+      │   │           ├── icu_collections v2.3.0 (*)
+      │   │           ├── icu_locale_core v2.3.0
+      │   │           │   ├── icu_properties v2.3.0 (*)
+      │   │           │   └── icu_provider v2.3.1 (*)
+      │   │           ├── icu_normalizer v2.3.0 (*)
+      │   │           ├── icu_properties v2.3.0 (*)
+      │   │           ├── icu_provider v2.3.1 (*)
+      │   │           ├── potential_utf v0.1.6
+      │   │           │   └── icu_collections v2.3.0 (*)
+      │   │           └── tinystr v0.8.4
+      │   │               └── icu_locale_core v2.3.0 (*)
+      │   └── zerofrom-derive v0.1.7
+      │       └── zerofrom v0.1.8
+      │           ├── icu_collections v2.3.0 (*)
+      │           ├── icu_provider v2.3.1 (*)
+      │           ├── yoke v0.8.3 (*)
+      │           ├── zerotrie v0.2.5 (*)
+      │           └── zerovec v0.11.8 (*)
+      ├── tracing-attributes v0.1.31
+      │   └── tracing v0.1.44
+      │       ├── h2 v0.4.19
+      │       │   ├── hyper v1.11.1
+      │       │   │   ├── hyper-rustls v0.27.9
+      │       │   │   │   └── reqwest v0.13.4 (*)
+      │       │   │   ├── hyper-util v0.1.20
+      │       │   │   │   ├── hyper-rustls v0.27.9 (*)
+      │       │   │   │   └── reqwest v0.13.4 (*)
+      │       │   │   └── reqwest v0.13.4 (*)
+      │       │   └── reqwest v0.13.4 (*)
+      │       ├── hyper-util v0.1.20 (*)
+      │       ├── rig-core v0.42.0 (*)
+      │       └── tracing-futures v0.2.5 (*)
+      ├── wasm-bindgen-macro-support v0.2.127
+      │   └── wasm-bindgen-macro v0.2.127
+      │       └── wasm-bindgen v0.2.127
+      │           ├── gloo-timers v0.4.0
+      │           │   └── futures-timer v3.0.4
+      │           │       └── rig-core v0.42.0 (*)
+      │           ├── js-sys v0.3.104
+      │           │   ├── gloo-timers v0.4.0 (*)
+      │           │   ├── reqwest v0.13.4 (*)
+      │           │   ├── wasm-bindgen-futures v0.4.77
+      │           │   │   ├── reqwest v0.13.4 (*)
+      │           │   │   └── wasm-streams v0.5.0
+      │           │   │       └── reqwest v0.13.4 (*)
+      │           │   ├── wasm-streams v0.5.0 (*)
+      │           │   └── web-sys v0.3.104
+      │           │       ├── reqwest v0.13.4 (*)
+      │           │       └── wasm-streams v0.5.0 (*)
+      │           ├── reqwest v0.13.4 (*)
+      │           ├── wasm-bindgen-futures v0.4.77 (*)
+      │           ├── wasm-streams v0.5.0 (*)
+      │           └── web-sys v0.3.104 (*)
+      ├── yoke-derive v0.8.2 (*)
+      └── zerofrom-derive v0.1.7 (*)
+    ├ syn v3.0.5
+      ├── displaydoc v0.2.7
+      │   ├── icu_collections v2.3.0
+      │   │   ├── icu_normalizer v2.3.0
+      │   │   │   └── idna_adapter v1.2.2
+      │   │   │       └── idna v1.1.0
+      │   │   │           └── url v2.5.8
+      │   │   │               ├── reqwest v0.13.4
+      │   │   │               │   └── rig-core v0.42.0
+      │   │   │               │       └── ask v0.1.0
+      │   │   │               ├── rig-core v0.42.0 (*)
+      │   │   │               └── tower-http v0.6.11
+      │   │   │                   └── reqwest v0.13.4 (*)
+      │   │   └── icu_properties v2.3.0
+      │   │       └── idna_adapter v1.2.2 (*)
+      │   ├── icu_locale_core v2.3.0
+      │   │   ├── icu_properties v2.3.0 (*)
+      │   │   └── icu_provider v2.3.1
+      │   │       ├── icu_normalizer v2.3.0 (*)
+      │   │       └── icu_properties v2.3.0 (*)
+      │   ├── icu_properties v2.3.0 (*)
+      │   ├── icu_provider v2.3.1 (*)
+      │   ├── tinystr v0.8.4
+      │   │   └── icu_locale_core v2.3.0 (*)
+      │   └── zerotrie v0.2.5
+      │       ├── icu_properties v2.3.0 (*)
+      │       └── icu_provider v2.3.1 (*)
+      ├── futures-macro v0.3.34
+      │   └── futures-util v0.3.34
+      │       ├── futures v0.3.34
+      │       │   ├── rig-core v0.42.0 (*)
+      │       │   └── tracing-futures v0.2.5
+      │       │       └── rig-core v0.42.0 (*)
+      │       ├── futures-executor v0.3.34
+      │       │   └── futures v0.3.34 (*)
+      │       ├── hyper-util v0.1.20
+      │       │   ├── hyper-rustls v0.27.9
+      │       │   │   └── reqwest v0.13.4 (*)
+      │       │   └── reqwest v0.13.4 (*)
+      │       ├── js-sys v0.3.104
+      │       │   ├── gloo-timers v0.4.0
+      │       │   │   └── futures-timer v3.0.4
+      │       │   │       └── rig-core v0.42.0 (*)
+      │       │   ├── reqwest v0.13.4 (*)
+      │       │   ├── wasm-bindgen-futures v0.4.77
+      │       │   │   ├── reqwest v0.13.4 (*)
+      │       │   │   └── wasm-streams v0.5.0
+      │       │   │       └── reqwest v0.13.4 (*)
+      │       │   ├── wasm-streams v0.5.0 (*)
+      │       │   └── web-sys v0.3.104
+      │       │       ├── reqwest v0.13.4 (*)
+      │       │       └── wasm-streams v0.5.0 (*)
+      │       ├── reqwest v0.13.4 (*)
+      │       ├── tower v0.5.3
+      │       │   ├── reqwest v0.13.4 (*)
+      │       │   └── tower-http v0.6.11 (*)
+      │       ├── tower-http v0.6.11 (*)
+      │       └── wasm-streams v0.5.0 (*)
+      ├── ref-cast-impl v1.0.27
+      │   └── ref-cast v1.0.27
+      │       └── schemars v1.2.2
+      │           └── rig-core v0.42.0 (*)
+      ├── schemars_derive v1.2.2
+      │   └── schemars v1.2.2 (*)
+      ├── serde_derive v1.0.229
+      │   └── serde v1.0.229
+      │       ├── reqwest v0.13.4 (*)
+      │       ├── rig-core v0.42.0 (*)
+      │       └── schemars v1.2.2 (*)
+      ├── serde_derive_internals v0.30.0
+      │   └── schemars_derive v1.2.2 (*)
+      ├── thiserror-impl v2.0.20
+      │   └── thiserror v2.0.20
+      │       ├── jni v0.22.4
+      │       │   └── rustls-platform-verifier v0.7.0
+      │       │       └── reqwest v0.13.4 (*)
+      │       └── rig-core v0.42.0 (*)
+      └── zerovec-derive v0.11.6
+          └── zerovec v0.11.8
+              ├── icu_collections v2.3.0 (*)
+              ├── icu_locale_core v2.3.0 (*)
+              ├── icu_normalizer v2.3.0 (*)
+              ├── icu_properties v2.3.0 (*)
+              ├── icu_provider v2.3.1 (*)
+              ├── potential_utf v0.1.6
+              │   └── icu_collections v2.3.0 (*)
+              └── tinystr v0.8.4 (*)
+
+warning[license-not-encountered]: license was not encountered
+   ┌─ <repo-root>/deny.toml:13:6
+   │
+13 │     "BSD-2-Clause",
+   │      ━━━━━━━━━━━━ unmatched license allowance
+
+warning[license-not-encountered]: license was not encountered
+   ┌─ <repo-root>/deny.toml:18:6
+   │
+18 │     "MPL-2.0",
+   │      ━━━━━━━ unmatched license allowance
+
+warning[license-not-encountered]: license was not encountered
+   ┌─ <repo-root>/deny.toml:17:6
+   │
+17 │     "Zlib",
+   │      ━━━━ unmatched license allowance
+
+advisories ok, bans ok, licenses FAILED, sources ok

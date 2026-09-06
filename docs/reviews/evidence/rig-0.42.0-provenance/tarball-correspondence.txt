@@ -1,0 +1,12 @@
+Artifact: rig-core 0.42.0 crates.io .crate archive
+Source: 0xPlaygrounds/rig tag v0.42.0
+Tag commit SHA: d5a34986a1ad57f1e9c5984b82f8d7438ffc717e
+Tarball SHA-256: 432d83e0facf16749f91fe729cbffca84437e8062d2f4e92f4f12e903693922d
+crates.io checksum: 432d83e0facf16749f91fe729cbffca84437e8062d2f4e92f4f12e903693922d
+Checksum match: yes
+Tarball src regular-file count: 181
+Tagged-source src regular-file count: 181
+Sorted relative-path and SHA-256 manifest diff exit status: 0
+Tagged-source Cargo.toml versus packaged Cargo.toml diff exit status: 1
+Tagged-source Cargo.toml versus packaged Cargo.toml.orig diff exit status: 0
+Interpretation of Cargo.toml difference: Cargo generated and normalized the packaged Cargo.toml; the archive comment identifies Cargo.toml.orig as the original manifest.

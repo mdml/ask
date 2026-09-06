@@ -1,0 +1,797 @@
+{
+  "_normalization": "Normalized evidence, not a raw response: the per-file \"patch\", \"raw_url\", \"blob_url\", and \"contents_url\" fields were removed from \"files\" on 2026-09-04. All other fields, including \"commit\", \"verification\", \"author\", \"committer\", \"parents\", and \"stats\", are unmodified.",
+  "sha": "7943223c99d909bc399bdf1b856821bb04f1f3c5",
+  "node_id": "C_kwDOIWqeWtoAKDc5NDMyMjNjOTlkOTA5YmMzOTliZGYxYjg1NjgyMWJiMDRmMWYzYzU",
+  "commit": {
+    "author": {
+      "name": "Justin W Smith",
+      "email": "103147162+justsmth@users.noreply.github.com",
+      "date": "2026-09-01T01:08:24Z"
+    },
+    "committer": {
+      "name": "GitHub",
+      "email": "noreply@github.com",
+      "date": "2026-09-01T01:08:24Z"
+    },
+    "message": "Prepare aws-lc-sys v0.45.0 (#1220)",
+    "tree": {
+      "sha": "2776129c7835e6504a53028020c2bc86d7593ff5",
+      "url": "https://api.github.com/repos/aws/aws-lc-rs/git/trees/2776129c7835e6504a53028020c2bc86d7593ff5"
+    },
+    "url": "https://api.github.com/repos/aws/aws-lc-rs/git/commits/7943223c99d909bc399bdf1b856821bb04f1f3c5",
+    "comment_count": 0,
+    "verification": {
+      "verified": true,
+      "reason": "valid",
+      "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJqliWICRC1aQ7uu5UhlAAAcC0QAJ7UQyjU91iA+aYB++Fy3MWX\nwZ1GJE6n2E+mBQwXFGVGAYFcYwFg/Ethe/d0J1AyUfkk4SDCRxOBj4xdODOCuZLu\nFoCzN+9nN1tv1jxOIRqpLfr/Ih1IkZxcSm0udYtF8BshmcAOw1I0KZ/Fb/CHLqaW\n31vmHHuuY+vR0qOA8GHwA1wY30my4J7URHfBAB7Es5sXVGBkNP4yTRdds6S35FmR\nTsCXusOdz2tSHprN3MJzItl3Y4fZMsO3laR5CMp9WqoJXhSIEDEutVGyl7oabJ2G\nkEsPdqXhUPKwjHkibYj9qxuSlvhBo51q06YK/xMPpNKPG+PFrCG9vVEer8Ri5lV/\nexegceI43LiFTVGiU+QaO1Jdp2n78+N9wU6kdR1fAdRgiGjNhCyxnaKTgPmtCDTW\nRfDyNs385KEOowjhFt4Z6MmGq8Omlfxb5ZHjerKehLdbubpbaYsTPJid/56S/pwV\nPIaNra/CvzVs/6x250OBhLUjolbaWTs+nzGjtp//xx73tItMDLrZ4T3nNdiTnwBD\nO+6oiodzre1I7daEuIgRrD76YrU9fvPXA8o+AH1Ece0934eGof1QvkZEqKLl0rRU\nxDeJvrZKMDjrFdu4489jEZrXX5T48pYXTaDNBTEvHxLecFSLhRF52XCYpmDelYs3\nnDUe/sQKvetV2dcB/CSE\n=i05e\n-----END PGP SIGNATURE-----\n",
+      "payload": "tree 2776129c7835e6504a53028020c2bc86d7593ff5\nparent 8ea2229bcf8dd7da41504a3059d99737f93ca6cd\nauthor Justin W Smith <103147162+justsmth@users.noreply.github.com> 1788224904 -0400\ncommitter GitHub <noreply@github.com> 1788224904 -0400\n\nPrepare aws-lc-sys v0.45.0 (#1220)",
+      "verified_at": "2026-09-01T01:08:24Z"
+    }
+  },
+  "url": "https://api.github.com/repos/aws/aws-lc-rs/commits/7943223c99d909bc399bdf1b856821bb04f1f3c5",
+  "html_url": "https://github.com/aws/aws-lc-rs/commit/7943223c99d909bc399bdf1b856821bb04f1f3c5",
+  "comments_url": "https://api.github.com/repos/aws/aws-lc-rs/commits/7943223c99d909bc399bdf1b856821bb04f1f3c5/comments",
+  "author": {
+    "login": "justsmth",
+    "id": 103147162,
+    "node_id": "U_kgDOBiXmmg",
+    "avatar_url": "https://avatars.githubusercontent.com/u/103147162?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/justsmth",
+    "html_url": "https://github.com/justsmth",
+    "followers_url": "https://api.github.com/users/justsmth/followers",
+    "following_url": "https://api.github.com/users/justsmth/following{/other_user}",
+    "gists_url": "https://api.github.com/users/justsmth/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/justsmth/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/justsmth/subscriptions",
+    "organizations_url": "https://api.github.com/users/justsmth/orgs",
+    "repos_url": "https://api.github.com/users/justsmth/repos",
+    "events_url": "https://api.github.com/users/justsmth/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/justsmth/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "committer": {
+    "login": "web-flow",
+    "id": 19864447,
+    "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
+    "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/web-flow",
+    "html_url": "https://github.com/web-flow",
+    "followers_url": "https://api.github.com/users/web-flow/followers",
+    "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
+    "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
+    "organizations_url": "https://api.github.com/users/web-flow/orgs",
+    "repos_url": "https://api.github.com/users/web-flow/repos",
+    "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/web-flow/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "parents": [
+    {
+      "sha": "8ea2229bcf8dd7da41504a3059d99737f93ca6cd",
+      "url": "https://api.github.com/repos/aws/aws-lc-rs/commits/8ea2229bcf8dd7da41504a3059d99737f93ca6cd",
+      "html_url": "https://github.com/aws/aws-lc-rs/commit/8ea2229bcf8dd7da41504a3059d99737f93ca6cd"
+    }
+  ],
+  "stats": {
+    "total": 79928,
+    "additions": 40306,
+    "deletions": 39622
+  },
+  "files": [
+    {
+      "filename": "aws-lc-rs/Cargo.toml",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "changes": 2
+    },
+    {
+      "filename": "aws-lc-sys/Cargo.toml",
+      "status": "modified",
+      "additions": 3,
+      "deletions": 3,
+      "changes": 6
+    },
+    {
+      "filename": "aws-lc-sys/aws-lc",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "changes": 2
+    },
+    {
+      "filename": "aws-lc-sys/generated-include/openssl/boringssl_prefix_symbols.h",
+      "status": "modified",
+      "additions": 55,
+      "deletions": 43,
+      "changes": 98
+    },
+    {
+      "filename": "aws-lc-sys/generated-include/openssl/boringssl_prefix_symbols_asm.h",
+      "status": "modified",
+      "additions": 55,
+      "deletions": 43,
+      "changes": 98
+    },
+    {
+      "filename": "aws-lc-sys/generated-include/openssl/boringssl_prefix_symbols_nasm.inc",
+      "status": "modified",
+      "additions": 109,
+      "deletions": 85,
+      "changes": 194
+    },
+    {
+      "filename": "aws-lc-sys/src/aarch64_apple_darwin_crypto.rs",
+      "status": "modified",
+      "additions": 2707,
+      "deletions": 2682,
+      "changes": 5389
+    },
+    {
+      "filename": "aws-lc-sys/src/aarch64_linux_android_crypto.rs",
+      "status": "modified",
+      "additions": 2707,
+      "deletions": 2682,
+      "changes": 5389
+    },
+    {
+      "filename": "aws-lc-sys/src/aarch64_pc_windows_msvc_crypto.rs",
+      "status": "modified",
+      "additions": 2705,
+      "deletions": 2680,
+      "changes": 5385
+    },
+    {
+      "filename": "aws-lc-sys/src/aarch64_unknown_linux_gnu_crypto.rs",
+      "status": "modified",
+      "additions": 2707,
+      "deletions": 2682,
+      "changes": 5389
+    },
+    {
+      "filename": "aws-lc-sys/src/aarch64_unknown_linux_musl_crypto.rs",
+      "status": "modified",
+      "additions": 2707,
+      "deletions": 2682,
+      "changes": 5389
+    },
+    {
+      "filename": "aws-lc-sys/src/i686_pc_windows_msvc_crypto.rs",
+      "status": "modified",
+      "additions": 2705,
+      "deletions": 2680,
+      "changes": 5385
+    },
+    {
+      "filename": "aws-lc-sys/src/i686_unknown_linux_gnu_crypto.rs",
+      "status": "modified",
+      "additions": 2705,
+      "deletions": 2680,
+      "changes": 5385
+    },
+    {
+      "filename": "aws-lc-sys/src/riscv64gc_unknown_linux_gnu_crypto.rs",
+      "status": "modified",
+      "additions": 2705,
+      "deletions": 2680,
+      "changes": 5385
+    },
+    {
+      "filename": "aws-lc-sys/src/universal_crypto.rs",
+      "status": "modified",
+      "additions": 1064,
+      "deletions": 1039,
+      "changes": 2103
+    },
+    {
+      "filename": "aws-lc-sys/src/universal_no_u1_crypto.rs",
+      "status": "modified",
+      "additions": 1064,
+      "deletions": 1039,
+      "changes": 2103
+    },
+    {
+      "filename": "aws-lc-sys/src/universal_no_u1_prefixed_crypto.rs",
+      "status": "modified",
+      "additions": 1066,
+      "deletions": 1041,
+      "changes": 2107
+    },
+    {
+      "filename": "aws-lc-sys/src/universal_prefixed_crypto.rs",
+      "status": "modified",
+      "additions": 1066,
+      "deletions": 1041,
+      "changes": 2107
+    },
+    {
+      "filename": "aws-lc-sys/src/x86_64_apple_darwin_crypto.rs",
+      "status": "modified",
+      "additions": 2705,
+      "deletions": 2680,
+      "changes": 5385
+    },
+    {
+      "filename": "aws-lc-sys/src/x86_64_pc_windows_gnu_crypto.rs",
+      "status": "modified",
+      "additions": 2705,
+      "deletions": 2680,
+      "changes": 5385
+    },
+    {
+      "filename": "aws-lc-sys/src/x86_64_pc_windows_msvc_crypto.rs",
+      "status": "modified",
+      "additions": 2705,
+      "deletions": 2680,
+      "changes": 5385
+    },
+    {
+      "filename": "aws-lc-sys/src/x86_64_unknown_linux_gnu_crypto.rs",
+      "status": "modified",
+      "additions": 2705,
+      "deletions": 2680,
+      "changes": 5385
+    },
+    {
+      "filename": "aws-lc-sys/src/x86_64_unknown_linux_musl_crypto.rs",
+      "status": "modified",
+      "additions": 2705,
+      "deletions": 2680,
+      "changes": 5385
+    },
+    {
+      "filename": "aws-lc-sys/symbols/aarch64-apple-darwin.txt",
+      "status": "modified",
+      "additions": 24,
+      "deletions": 17,
+      "changes": 41
+    },
+    {
+      "filename": "aws-lc-sys/symbols/aarch64-pc-windows-msvc.txt",
+      "status": "modified",
+      "additions": 14,
+      "deletions": 0,
+      "changes": 14
+    },
+    {
+      "filename": "aws-lc-sys/symbols/aarch64-unknown-linux-gnu.txt",
+      "status": "modified",
+      "additions": 24,
+      "deletions": 17,
+      "changes": 41
+    },
+    {
+      "filename": "aws-lc-sys/symbols/aarch64-unknown-linux-musl.txt",
+      "status": "modified",
+      "additions": 24,
+      "deletions": 17,
+      "changes": 41
+    },
+    {
+      "filename": "aws-lc-sys/symbols/arm-unknown-linux-gnueabi.txt",
+      "status": "modified",
+      "additions": 14,
+      "deletions": 0,
+      "changes": 14
+    },
+    {
+      "filename": "aws-lc-sys/symbols/armv7-unknown-linux-gnueabihf.txt",
+      "status": "modified",
+      "additions": 14,
+      "deletions": 0,
+      "changes": 14
+    },
+    {
+      "filename": "aws-lc-sys/symbols/i686-pc-windows-msvc.txt",
+      "status": "modified",
+      "additions": 14,
+      "deletions": 0,
+      "changes": 14
+    },
+    {
+      "filename": "aws-lc-sys/symbols/i686-unknown-linux-gnu.txt",
+      "status": "modified",
+      "additions": 14,
+      "deletions": 0,
+      "changes": 14
+    },
+    {
+      "filename": "aws-lc-sys/symbols/powerpc-unknown-linux-gnu.txt",
+      "status": "modified",
+      "additions": 14,
+      "deletions": 0,
+      "changes": 14
+    },
+    {
+      "filename": "aws-lc-sys/symbols/powerpc64le-unknown-linux-gnu.txt",
+      "status": "modified",
+      "additions": 14,
+      "deletions": 0,
+      "changes": 14
+    },
+    {
+      "filename": "aws-lc-sys/symbols/x86_64-apple-darwin.txt",
+      "status": "modified",
+      "additions": 44,
+      "deletions": 30,
+      "changes": 74
+    },
+    {
+      "filename": "aws-lc-sys/symbols/x86_64-pc-windows-gnu.txt",
+      "status": "modified",
+      "additions": 14,
+      "deletions": 0,
+      "changes": 14
+    },
+    {
+      "filename": "aws-lc-sys/symbols/x86_64-pc-windows-msvc.txt",
+      "status": "modified",
+      "additions": 14,
+      "deletions": 0,
+      "changes": 14
+    },
+    {
+      "filename": "aws-lc-sys/symbols/x86_64-unknown-linux-gnu.txt",
+      "status": "modified",
+      "additions": 44,
+      "deletions": 30,
+      "changes": 74
+    },
+    {
+      "filename": "aws-lc-sys/symbols/x86_64-unknown-linux-musl.txt",
+      "status": "modified",
+      "additions": 44,
+      "deletions": 30,
+      "changes": 74
+    },
+    {
+      "filename": "builder/cc_builder/apple_aarch64.rs",
+      "status": "modified",
+      "additions": 28,
+      "deletions": 28,
+      "changes": 56
+    },
+    {
+      "filename": "builder/cc_builder/apple_x86_64.rs",
+      "status": "modified",
+      "additions": 39,
+      "deletions": 29,
+      "changes": 68
+    },
+    {
+      "filename": "builder/cc_builder/linux_aarch64.rs",
+      "status": "modified",
+      "additions": 28,
+      "deletions": 28,
+      "changes": 56
+    },
+    {
+      "filename": "builder/cc_builder/linux_arm.rs",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "changes": 2
+    },
+    {
+      "filename": "builder/cc_builder/linux_ppc64le.rs",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "changes": 2
+    },
+    {
+      "filename": "builder/cc_builder/linux_x86.rs",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "changes": 2
+    },
+    {
+      "filename": "builder/cc_builder/linux_x86_64.rs",
+      "status": "modified",
+      "additions": 39,
+      "deletions": 29,
+      "changes": 68
+    },
+    {
+      "filename": "builder/cc_builder/universal.rs",
+      "status": "modified",
+      "additions": 3,
+      "deletions": 1,
+      "changes": 4
+    },
+    {
+      "filename": "builder/cc_builder/win_aarch64.rs",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "changes": 2
+    },
+    {
+      "filename": "builder/cc_builder/win_x86.rs",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "changes": 2
+    },
+    {
+      "filename": "builder/cc_builder/win_x86_64.rs",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "changes": 2
+    },
+    {
+      "filename": "builder/prebuilt-nasm/aes128gcmsiv-x86_64-disasm.txt",
+      "status": "modified",
+      "additions": 18,
+      "deletions": 18,
+      "changes": 36
+    },
+    {
+      "filename": "builder/prebuilt-nasm/aes128gcmsiv-x86_64.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    },
+    {
+      "filename": "builder/prebuilt-nasm/aesni-gcm-avx512-disasm.txt",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "changes": 2
+    },
+    {
+      "filename": "builder/prebuilt-nasm/aesni-gcm-avx512.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    },
+    {
+      "filename": "builder/prebuilt-nasm/aesni-gcm-x86_64-disasm.txt",
+      "status": "modified",
+      "additions": 2,
+      "deletions": 2,
+      "changes": 4
+    },
+    {
+      "filename": "builder/prebuilt-nasm/aesni-gcm-x86_64.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    },
+    {
+      "filename": "builder/prebuilt-nasm/aesni-sha1-x86_64-disasm.txt",
+      "status": "modified",
+      "additions": 3,
+      "deletions": 3,
+      "changes": 6
+    },
+    {
+      "filename": "builder/prebuilt-nasm/aesni-sha1-x86_64.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    },
+    {
+      "filename": "builder/prebuilt-nasm/aesni-sha256-x86_64-disasm.txt",
+      "status": "modified",
+      "additions": 2,
+      "deletions": 2,
+      "changes": 4
+    },
+    {
+      "filename": "builder/prebuilt-nasm/aesni-sha256-x86_64.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    },
+    {
+      "filename": "builder/prebuilt-nasm/aesni-x86_64-disasm.txt",
+      "status": "modified",
+      "additions": 11,
+      "deletions": 11,
+      "changes": 22
+    },
+    {
+      "filename": "builder/prebuilt-nasm/aesni-x86_64.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    },
+    {
+      "filename": "builder/prebuilt-nasm/aesni-xts-avx512-disasm.txt",
+      "status": "modified",
+      "additions": 2,
+      "deletions": 2,
+      "changes": 4
+    },
+    {
+      "filename": "builder/prebuilt-nasm/aesni-xts-avx512.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    },
+    {
+      "filename": "builder/prebuilt-nasm/chacha-x86_64-disasm.txt",
+      "status": "modified",
+      "additions": 4,
+      "deletions": 4,
+      "changes": 8
+    },
+    {
+      "filename": "builder/prebuilt-nasm/chacha-x86_64.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    },
+    {
+      "filename": "builder/prebuilt-nasm/chacha20_poly1305_x86_64-disasm.txt",
+      "status": "modified",
+      "additions": 4,
+      "deletions": 4,
+      "changes": 8
+    },
+    {
+      "filename": "builder/prebuilt-nasm/chacha20_poly1305_x86_64.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    },
+    {
+      "filename": "builder/prebuilt-nasm/ghash-ssse3-x86_64-disasm.txt",
+      "status": "modified",
+      "additions": 2,
+      "deletions": 2,
+      "changes": 4
+    },
+    {
+      "filename": "builder/prebuilt-nasm/ghash-ssse3-x86_64.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    },
+    {
+      "filename": "builder/prebuilt-nasm/ghash-x86_64-disasm.txt",
+      "status": "modified",
+      "additions": 7,
+      "deletions": 7,
+      "changes": 14
+    },
+    {
+      "filename": "builder/prebuilt-nasm/ghash-x86_64.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    },
+    {
+      "filename": "builder/prebuilt-nasm/md5-x86_64-disasm.txt",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "changes": 2
+    },
+    {
+      "filename": "builder/prebuilt-nasm/md5-x86_64.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    },
+    {
+      "filename": "builder/prebuilt-nasm/p256-x86_64-asm-disasm.txt",
+      "status": "modified",
+      "additions": 21,
+      "deletions": 21,
+      "changes": 42
+    },
+    {
+      "filename": "builder/prebuilt-nasm/p256-x86_64-asm.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    },
+    {
+      "filename": "builder/prebuilt-nasm/p256_beeu-x86_64-asm-disasm.txt",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "changes": 2
+    },
+    {
+      "filename": "builder/prebuilt-nasm/p256_beeu-x86_64-asm.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    },
+    {
+      "filename": "builder/prebuilt-nasm/rdrand-x86_64-disasm.txt",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "changes": 2
+    },
+    {
+      "filename": "builder/prebuilt-nasm/rdrand-x86_64.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    },
+    {
+      "filename": "builder/prebuilt-nasm/rsaz-2k-avx512-disasm.txt",
+      "status": "modified",
+      "additions": 3,
+      "deletions": 3,
+      "changes": 6
+    },
+    {
+      "filename": "builder/prebuilt-nasm/rsaz-2k-avx512.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    },
+    {
+      "filename": "builder/prebuilt-nasm/rsaz-3k-avx512-disasm.txt",
+      "status": "modified",
+      "additions": 3,
+      "deletions": 3,
+      "changes": 6
+    },
+    {
+      "filename": "builder/prebuilt-nasm/rsaz-3k-avx512.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    },
+    {
+      "filename": "builder/prebuilt-nasm/rsaz-4k-avx512-disasm.txt",
+      "status": "modified",
+      "additions": 3,
+      "deletions": 3,
+      "changes": 6
+    },
+    {
+      "filename": "builder/prebuilt-nasm/rsaz-4k-avx512.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    },
+    {
+      "filename": "builder/prebuilt-nasm/rsaz-avx2-disasm.txt",
+      "status": "modified",
+      "additions": 6,
+      "deletions": 6,
+      "changes": 12
+    },
+    {
+      "filename": "builder/prebuilt-nasm/rsaz-avx2.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    },
+    {
+      "filename": "builder/prebuilt-nasm/sha1-x86_64-disasm.txt",
+      "status": "modified",
+      "additions": 5,
+      "deletions": 5,
+      "changes": 10
+    },
+    {
+      "filename": "builder/prebuilt-nasm/sha1-x86_64.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    },
+    {
+      "filename": "builder/prebuilt-nasm/sha256-x86_64-disasm.txt",
+      "status": "modified",
+      "additions": 4,
+      "deletions": 4,
+      "changes": 8
+    },
+    {
+      "filename": "builder/prebuilt-nasm/sha256-x86_64.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    },
+    {
+      "filename": "builder/prebuilt-nasm/sha512-x86_64-disasm.txt",
+      "status": "modified",
+      "additions": 2,
+      "deletions": 2,
+      "changes": 4
+    },
+    {
+      "filename": "builder/prebuilt-nasm/sha512-x86_64.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    },
+    {
+      "filename": "builder/prebuilt-nasm/trampoline-x86_64-disasm.txt",
+      "status": "modified",
+      "additions": 40,
+      "deletions": 40,
+      "changes": 80
+    },
+    {
+      "filename": "builder/prebuilt-nasm/trampoline-x86_64.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    },
+    {
+      "filename": "builder/prebuilt-nasm/vpaes-x86_64-disasm.txt",
+      "status": "modified",
+      "additions": 6,
+      "deletions": 6,
+      "changes": 12
+    },
+    {
+      "filename": "builder/prebuilt-nasm/vpaes-x86_64.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    },
+    {
+      "filename": "builder/prebuilt-nasm/x86_64-mont-disasm.txt",
+      "status": "modified",
+      "additions": 6,
+      "deletions": 6,
+      "changes": 12
+    },
+    {
+      "filename": "builder/prebuilt-nasm/x86_64-mont.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    },
+    {
+      "filename": "builder/prebuilt-nasm/x86_64-mont5-disasm.txt",
+      "status": "modified",
+      "additions": 18,
+      "deletions": 18,
+      "changes": 36
+    },
+    {
+      "filename": "builder/prebuilt-nasm/x86_64-mont5.obj",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0
+    }
+  ]
+}

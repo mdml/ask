@@ -1,0 +1,23 @@
+Review date: 2026-09-04
+
+Minimal features: reqwest,rustls
+Command: cargo tree -e normal,build --locked --prefix none | sort -u | wc -l
+Result: 183 rendered unique lines
+Normalized package/version nodes, including ask: 144
+Third-party package/version nodes: 143
+
+All-provider-capabilities features: reqwest,rustls,websocket
+Command: cargo tree -e normal,build --locked --prefix none | sort -u | wc -l
+Result: 198 rendered unique lines
+Normalized package/version nodes, including ask: 156
+Third-party package/version nodes: 155
+
+All-provider-capabilities normalized node delta: +12
+Added package/version nodes: data-encoding v2.11.1; getrandom v0.3.4; ppv-lite86 v0.2.21; rand v0.9.5; rand_chacha v0.9.0; rand_core v0.9.5; sha1 v0.10.7; tokio-tungstenite v0.29.0; tungstenite v0.29.0; webpki-roots v0.26.11; webpki-roots v1.0.9; zerocopy v0.8.56
+
+Command: cargo vendor --locked /tmp/rig-core-0.42.0-vendor
+Command: du -sh /tmp/rig-core-0.42.0-vendor
+Result: 297M
+The feature sets resolve to the same 228-entry Cargo.lock because Cargo locks optional and target-specific packages; cargo vendor therefore has the same locked-resolution size for both sets.
+
+The temporary vendor directory was deleted after measurement. cargo vendor's suggested configuration was redirected to a temporary file and deleted; no .cargo/config.toml was created.

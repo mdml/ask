@@ -1,0 +1,105 @@
+syn v2.0.119
+├── async-stream-impl v0.3.6 (proc-macro)
+│   └── async-stream v0.3.6
+│       └── rig-core v0.42.0
+│           └── ask v0.1.0 (<repo-root>)
+├── pin-project-internal v1.1.13 (proc-macro)
+│   └── pin-project v1.1.13
+│       └── tracing-futures v0.2.5
+│           └── rig-core v0.42.0 (*)
+├── synstructure v0.13.2
+│   ├── yoke-derive v0.8.2 (proc-macro)
+│   │   └── yoke v0.8.3
+│   │       ├── icu_collections v2.3.0
+│   │       │   ├── icu_normalizer v2.3.0
+│   │       │   │   └── idna_adapter v1.2.2
+│   │       │   │       └── idna v1.1.0
+│   │       │   │           └── url v2.5.8
+│   │       │   │               ├── reqwest v0.13.4
+│   │       │   │               │   └── rig-core v0.42.0 (*)
+│   │       │   │               ├── rig-core v0.42.0 (*)
+│   │       │   │               └── tower-http v0.6.11
+│   │       │   │                   └── reqwest v0.13.4 (*)
+│   │       │   └── icu_properties v2.3.0
+│   │       │       └── idna_adapter v1.2.2 (*)
+│   │       ├── icu_provider v2.3.1
+│   │       │   ├── icu_normalizer v2.3.0 (*)
+│   │       │   └── icu_properties v2.3.0 (*)
+│   │       ├── zerotrie v0.2.5
+│   │       │   ├── icu_properties v2.3.0 (*)
+│   │       │   └── icu_provider v2.3.1 (*)
+│   │       └── zerovec v0.11.8
+│   │           ├── icu_collections v2.3.0 (*)
+│   │           ├── icu_locale_core v2.3.0
+│   │           │   ├── icu_properties v2.3.0 (*)
+│   │           │   └── icu_provider v2.3.1 (*)
+│   │           ├── icu_normalizer v2.3.0 (*)
+│   │           ├── icu_properties v2.3.0 (*)
+│   │           ├── icu_provider v2.3.1 (*)
+│   │           ├── potential_utf v0.1.6
+│   │           │   └── icu_collections v2.3.0 (*)
+│   │           └── tinystr v0.8.4
+│   │               └── icu_locale_core v2.3.0 (*)
+│   └── zerofrom-derive v0.1.7 (proc-macro)
+│       └── zerofrom v0.1.8
+│           ├── icu_collections v2.3.0 (*)
+│           ├── icu_provider v2.3.1 (*)
+│           ├── yoke v0.8.3 (*)
+│           ├── zerotrie v0.2.5 (*)
+│           └── zerovec v0.11.8 (*)
+├── tracing-attributes v0.1.31 (proc-macro)
+│   └── tracing v0.1.44
+│       ├── h2 v0.4.19
+│       │   ├── hyper v1.11.1
+│       │   │   ├── hyper-rustls v0.27.9
+│       │   │   │   └── reqwest v0.13.4 (*)
+│       │   │   ├── hyper-util v0.1.20
+│       │   │   │   ├── hyper-rustls v0.27.9 (*)
+│       │   │   │   └── reqwest v0.13.4 (*)
+│       │   │   └── reqwest v0.13.4 (*)
+│       │   └── reqwest v0.13.4 (*)
+│       ├── hyper-util v0.1.20 (*)
+│       ├── rig-core v0.42.0 (*)
+│       └── tracing-futures v0.2.5 (*)
+├── yoke-derive v0.8.2 (proc-macro) (*)
+└── zerofrom-derive v0.1.7 (proc-macro) (*)
+
+syn v3.0.5
+├── displaydoc v0.2.7 (proc-macro)
+│   ├── icu_collections v2.3.0 (*)
+│   ├── icu_locale_core v2.3.0 (*)
+│   ├── icu_properties v2.3.0 (*)
+│   ├── icu_provider v2.3.1 (*)
+│   ├── tinystr v0.8.4 (*)
+│   └── zerotrie v0.2.5 (*)
+├── futures-macro v0.3.34 (proc-macro)
+│   └── futures-util v0.3.34
+│       ├── futures v0.3.34
+│       │   ├── rig-core v0.42.0 (*)
+│       │   └── tracing-futures v0.2.5 (*)
+│       ├── futures-executor v0.3.34
+│       │   └── futures v0.3.34 (*)
+│       ├── hyper-util v0.1.20 (*)
+│       ├── reqwest v0.13.4 (*)
+│       ├── tower v0.5.3
+│       │   ├── reqwest v0.13.4 (*)
+│       │   └── tower-http v0.6.11 (*)
+│       └── tower-http v0.6.11 (*)
+├── ref-cast-impl v1.0.27 (proc-macro)
+│   └── ref-cast v1.0.27
+│       └── schemars v1.2.2
+│           └── rig-core v0.42.0 (*)
+├── schemars_derive v1.2.2 (proc-macro)
+│   └── schemars v1.2.2 (*)
+├── serde_derive v1.0.229 (proc-macro)
+│   └── serde v1.0.229
+│       ├── reqwest v0.13.4 (*)
+│       ├── rig-core v0.42.0 (*)
+│       └── schemars v1.2.2 (*)
+├── serde_derive_internals v0.30.0
+│   └── schemars_derive v1.2.2 (proc-macro) (*)
+├── thiserror-impl v2.0.20 (proc-macro)
+│   └── thiserror v2.0.20
+│       └── rig-core v0.42.0 (*)
+└── zerovec-derive v0.11.6 (proc-macro)
+    └── zerovec v0.11.8 (*)

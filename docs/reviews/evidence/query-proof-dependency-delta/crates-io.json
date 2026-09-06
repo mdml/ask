@@ -1,0 +1,102 @@
+{
+  "_normalization": "Collected on 2026-09-05 from GET /api/v1/crates/{crate} and GET /api/v1/crates/{crate}/owners. For each crate response, retained only name and the lifetime downloads field. For each owners response, retained only login, name, kind, and the response field containing the record; all other API fields were removed. The API returned some kind=team records in its users field, and that classification and placement are preserved.",
+  "_request": {
+    "user_agent": "ask-dependency-review/2026-09-05 (github.com/mdml/ask)",
+    "method": "GET",
+    "host": "crates.io"
+  },
+  "crates": [
+    {
+      "name": "directories",
+      "total_downloads": 68646951,
+      "owner_records": [
+        {"login": "soc", "name": null, "kind": "user", "response_field": "users"}
+      ]
+    },
+    {
+      "name": "dirs-sys",
+      "total_downloads": 328994699,
+      "owner_records": [
+        {"login": "soc", "name": null, "kind": "user", "response_field": "users"}
+      ]
+    },
+    {
+      "name": "libredox",
+      "total_downloads": 195858426,
+      "owner_records": [
+        {"login": "jackpot51", "name": "Jeremy Soller", "kind": "user", "response_field": "users"},
+        {"login": "4lDO2", "name": "4lDO2", "kind": "user", "response_field": "users"}
+      ]
+    },
+    {
+      "name": "option-ext",
+      "total_downloads": 194773913,
+      "owner_records": [
+        {"login": "soc", "name": null, "kind": "user", "response_field": "users"}
+      ]
+    },
+    {
+      "name": "redox_users",
+      "total_downloads": 214613751,
+      "owner_records": [
+        {"login": "jackpot51", "name": "Jeremy Soller", "kind": "user", "response_field": "users"},
+        {"login": "MggMuggins", "name": "SamwiseFilmore", "kind": "user", "response_field": "users"}
+      ]
+    },
+    {
+      "name": "serde_spanned",
+      "total_downloads": 548820551,
+      "owner_records": [
+        {"login": "epage", "name": "Ed Page", "kind": "user", "response_field": "users"},
+        {"login": "github:toml-rs:maintainers", "name": "Maintainers", "kind": "team", "response_field": "users"}
+      ]
+    },
+    {
+      "name": "tokio-macros",
+      "total_downloads": 767335875,
+      "owner_records": [
+        {"login": "carllerche", "name": "Carl Lerche", "kind": "user", "response_field": "users"},
+        {"login": "github:tokio-rs:core", "name": "Core", "kind": "team", "response_field": "users"}
+      ]
+    },
+    {
+      "name": "toml",
+      "total_downloads": 878458522,
+      "owner_records": [
+        {"login": "epage", "name": "Ed Page", "kind": "user", "response_field": "users"},
+        {"login": "github:toml-rs:maintainers", "name": "Maintainers", "kind": "team", "response_field": "users"}
+      ]
+    },
+    {
+      "name": "toml_datetime",
+      "total_downloads": 755423581,
+      "owner_records": [
+        {"login": "epage", "name": "Ed Page", "kind": "user", "response_field": "users"},
+        {"login": "github:toml-rs:maintainers", "name": "Maintainers", "kind": "team", "response_field": "users"}
+      ]
+    },
+    {
+      "name": "toml_parser",
+      "total_downloads": 271419462,
+      "owner_records": [
+        {"login": "epage", "name": "Ed Page", "kind": "user", "response_field": "users"},
+        {"login": "github:toml-rs:maintainers", "name": "Maintainers", "kind": "team", "response_field": "users"}
+      ]
+    },
+    {
+      "name": "toml_writer",
+      "total_downloads": 178562168,
+      "owner_records": [
+        {"login": "epage", "name": "Ed Page", "kind": "user", "response_field": "users"},
+        {"login": "github:toml-rs:maintainers", "name": "Maintainers", "kind": "team", "response_field": "users"}
+      ]
+    },
+    {
+      "name": "winnow",
+      "total_downloads": 864594820,
+      "owner_records": [
+        {"login": "epage", "name": "Ed Page", "kind": "user", "response_field": "users"}
+      ]
+    }
+  ]
+}

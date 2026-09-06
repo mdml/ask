@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(scripts/verify.sh)",
+      "Shell(just)",
+      "Shell(cargo)",
+      "Shell(mise install)",
+      "Shell(git status)",
+      "Shell(git diff)",
+      "Shell(git log)"
+    ],
+    "deny": []
+  }
+}
