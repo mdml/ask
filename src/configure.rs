@@ -167,7 +167,9 @@ fn http_url(answer: &str) -> Result<(), &'static str> {
     if valid {
         return Ok(());
     }
-    Err("Enter an http:// or https:// URL with a host and no embedded credentials.")
+    Err(
+        "Enter an http:// or https:// URL with a host, no embedded credentials, and no query component.",
+    )
 }
 
 fn valid_endpoint(uri: rig_core::http_client::Uri) -> bool {
@@ -176,7 +178,8 @@ fn valid_endpoint(uri: rig_core::http_client::Uri) -> bool {
     let credentials = uri
         .authority()
         .is_some_and(|authority| authority.as_str().contains('@'));
-    http && host && !credentials
+    let query = uri.query().is_some();
+    http && host && !credentials && !query
 }
 
 fn env_var_name(answer: &str) -> Result<(), &'static str> {

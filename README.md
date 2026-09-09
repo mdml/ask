@@ -21,7 +21,7 @@ ask n "what is 2+2"
 `ask configure` and `ask c` create that file through a line-oriented dialogue. Every prompt and diagnostic is written to stderr, and stdout stays empty. The answers may come from a terminal or from redirected stdin, one answer per line. The dialogue asks for:
 
 1. A provider name, for example `openrouter`.
-2. The endpoint base URL, which must use `http://` or `https://`, include a host, and contain no embedded username/password credentials.
+2. The endpoint base URL, which must use `http://` or `https://`, include a host, and contain neither embedded username/password credentials nor a query component (including an empty trailing `?`).
 3. A model identifier, sent to the provider as typed.
 4. The name of the environment variable that will hold the credential. `ask` validates the name only; it never reads or stores the value, and configuring makes no network request.
 5. An optional replacement system prompt. The current default system prompt is shown first, and an empty answer keeps it.
@@ -32,6 +32,8 @@ An invalid answer prints a one-line explanation and asks again. The dialogue the
 `ask configure` refuses to run when the configuration file already exists and leaves it unchanged. To edit an existing configuration, manage several profiles, or supply a multiline system prompt, edit the TOML directly. Retention settings are not yet implemented.
 
 A completed dialogue writes a file in the schema below, omitting `timeout_ms` and `system_prompt` when the defaults apply.
+
+Interactive configuration requires hard-link support on the filesystem containing the configuration directory, including when `ASK_HOME` selects that directory. This also applies when answers come from redirected stdin: `ask configure` publishes the fully written file with a hard link to avoid overwriting an existing configuration. If the filesystem does not support hard links, configuration fails; create the TOML file manually instead.
 
 ### Configuration schema
 

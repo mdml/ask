@@ -92,7 +92,7 @@ fn invalid_answers_are_explained_and_asked_again() {
     assert_eq!(transcript.matches("A value is required.").count(), 1);
     assert_eq!(
         transcript
-            .matches("Enter an http:// or https:// URL with a host and no embedded credentials.")
+            .matches("Enter an http:// or https:// URL with a host, no embedded credentials, and no query component.")
             .count(),
         3
     );
@@ -171,4 +171,15 @@ fn endpoint_validation_rejects_missing_hosts_and_embedded_credentials() {
         assert!(http_url(endpoint).is_err(), "{endpoint}");
     }
     assert!(http_url("http://[::1]:8080/v1").is_ok());
+}
+
+#[test]
+fn endpoint_validation_rejects_query_components() {
+    for endpoint in [
+        "https://example.test/v1?key=value",
+        "https://example.test/v1?",
+    ] {
+        assert!(http_url(endpoint).is_err(), "{endpoint}");
+    }
+    assert!(http_url("https://example.test/v1").is_ok());
 }
