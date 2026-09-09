@@ -94,7 +94,7 @@ fn existing_configuration_is_refused_and_left_unchanged() {
     let home = fresh_home();
     let path = home.join("config.toml");
     fs::write(&path, "original = true\n").unwrap();
-    let output = configure(&home, "configure", "local\n");
+    let output = configure(&home, "configure", "");
     assert_eq!(output.status.code(), Some(1));
     assert!(output.stdout.is_empty());
     let transcript = stderr(&output);
