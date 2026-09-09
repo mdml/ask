@@ -33,7 +33,7 @@ An invalid answer prints a one-line explanation and asks again. The dialogue the
 
 A completed dialogue writes a file in the schema below, omitting `timeout_ms` and `system_prompt` when the defaults apply.
 
-Interactive configuration requires hard-link support on the filesystem containing the configuration directory, including when `ASK_HOME` selects that directory. This also applies when answers come from redirected stdin: `ask configure` publishes the fully written file with a hard link to avoid overwriting an existing configuration. If the filesystem does not support hard links, configuration fails; create the TOML file manually instead.
+`ask configure` requires hard-link support on the filesystem containing the configuration directory, including when `ASK_HOME` selects that directory. Whether answers come from a terminal or redirected stdin, the command publishes the fully written file with a hard link to avoid overwriting an existing configuration. If the filesystem does not support hard links, configuration fails; create the TOML file manually instead.
 
 ### Configuration schema
 
