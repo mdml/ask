@@ -164,11 +164,11 @@ fn http_url(answer: &str) -> Result<(), &'static str> {
         .parse::<rig_core::http_client::Uri>()
         .ok()
         .is_some_and(valid_endpoint);
-    if valid {
+    if valid && !answer.contains('#') {
         return Ok(());
     }
     Err(
-        "Enter an http:// or https:// URL with a host, no embedded credentials, and no query component.",
+        "Enter an http:// or https:// URL with a host, no embedded credentials, and no query or fragment component.",
     )
 }
 

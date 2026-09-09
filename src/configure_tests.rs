@@ -92,7 +92,7 @@ fn invalid_answers_are_explained_and_asked_again() {
     assert_eq!(transcript.matches("A value is required.").count(), 1);
     assert_eq!(
         transcript
-            .matches("Enter an http:// or https:// URL with a host, no embedded credentials, and no query component.")
+            .matches("Enter an http:// or https:// URL with a host, no embedded credentials, and no query or fragment component.")
             .count(),
         3
     );
@@ -182,4 +182,15 @@ fn endpoint_validation_rejects_query_components() {
         assert!(http_url(endpoint).is_err(), "{endpoint}");
     }
     assert!(http_url("https://example.test/v1").is_ok());
+}
+
+#[test]
+fn endpoint_validation_rejects_nonempty_fragment() {
+    assert!(http_url("https://example.test/v1#fragment").is_err());
+    assert!(http_url("https://example.test/v1%23fragment").is_ok());
+}
+
+#[test]
+fn endpoint_validation_rejects_empty_fragment() {
+    assert!(http_url("https://example.test/v1#").is_err());
 }

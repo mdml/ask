@@ -83,7 +83,7 @@ fn invalid_answers_are_asked_again_on_stderr() {
     let transcript = stderr(&output);
     assert!(
         transcript
-            .contains("Enter an http:// or https:// URL with a host, no embedded credentials, and no query component.")
+            .contains("Enter an http:// or https:// URL with a host, no embedded credentials, and no query or fragment component.")
     );
     assert!(transcript.contains("Enter an environment variable name"));
     assert!(home.join("config.toml").exists());

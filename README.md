@@ -21,7 +21,7 @@ ask n "what is 2+2"
 `ask configure` and `ask c` create that file through a line-oriented dialogue. Every prompt and diagnostic is written to stderr, and stdout stays empty. The answers may come from a terminal or from redirected stdin, one answer per line. The dialogue asks for:
 
 1. A provider name, for example `openrouter`.
-2. The endpoint base URL, which must use `http://` or `https://`, include a host, and contain neither embedded username/password credentials nor a query component (including an empty trailing `?`).
+2. The endpoint base URL, which must use `http://` or `https://`, include a host, contain no embedded username/password credentials, and have no query or fragment component (including an empty trailing `?` or `#`).
 3. A model identifier, sent to the provider as typed.
 4. The name of the environment variable that will hold the credential. `ask` validates the name only; it never reads or stores the value, and configuring makes no network request.
 5. An optional replacement system prompt. The current default system prompt is shown first, and an empty answer keeps it.
