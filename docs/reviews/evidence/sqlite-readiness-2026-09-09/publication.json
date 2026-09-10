@@ -1,0 +1,34 @@
+{
+  "retrieved": "2026-09-09",
+  "tag": {
+    "ref": "refs/tags/v0.40.2",
+    "object": {
+      "sha": "e88f112bef7899234a497baed5cc3c3d553deeb8",
+      "type": "commit",
+      "url": "https://api.github.com/repos/rusqlite/rusqlite/git/commits/e88f112bef7899234a497baed5cc3c3d553deeb8"
+    }
+  },
+  "commit_verification": {
+    "verified": false,
+    "reason": "unsigned"
+  },
+  "github_release": {
+    "id": 367210292,
+    "html_url": "https://github.com/rusqlite/rusqlite/releases/tag/v0.40.2",
+    "tag_name": "v0.40.2",
+    "target_commitish": "0.40.2",
+    "created_at": "2026-08-08T14:16:04Z",
+    "published_at": "2026-08-08T14:20:24Z"
+  },
+  "release_author": "gwenn",
+  "release_assets_count": 0,
+  "workflow_files_at_commit": [
+    ".github/workflows/main.yml"
+  ],
+  "workflow_sha256": "e6aed6d9c84bf5773fbe40f1bdaa5cb182a53019832a2fffa4a45c396ce65959",
+  "workflow_review": "Test/build workflow, no cargo publish job or id-token permission; mutable upstream action references. Not reused in the probe workflow.",
+  "runs_query": "https://api.github.com/repos/rusqlite/rusqlite/actions/runs?head_sha=e88f112bef7899234a497baed5cc3c3d553deeb8&per_page=100",
+  "runs_total_count": 0,
+  "crates_api": "403 for crate and exact-version API endpoints; publisher identity/authentication method not refreshed",
+  "limits": "Observed public endpoints only; no inference that publication was manual, unauthorized, or unattested elsewhere."
+}
