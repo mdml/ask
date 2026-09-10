@@ -1,5 +1,5 @@
 {
-  "retrieved": "2026-09-09",
+  "retrieved": "2026-09-10",
   "tag": {
     "ref": "refs/tags/v0.40.2",
     "object": {
@@ -30,5 +30,6 @@
   "runs_query": "https://api.github.com/repos/rusqlite/rusqlite/actions/runs?head_sha=e88f112bef7899234a497baed5cc3c3d553deeb8&per_page=100",
   "runs_total_count": 0,
   "crates_api": "403 for crate and exact-version API endpoints; publisher identity/authentication method not refreshed",
-  "limits": "Observed public endpoints only; no inference that publication was manual, unauthorized, or unattested elsewhere."
+  "limits": "Observed public endpoints only; no inference that publication was manual, unauthorized, or unattested elsewhere.",
+  "date_basis": "UTC; the directory uses the September 9 local assessment label"
 }

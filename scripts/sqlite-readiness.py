@@ -18,6 +18,11 @@ TARGETS = {
 }
 
 
+def require(condition, message="verification failed"):
+    if not condition:
+        raise ValueError(message)
+
+
 def run(args, cwd, env, timeout=600):
     result = subprocess.run(args, cwd=cwd, env=env, capture_output=True, text=True, timeout=timeout)
     if result.returncode:
@@ -27,7 +32,7 @@ def run(args, cwd, env, timeout=600):
 
 def main():
     target = sys.argv[1]
-    assert target in TARGETS
+    require(target in TARGETS)
     # A fresh workspace and target directory avoid inherited repository Cargo config
     # and cached native objects. Native/compiler/Rust flag overrides are not inherited.
     keys = ["PATH", "HOME", "CARGO_HOME", "RUSTUP_HOME", "TMPDIR", "SYSTEMROOT"]
@@ -39,15 +44,15 @@ def main():
         probe = work / "probe"
         env["CARGO_TARGET_DIR"] = str(work / "target")
         host = run(["rustc", "-vV"], work, env)
-        assert f"host: {target}\n" in host, "native target runner required"
-        assert "release: 1.97.1\n" in host, "Rust 1.97.1 required"
+        require(f"host: {target}\n" in host, "native target runner required")
+        require("release: 1.97.1\n" in host, "Rust 1.97.1 required")
         lock = tomllib.loads((probe / "Cargo.lock").read_text())
         versions = {p["name"]: p["version"] for p in lock["package"]}
-        assert versions["rusqlite"] == "0.40.2"
-        assert versions["libsqlite3-sys"] == "0.38.2"
+        require(versions["rusqlite"] == "0.40.2")
+        require(versions["libsqlite3-sys"] == "0.38.2")
         manifest = tomllib.loads((probe / "Cargo.toml").read_text())
-        assert manifest["dependencies"] == {"rusqlite": {
-            "version": "=0.40.2", "default-features": False, "features": ["bundled"]}}
+        require(manifest["dependencies"] == {"rusqlite": {
+            "version": "=0.40.2", "default-features": False, "features": ["bundled"]}})
         for command in [
             ["cargo", "fmt", "--", "--check"],
             ["cargo", "clippy", "--locked", "--target", target, "--", "-D", "warnings"],
@@ -60,19 +65,19 @@ def main():
         output = run([str(binary), str(db)], work, env, timeout=30)
         # Only the probe's fixed records and SQLite numeric compile options survive.
         for line in output.splitlines():
-            assert re.fullmatch(r"[A-Za-z0-9_ =:.,/()-]+", line), "unexpected probe output"
+            require(re.fullmatch(r"[A-Za-z0-9_ =:.,/()-]+", line), "unexpected probe output")
         symbols = run(["nm", str(binary)], work, env)
-        assert re.search(r"\b[Tt] _?sqlite3_libversion$", symbols, re.M)
+        require(re.search(r"\b[Tt] _?sqlite3_libversion$", symbols, re.M))
         if "linux" in target:
             linkage = run(["readelf", "-d", str(binary)], work, env)
             libraries = re.findall(r"\(NEEDED\).*\[(.*?)\]", linkage)
-            assert libraries
+            require(libraries)
         else:
             linkage = run(["otool", "-L", str(binary)], work, env)
             libraries = [Path(line.strip().split(" (", 1)[0]).name for line in linkage.splitlines()[1:]]
-            assert libraries
-        assert all("sqlite" not in name.lower() for name in libraries)
-        assert all(re.fullmatch(r"[A-Za-z0-9_.+-]+", name) for name in libraries)
+            require(libraries)
+        require(all("sqlite" not in name.lower() for name in libraries))
+        require(all(re.fullmatch(r"[A-Za-z0-9_.+-]+", name) for name in libraries))
         evidence = {
             "target": target, "rust": "1.97.1", "profile": "release",
             "lock_sha256": hashlib.sha256((probe / "Cargo.lock").read_bytes()).hexdigest(),

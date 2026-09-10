@@ -1847,6 +1847,7 @@
     }
   ],
   "official_amalgamation_archive_sha256": "8a310d0a16c7a90cacd4c884e70faa51c902afed2a89f63aaa0126ab83558a32",
+  "sqlite3_c_release_sha3_256": "44fd61b9f93b4155105cb2d80c957ae6c64a8b5bd6ed51a4992f0dbd438e4e11",
   "official_amalgamation": [
     {
       "path": "sqlite3.c",
