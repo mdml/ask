@@ -1,0 +1,223 @@
+{
+  "observation_date": "2026-09-10",
+  "purpose": "Source citations for the 'Offline diagnostics and the read-only WAL path' section of the SQLite adoption record: the conditions under which a connection reaches the heap-memory WAL-index path hardened by check-in 9a79ca31ff, what a read-only open does and does not prevent, hot-journal behavior on a read-only connection, and which diagnostic strategies exclude the path.",
+  "method": "Each citation names a function in the official SQLite 3.53.2 amalgamation and the condition read from its body. Line numbers refer to sqlite3.c inside the archive below; the same functions exist in src/wal.c, src/pager.c, src/btree.c, and src/os_unix.c of the source tree. The fix diff was obtained by comparing the wal.c embedded in the 3.53.2 amalgamation against src/wal.c at the fix check-in. Citations are read from source, not executed; no probe was run for this file.",
+  "sources": {
+    "amalgamation_archive": "sqlite-amalgamation-3530200.zip",
+    "amalgamation_archive_sha256": "8a310d0a16c7a90cacd4c884e70faa51c902afed2a89f63aaa0126ab83558a32",
+    "amalgamation_sqlite3_c_sha3_256": "44fd61b9f93b4155105cb2d80c957ae6c64a8b5bd6ed51a4992f0dbd438e4e11",
+    "amalgamation_version": "3.53.2",
+    "fix_check_in": "https://sqlite.org/src/info/9a79ca31ff",
+    "fix_check_in_manifest": "https://sqlite.org/src/raw/9a79ca31ff",
+    "fix_wal_c": "https://sqlite.org/src/raw/src/wal.c?ci=9a79ca31ff",
+    "fix_parent_check_in": "42fe4d2e8bbb2ff9ebfd8a9b981bd8769f5273bba74cc1795396820f44a443cb",
+    "fix_upstream_report": "https://sqlite.org/bugs/info/2026-06-11T22:20:03Z",
+    "uri_parameter_docs": "sqlite3.h comment block 'URI filenames' (immutable, mode=ro, readonly_shm) in the same archive"
+  },
+  "fix": {
+    "check_in": "9a79ca31ff",
+    "date": "2026-06-12",
+    "comment": "When using a read-only WAL/SHM, handle a corrupt page size in the WAL file correctly.",
+    "files_changed": ["src/wal.c"],
+    "diff_summary": [
+      {
+        "function": "walDecodeFrame",
+        "change": "Adds 'if( !pWal->szPage ) return 0;' after the page-number check, so a frame is treated as invalid when the connection's page size is zero, before walChecksumBytes() is called with pWal->szPage as the byte count.",
+        "amalgamation_3_53_2_line": 68442,
+        "fix_wal_c_line": 1000
+      },
+      {
+        "function": "walBeginShmUnreliable",
+        "change": "Relaxes the debug assertion to '(szPage>=512 && szPage<=65536) || szPage==0' so debug builds no longer abort before the new walDecodeFrame() guard runs.",
+        "amalgamation_3_53_2_line": 70228,
+        "fix_wal_c_line": 2792
+      }
+    ],
+    "upstream_report_summary": "The reporter opened a database through the shell with 'file:...?mode=ro&readonly_shm=1', a -wal file whose header carries page size 0, and a minimal existing -shm file. walBeginShmUnreliable() allocated only the 24-byte frame header and walChecksumBytes() read past it (AddressSanitizer heap-buffer-overflow, a read overrun). The report demonstrates a crash of a read-only process, not a write primitive."
+  },
+  "conditions": [
+    {
+      "id": "C1",
+      "claim": "The hardened function is reached only from walTryBeginRead() when the connection has already marked its shared memory unreliable.",
+      "file": "sqlite3.c",
+      "function": "walTryBeginRead",
+      "line": 70456,
+      "condition": "if( !useWal ){ if( pWal->bShmUnreliable==0 ){ rc = walIndexReadHdr(pWal, pChanged); } ... else if( pWal->bShmUnreliable ){ return walBeginShmUnreliable(pWal, pChanged); } }"
+    },
+    {
+      "id": "C2",
+      "claim": "bShmUnreliable is set only when mapping wal-index page 0 returns SQLITE_READONLY_CANTINIT; the connection then switches to a heap-memory wal-index for the read attempt.",
+      "file": "sqlite3.c",
+      "function": "walIndexReadHdr",
+      "line": 70096,
+      "condition": "rc = walIndexPage(pWal, 0, &page0); if( rc!=SQLITE_OK ){ if( rc==SQLITE_READONLY_CANTINIT ){ assert( pWal->readOnly & WAL_SHM_RDONLY ); pWal->bShmUnreliable = 1; pWal->exclusiveMode = WAL_HEAPMEMORY_MODE; *pChanged = 1; } else { return rc; } }"
+    },
+    {
+      "id": "C3",
+      "claim": "On the Unix VFS, SQLITE_READONLY_CANTINIT is returned only when the -shm file was opened read-only and no other process holds any lock on the DMS byte.",
+      "file": "sqlite3.c",
+      "function": "unixLockSharedMemory",
+      "line": 45037,
+      "condition": "F_GETLK on UNIX_SHM_DMS; if( lock.l_type==F_UNLCK ){ if( pShmNode->isReadonly ){ pShmNode->isUnlocked = 1; rc = SQLITE_READONLY_CANTINIT; } else { take EXCLUSIVE DMS lock, truncate -shm, downgrade to SHARED } }"
+    },
+    {
+      "id": "C4",
+      "claim": "The -shm file is opened read-only (isReadonly=1) in exactly two cases: the URI parameter readonly_shm=1 skips the read-write open, or the O_RDWR|O_CREAT open fails and a fallback O_RDONLY open succeeds. If both opens fail the result is SQLITE_CANTOPEN, not the hardened path. The database connection's own SQLITE_OPEN_READONLY flag is not consulted.",
+      "file": "sqlite3.c",
+      "function": "unixOpenSharedMemory",
+      "line": 45139,
+      "condition": "if( 0==sqlite3_uri_boolean(pDbFd->zPath, \"readonly_shm\", 0) ){ hShm = robust_open(zShm, O_RDWR|O_CREAT|O_NOFOLLOW, mode); } if( hShm<0 ){ hShm = robust_open(zShm, O_RDONLY|O_NOFOLLOW, mode); if( hShm<0 ){ rc = SQLITE_CANTOPEN; } pShmNode->isReadonly = 1; }"
+    },
+    {
+      "id": "C5",
+      "claim": "A read-only -shm mapping is PROT_READ and every successful map returns SQLITE_READONLY, which walIndexPage() records as WAL_SHM_RDONLY. When another process does hold the DMS lock, the shared memory is treated as reliable and read-only rather than unreliable.",
+      "file": "sqlite3.c",
+      "function": "unixShmMap",
+      "line": 45293,
+      "condition": "pMem = osMmap(0, nMap, pShmNode->isReadonly ? PROT_READ : PROT_READ|PROT_WRITE, ...); ... if( pShmNode->isReadonly && rc==SQLITE_OK ) rc = SQLITE_READONLY;"
+    },
+    {
+      "id": "C6",
+      "claim": "walIndexPage() converts SQLITE_READONLY to SQLITE_OK after setting WAL_SHM_RDONLY, and passes SQLITE_READONLY_CANTINIT through unchanged.",
+      "file": "sqlite3.c",
+      "function": "walIndexPageRealloc",
+      "line": 68198,
+      "condition": "else if( (rc&0xff)==SQLITE_READONLY ){ pWal->readOnly |= WAL_SHM_RDONLY; if( rc==SQLITE_READONLY ){ rc = SQLITE_OK; } }"
+    },
+    {
+      "id": "C7",
+      "claim": "In the reliable read-only-shm case (WAL_SHM_RDONLY set, bShmUnreliable clear), a malformed wal-index header yields SQLITE_READONLY_RECOVERY instead of running recovery, so this case never reaches the hardened function and never writes.",
+      "file": "sqlite3.c",
+      "function": "walIndexReadHdr",
+      "line": 70096,
+      "condition": "if( badHdr ){ if( pWal->bShmUnreliable==0 && (pWal->readOnly & WAL_SHM_RDONLY) ){ if( SQLITE_OK==(rc = walLockShared(pWal, WAL_WRITE_LOCK)) ){ walUnlockShared(pWal, WAL_WRITE_LOCK); rc = SQLITE_READONLY_RECOVERY; } } else { ... walIndexRecover(pWal) ... } }"
+    },
+    {
+      "id": "C8",
+      "claim": "In the unreliable case the heap-memory wal-index is built by walIndexRecover(), which reads the -wal file and writes only to heap pages because exclusiveMode is WAL_HEAPMEMORY_MODE (walIndexPage allocates with sqlite3MallocZero and walLockExclusive returns SQLITE_OK without locking). A -wal header with page size 0, non-power-of-two, above SQLITE_MAX_PAGE_SIZE, or below 512 makes recovery jump to 'finished' with a zeroed header, so hdr.szPage stays 0.",
+      "file": "sqlite3.c",
+      "function": "walIndexRecover",
+      "line": 68826,
+      "condition": "szPage = sqlite3Get4byte(&aBuf[8]); if( (magic&0xFFFFFFFE)!=WAL_MAGIC || szPage&(szPage-1) || szPage>SQLITE_MAX_PAGE_SIZE || szPage<512 ){ goto finished; } ... finished: if( rc==SQLITE_OK ){ walIndexWriteHdr(pWal); ... }"
+    },
+    {
+      "id": "C9",
+      "claim": "walIndexTryHdr() accepts a header whose szPage is 0 (it checks only the double-read consistency, isInit, and the header checksum) and derives pWal->szPage = 0 from it.",
+      "file": "sqlite3.c",
+      "function": "walIndexTryHdr",
+      "line": 70026,
+      "condition": "if( h1.isInit==0 ) return 1; walChecksumBytes(...); if( aCksum mismatch ) return 1; ... pWal->szPage = (pWal->hdr.szPage&0xfe00) + ((pWal->hdr.szPage&0x0001)<<16);"
+    },
+    {
+      "id": "C10",
+      "claim": "In 3.53.2 walBeginShmUnreliable() bounds szPage by assertions only, allocates szPage + WAL_FRAME_HDRSIZE bytes, and calls walDecodeFrame(), which passes pWal->szPage to walChecksumBytes() without a zero check.",
+      "file": "sqlite3.c",
+      "function": "walBeginShmUnreliable",
+      "line": 70228,
+      "condition": "assert( (pWal->szPage & (pWal->szPage-1))==0 ); assert( pWal->szPage>=512 && pWal->szPage<=65536 ); szFrame = pWal->szPage + WAL_FRAME_HDRSIZE; aFrame = sqlite3_malloc64(szFrame); ... walDecodeFrame(pWal, &pgno, &nTruncate, aData, aFrame)"
+    },
+    {
+      "id": "C11",
+      "claim": "The WAL is opened only if the pager is not a temp or immutable file and a -wal file exists (or the database header's read version is 2, see C12). A rollback-journal database with no -wal file next to it never constructs a Wal object.",
+      "file": "sqlite3.c",
+      "function": "pagerOpenWalIfPresent",
+      "line": 62944,
+      "condition": "if( !pPager->tempFile ){ sqlite3OsAccess(pVfs, pPager->zWal, SQLITE_ACCESS_EXISTS, &isWal); if( isWal ){ if( nPage==0 ){ sqlite3OsDelete(pVfs, pPager->zWal, 0); } else { sqlite3PagerOpenWal(pPager, 0); } } else if( journalMode==PAGER_JOURNALMODE_WAL ){ journalMode = PAGER_JOURNALMODE_DELETE; } }"
+    },
+    {
+      "id": "C12",
+      "claim": "If the database header read-version byte (offset 19) is 2, the b-tree layer opens the WAL even when no -wal file exists. sqlite3PagerOpenWal() is a no-op for temp or immutable pagers (*pbOpen=1), and sqlite3WalOpen() always requests SQLITE_OPEN_READWRITE|SQLITE_OPEN_CREATE for the -wal file regardless of the database open flags.",
+      "file": "sqlite3.c",
+      "function": "lockBtree; sqlite3PagerOpenWal; sqlite3WalOpen",
+      "line": 76418,
+      "condition": "if( page1[19]==2 && (pBt->btsFlags & BTS_NO_WAL)==0 ){ rc = sqlite3PagerOpenWal(pBt->pPager, &isOpen); } | if( !pPager->tempFile && !pPager->pWal ){ ... pagerOpenWal(pPager) ... } else { *pbOpen = 1; } | flags = (SQLITE_OPEN_READWRITE|SQLITE_OPEN_CREATE|SQLITE_OPEN_WAL); rc = sqlite3OsOpen(pVfs, zWalName, pRet->pWalFd, flags, &flags); if( rc==SQLITE_OK && flags&SQLITE_OPEN_READONLY ){ pRet->readOnly = WAL_RDONLY; }"
+    },
+    {
+      "id": "C13",
+      "claim": "SQLITE_OPEN_READONLY makes the Unix VFS open the database file with O_RDONLY and the pager records readOnly from the VFS output flags. A read-write open that fails for a reason other than EISDIR falls back to O_RDONLY. Creating a journal or -wal in an unwritable directory returns SQLITE_READONLY_DIRECTORY.",
+      "file": "sqlite3.c",
+      "function": "unixOpen; sqlite3PagerOpen",
+      "line": 46725,
+      "condition": "if( isReadonly ) openFlags |= O_RDONLY; ... if( fd<0 ){ if( isNewJrnl && errno==EACCES && osAccess(zName, F_OK) ){ rc = SQLITE_READONLY_DIRECTORY; } else if( errno!=EISDIR && isReadWrite ){ flags |= SQLITE_OPEN_READONLY; ... fd = robust_open(zName, O_RDONLY...) } } | readOnly = (fout&SQLITE_OPEN_READONLY)!=0; ... pPager->readOnly = (u8)readOnly;"
+    },
+    {
+      "id": "C14",
+      "claim": "A hot rollback journal on a read-only pager is refused with SQLITE_READONLY_ROLLBACK before any lock upgrade or playback. On a writable pager the same call takes an EXCLUSIVE lock, opens the journal read-write, syncs it, and plays it back into the database file.",
+      "file": "sqlite3.c",
+      "function": "sqlite3PagerSharedLock",
+      "line": 64859,
+      "condition": "if( !pagerUseWal(pPager) && pPager->eState==PAGER_OPEN ){ ... hasHotJournal(pPager, &bHotJournal); if( bHotJournal ){ if( pPager->readOnly ){ rc = SQLITE_READONLY_ROLLBACK; goto failed; } pagerLockDb(pPager, EXCLUSIVE_LOCK); ... sqlite3OsOpen(pVfs, zJournal, jfd, SQLITE_OPEN_READWRITE|SQLITE_OPEN_MAIN_JOURNAL, &fout); ... pagerSyncHotJournal(pPager); pager_playback(pPager, !pPager->tempFile); } }"
+    },
+    {
+      "id": "C15",
+      "claim": "hasHotJournal() itself only reads: it checks -journal existence, the RESERVED lock, the database page count, and the first journal byte through a read-only open. The one write it can perform, deleting a stale journal when the database has zero pages, requires taking a RESERVED lock and is skipped if the lock is not granted.",
+      "file": "sqlite3.c",
+      "function": "hasHotJournal",
+      "line": 64739,
+      "condition": "if( nPage==0 && !jrnlOpen ){ if( pagerLockDb(pPager, RESERVED_LOCK)==SQLITE_OK ){ sqlite3OsDelete(pVfs, pPager->zJournal, 0); } } else { f = SQLITE_OPEN_READONLY|SQLITE_OPEN_MAIN_JOURNAL; sqlite3OsOpen(...); sqlite3OsRead(jfd, &first, 1, 0); *pExists = (first!=0); }"
+    },
+    {
+      "id": "C16",
+      "claim": "immutable=1 (or SQLITE_IOCAP_IMMUTABLE) forces SQLITE_OPEN_READONLY and routes the pager through the temp-file branch: tempFile=1, eState=PAGER_READER, eLock=EXCLUSIVE_LOCK pretended, noLock=1. Because eState is never PAGER_OPEN the hot-journal block in sqlite3PagerSharedLock() is skipped, and because tempFile is set pagerOpenWalIfPresent() and sqlite3PagerOpenWal() never open a WAL.",
+      "file": "sqlite3.c",
+      "function": "sqlite3PagerOpen",
+      "line": 64340,
+      "condition": "if( (iDc & SQLITE_IOCAP_IMMUTABLE)!=0 || sqlite3_uri_boolean(pPager->zFilename, \"immutable\", 0) ){ vfsFlags |= SQLITE_OPEN_READONLY; goto act_like_temp_file; } ... act_like_temp_file: tempFile = 1; pPager->eState = PAGER_READER; pPager->eLock = EXCLUSIVE_LOCK; pPager->noLock = 1; readOnly = (vfsFlags&SQLITE_OPEN_READONLY);"
+    },
+    {
+      "id": "C17",
+      "claim": "The immutable parameter's documented contract is that the file cannot change even by a higher-privilege process; locking and change detection are disabled and a file that does change can produce incorrect results or SQLITE_CORRUPT.",
+      "file": "sqlite3.h",
+      "function": "URI filenames documentation, 'immutable' parameter",
+      "line": 4243,
+      "condition": "When immutable is set, SQLite assumes that the database file cannot be changed, even by a process with higher privilege, and so the database is opened read-only and all locking and change detection is disabled. Caution: Setting the immutable property on a database file that does in fact change can result in incorrect query results and/or SQLITE_CORRUPT errors."
+    },
+    {
+      "id": "C18",
+      "claim": "Checkpointing refuses any connection whose WAL or SHM is read-only. It does not consult the database file's own open flags, so a SQLITE_OPEN_READONLY connection with writable -wal and -shm reaches the checkpoint code at close; its writes to the O_RDONLY database descriptor cannot succeed at the VFS.",
+      "file": "sqlite3.c",
+      "function": "sqlite3WalCheckpoint; sqlite3WalClose; sqlite3PagerClose",
+      "line": 71737,
+      "condition": "if( pWal->readOnly ) return SQLITE_READONLY; | if( zBuf!=0 && SQLITE_OK==(rc = sqlite3OsLock(pWal->pDbFd, SQLITE_LOCK_EXCLUSIVE)) ){ rc = sqlite3WalCheckpoint(pWal, db, SQLITE_CHECKPOINT_PASSIVE, ...); } | if( db && 0==(db->flags & SQLITE_NoCkptOnClose) && SQLITE_OK==databaseIsUnmoved(pPager) ){ a = pTmp; } sqlite3WalClose(pPager->pWal, db, pPager->walSyncFlags, pPager->pageSize, a);"
+    }
+  ],
+  "strategy_exclusion": [
+    {
+      "strategy": "Production database in rollback-journal mode (DELETE, TRUNCATE, or PERSIST), no -wal file present",
+      "excludes_hardened_path": true,
+      "basis": "C11 and C12: no Wal object is created unless a -wal file exists or the header read version is 2.",
+      "residual": "A stray -wal file next to a rollback-mode database with nPage>0 is still opened (C11). Hot-journal playback on a writable connection writes (C14)."
+    },
+    {
+      "strategy": "Open with immutable=1",
+      "excludes_hardened_path": true,
+      "basis": "C16: tempFile=1 disables WAL opening and the hot-journal block; noLock=1 disables locking.",
+      "residual": "C17: unsafe if any other process writes during the open; WAL content is ignored, so the view can be stale or inconsistent, and a mid-write snapshot can report SQLITE_CORRUPT."
+    },
+    {
+      "strategy": "Open with SQLITE_OPEN_READONLY (mode=ro) on a WAL-mode database",
+      "excludes_hardened_path": false,
+      "basis": "C4 and C12: the read-only flag affects only the database descriptor; -wal and -shm are opened read-write and created when the directory allows, so recovery can write the -shm. When the -shm is unwritable and no other process holds the DMS lock, C3 and C2 put the connection on the hardened path.",
+      "residual": "Read marks and recovery write the -shm; missing -wal or -shm files are created when the directory is writable (C12, C4)."
+    },
+    {
+      "strategy": "Open with SQLITE_OPEN_READONLY and readonly_shm=1",
+      "excludes_hardened_path": false,
+      "basis": "C4 opens the -shm read-only unconditionally; C3 returns SQLITE_READONLY_CANTINIT whenever no other process holds the DMS lock, which is the normal state for a single-process tool. This is the reporter's reproduction configuration.",
+      "residual": "This is the configuration that most reliably enters the hardened path."
+    },
+    {
+      "strategy": "Open normally (read-write) and accept that recovery may write",
+      "excludes_hardened_path": true,
+      "basis": "C3 and C4: with a writable -shm the DMS lock is taken and the shared memory is initialized normally; isReadonly is never set, so SQLITE_READONLY_CANTINIT cannot be returned. C14: a hot journal is played back.",
+      "residual": "WAL recovery writes the -shm, hot-journal playback writes the database file and deletes the journal, and close may checkpoint (C18). None of these is side-effect-free."
+    },
+    {
+      "strategy": "Do not open through SQLite; inspect file presence, permissions, and header bytes only",
+      "excludes_hardened_path": true,
+      "basis": "No SQLite pager or WAL code runs. The 100-byte header (magic string, page size at offset 16, read/write versions at offsets 18 and 19) is readable without a library call.",
+      "residual": "No schema, integrity, or content validation; cannot report on WAL content, journal hotness, or lock state beyond file existence."
+    }
+  ],
+  "limits": "Citations are read from source and the upstream report; the hardened path was not exercised here, and the Unix VFS is the only VFS read (Windows shm handling differs in os_win.c). Fossil check-in ancestry and the 3.53.3 containment of 9a79ca31ff are from fix-ancestry.json, not re-established here."
+}
