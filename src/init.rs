@@ -34,7 +34,7 @@ impl fmt::Display for InitError {
             Self::Cancelled => formatter.write_str("configuration cancelled; nothing was written"),
             Self::Exists(path) => write!(
                 formatter,
-                "configuration already exists at '{path}'; use 'ask configure apply' to replace it"
+                "configuration already exists at '{path}'; 'ask configure apply' replaces regular files only"
             ),
             Self::Failed(message) => formatter.write_str(message),
         }
@@ -58,7 +58,7 @@ pub fn run<R: BufRead, W: Write>(
     input: &mut R,
     output: &mut W,
 ) -> Result<(), InitError> {
-    if path.exists() {
+    if std::fs::symlink_metadata(path).is_ok() {
         return Err(InitError::Exists(path.display().to_string()));
     }
     let mut dialogue = Dialogue { input, output };
