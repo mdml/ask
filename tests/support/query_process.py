@@ -13,8 +13,10 @@ binary, home, scenario, *args = sys.argv[1:]
 os.environ['ASK_HOME'] = home
 master, slave = pty.openpty()
 try:
+    # SIG_DFL for SIGINT in the child, even if the runner inherited SIG_IGN.
     child = subprocess.Popen([binary, *args], stdin=slave,
-                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_DFL))
     if scenario != 'words':
         assert child.stderr.read(5) == b'ask> '
         if scenario == 'cancel':
