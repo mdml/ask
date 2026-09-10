@@ -7,6 +7,7 @@ This directory records the dated observations behind the [SQLite adoption record
 | `fix-ancestry.json` | The six named SQLite check-ins with commit dates, comments, and containing releases (3.53.3 and 3.53.4), plus per-release dates and `sqlite3.c` SHA3-256 digests. Records the `bf70dadc2d` correction: it is contained in 3.53.4 only and absent from the candidate 3.53.2 and from 3.53.3. |
 | `route-comparison.json` | Registry index observations, candidate versions and checksums, the rusqlite release-lag finding, master header version and source id, the absence of an imminent-release signal, `libsqlite3-sys` build modes, and the dependency-policy implication for a git source. |
 | `differential-probe.json` | Output of `scripts/sqlite-differential-probe.py`: per-version library version and source id, indexed-SELECT and integrity-check result codes on one corrupted index cell, and the observed differential. |
+| `readonly-wal-path.json` | Source citations (file, function, amalgamation line, quoted condition) from SQLite 3.53.2 behind the record's "Offline diagnostics and the read-only WAL path" section: the diff of check-in `9a79ca31ff`, the conditions that reach the heap-memory WAL-index path, what `SQLITE_OPEN_READONLY` and `immutable=1` do, hot-journal handling on a read-only pager, and per-strategy exclusion with residuals. Read from source and the upstream report; not executed. |
 | `verification.txt` | Checks run for this record and their limits. |
 
 ## Reproduce the differential probe
