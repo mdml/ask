@@ -1,0 +1,487 @@
+{
+  "retrieved": "2026-09-09",
+  "source": "https://sqlite.org/src/timeline?from=version-3.53.2&to=version-3.53.4&y=ci",
+  "scope": "80 branch check-in summaries including endpoints; classification is build/workload inference, not exploit testing or exhaustive code audit",
+  "checkins": [
+    {
+      "checkin": "bf7c7f3003",
+      "source": "https://sqlite.org/src/info/bf7c7f3003",
+      "upstream_summary": "Version 3.53.4",
+      "assessment_inference": "release/test/diagnostic only"
+    },
+    {
+      "checkin": "5d7c6fe1e9",
+      "source": "https://sqlite.org/src/info/5d7c6fe1e9",
+      "upstream_summary": "Fix to the interaction between indexes-on-expressions, subtypes, and the unary \"+\" operator.",
+      "assessment_inference": "core SQL/JSON; workload reachability not established"
+    },
+    {
+      "checkin": "bf70dadc2d",
+      "source": "https://sqlite.org/src/info/bf70dadc2d",
+      "upstream_summary": "Ensure that a hot journal is rolled back in the case where a process or system crash results in a corrupt super-journal record where the magic and length values are correct but the super-journal name and checksum fields are both zeroed. Forum post 2026-07-20T18:27:00Z.",
+      "assessment_inference": "core journal/WAL/btree; relevant to local files, triggering state untested"
+    },
+    {
+      "checkin": "1d84dc151b",
+      "source": "https://sqlite.org/src/info/1d84dc151b",
+      "upstream_summary": "Add the SQLITE_SHELL_EDITION compile-time option, which if set to a date number of the form YYYYMMDD will try to configure the defaults to be similar to the latest release at or prior to that date.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "a508bb8f88",
+      "source": "https://sqlite.org/src/info/a508bb8f88",
+      "upstream_summary": "Update some test cases in fts5corrupt3.test and fts5corruptB.test to account for recent updates to database and record corruption detection.",
+      "assessment_inference": "release/test/diagnostic only"
+    },
+    {
+      "checkin": "a210f6f939",
+      "source": "https://sqlite.org/src/info/a210f6f939",
+      "upstream_summary": "Safer conversion from double to 64-bit integer in two places.",
+      "assessment_inference": "core SQL/JSON; workload reachability not established"
+    },
+    {
+      "checkin": "7bad71288c",
+      "source": "https://sqlite.org/src/info/7bad71288c",
+      "upstream_summary": "Ensure that the \"leaf-size\" field of an fts5 record is only read from records that are actually leaves and are large enough to contain it.",
+      "assessment_inference": "compiled FTS/RTREE; workload reachability not established"
+    },
+    {
+      "checkin": "b6ab126399",
+      "source": "https://sqlite.org/src/info/b6ab126399",
+      "upstream_summary": "In the sqlite3_rsync utility program, fix three defects identified by Anthropic.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "74a4c3b666",
+      "source": "https://sqlite.org/src/info/74a4c3b666",
+      "upstream_summary": "Fix an incorrect free() call in the CLI on Windows when using the -A command-line option.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "9aac477d65",
+      "source": "https://sqlite.org/src/info/9aac477d65",
+      "upstream_summary": "Fix an OOB read caused by passing an out-of-range phrase number to fts5 auxiliary API xPhraseFirstColumn() in detail=columns mode.",
+      "assessment_inference": "compiled FTS/RTREE; workload reachability not established"
+    },
+    {
+      "checkin": "dd482ecec3",
+      "source": "https://sqlite.org/src/info/dd482ecec3",
+      "upstream_summary": "Fix another buffer overread in RBU that could occur when processing an RBU database with corrupt rbu_control fields.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "6870e39ecc",
+      "source": "https://sqlite.org/src/info/6870e39ecc",
+      "upstream_summary": "Fix mulutiple problems in RBU and reduce divergence between the Fossil native implementation of delta and the variant of that code used by RBU.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "a6cdeee6e6",
+      "source": "https://sqlite.org/src/info/a6cdeee6e6",
+      "upstream_summary": "Avoid a (harmless) 1-byte OOB read due to malformed inputs in the normalize.c extension.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "37c90c8fc2",
+      "source": "https://sqlite.org/src/info/37c90c8fc2",
+      "upstream_summary": "Return an error if a patchset is passed to sqlite3rebaser_configure(). And avoid a buffer overread in the session module when an UPDATE change is rebased against a baseline that records fewer columns than the UPDATE.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "b6500b6bf1",
+      "source": "https://sqlite.org/src/info/b6500b6bf1",
+      "upstream_summary": "Properly handle errors from the readlink() system call in the fileio.c extension.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "88bfcc7361",
+      "source": "https://sqlite.org/src/info/88bfcc7361",
+      "upstream_summary": "Fix the parse_create_index() SQL function created by the incremental integrity_check extension so that it works for widely correct CREATE INDEX statements. Also fix the extension so that it removes the parse_create_index() function. Add the sqlite3_intck_register() API function so that the parse_create_index() function can be more easily tested.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "4ccbd6042a",
+      "source": "https://sqlite.org/src/info/4ccbd6042a",
+      "upstream_summary": "The jsonSkipLabel() routine, part of json_each() and json_next(), should never return an index outside of the range of bytes of the input JSONB.",
+      "assessment_inference": "core SQL/JSON; workload reachability not established"
+    },
+    {
+      "checkin": "3d6c32fc07",
+      "source": "https://sqlite.org/src/info/3d6c32fc07",
+      "upstream_summary": "Fix possible one-byte OOB read in the fossildelta.c extension.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "a43c78f9f6",
+      "source": "https://sqlite.org/src/info/a43c78f9f6",
+      "upstream_summary": "Fix possible 1-byte OOB read when decoding a malformed FLOAT5 element in JSONB.",
+      "assessment_inference": "core SQL/JSON; workload reachability not established"
+    },
+    {
+      "checkin": "c87fc653b0",
+      "source": "https://sqlite.org/src/info/c87fc653b0",
+      "upstream_summary": "Improved data validation in fts5SecureDeleteOverflow().",
+      "assessment_inference": "compiled FTS/RTREE; workload reachability not established"
+    },
+    {
+      "checkin": "38bb827500",
+      "source": "https://sqlite.org/src/info/38bb827500",
+      "upstream_summary": "Avoid an integer overflow in the string allocator for the snippet() function of FTS3/4, when SQLITE_MAX_LENGTH is unusually large.",
+      "assessment_inference": "compiled FTS/RTREE; workload reachability not established"
+    },
+    {
+      "checkin": "833d058ee3",
+      "source": "https://sqlite.org/src/info/833d058ee3",
+      "upstream_summary": "Check for oversized iTermOff in fs5SegIterNextInit() and trigger a corruption error if detected.",
+      "assessment_inference": "compiled FTS/RTREE; workload reachability not established"
+    },
+    {
+      "checkin": "f45d03b1c5",
+      "source": "https://sqlite.org/src/info/f45d03b1c5",
+      "upstream_summary": "Do not allow an integer overflow to bypass a leaf-term bound check in the integrity-check function of FTS5.",
+      "assessment_inference": "compiled FTS/RTREE; workload reachability not established"
+    },
+    {
+      "checkin": "713f3cf69a",
+      "source": "https://sqlite.org/src/info/713f3cf69a",
+      "upstream_summary": "Make sure local functions in the series.c extension have only file scope.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "3c8ba6dca0",
+      "source": "https://sqlite.org/src/info/3c8ba6dca0",
+      "upstream_summary": "In the amatch.c and fuzzer.c extensions (both of which are experimental, for testing purposes only, and are not part of any deliverable) treat NULL inputs as empty strings. Limit input lengths in amatch.c",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "65214f43c8",
+      "source": "https://sqlite.org/src/info/65214f43c8",
+      "upstream_summary": "Patch level to 4.",
+      "assessment_inference": "release/test/diagnostic only"
+    },
+    {
+      "checkin": "d4c0e51e4a",
+      "source": "https://sqlite.org/src/info/d4c0e51e4a",
+      "upstream_summary": "Version 3.53.3",
+      "assessment_inference": "release/test/diagnostic only"
+    },
+    {
+      "checkin": "0d57a60060",
+      "source": "https://sqlite.org/src/info/0d57a60060",
+      "upstream_summary": "Have API functions sqlite3_serialize, sqlite3_limit, sqlite3_busy_timeout, sqlite3_error_offset, sqlite3_db_name, sqlite3_get_autocommit, sqlite3_errcode, sqlite3_total_changes64, sqlite3_changes64, sqlite3_last_insert_rowid and sqlite3_expired take and hold the database mutex while running.",
+      "assessment_inference": "core C API/configuration; invocation conditions not established"
+    },
+    {
+      "checkin": "12d0d2363a",
+      "source": "https://sqlite.org/src/info/12d0d2363a",
+      "upstream_summary": "Fix both a buffer overread and overwrite in the sessions rebase module.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "6a55dc85b7",
+      "source": "https://sqlite.org/src/info/6a55dc85b7",
+      "upstream_summary": "Fix parsing of unterminated \"[\" tokens in the incremental integrity check extension.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "2e1fdfbcc9",
+      "source": "https://sqlite.org/src/info/2e1fdfbcc9",
+      "upstream_summary": "Avoid 32-bit integer overflow in the zipfile extension given ridiculous arguments.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "f73adcfc87",
+      "source": "https://sqlite.org/src/info/f73adcfc87",
+      "upstream_summary": "Fix a buffer overread that could occur in fts5 within a memcmp() when doing an integrity-check on corrupted records.",
+      "assessment_inference": "compiled FTS/RTREE; workload reachability not established"
+    },
+    {
+      "checkin": "c4af6acfb0",
+      "source": "https://sqlite.org/src/info/c4af6acfb0",
+      "upstream_summary": "Fix parsing of quoted instantiation arguments in the spellfix extension.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "9a1729a484",
+      "source": "https://sqlite.org/src/info/9a1729a484",
+      "upstream_summary": "Fix unbounded whitespace skip in the decimal extension.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "27f80408b8",
+      "source": "https://sqlite.org/src/info/27f80408b8",
+      "upstream_summary": "Extra margin to prevent queue overflow in the RTree extension.",
+      "assessment_inference": "compiled FTS/RTREE; workload reachability not established"
+    },
+    {
+      "checkin": "edfe25b68a",
+      "source": "https://sqlite.org/src/info/edfe25b68a",
+      "upstream_summary": "Fix the (non-deliverable, testing-use-only) closure extension so that it parses quoted instantiation arguments correctly.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "bbaad09b3d",
+      "source": "https://sqlite.org/src/info/bbaad09b3d",
+      "upstream_summary": "Fix the size of an allocation in fts3 to take into account that when merging a phrase doclist, each entry may grow by up to 1 byte if the rhs position of the merged lists is stored.",
+      "assessment_inference": "compiled FTS/RTREE; workload reachability not established"
+    },
+    {
+      "checkin": "1a888ea60b",
+      "source": "https://sqlite.org/src/info/1a888ea60b",
+      "upstream_summary": "Improved detection of corrupt freelist chains on btree pages. Plus, add assert()s to verify that the min-heap does not overflow inside of PRAGMA integrity_check.",
+      "assessment_inference": "core journal/WAL/btree; relevant to local files, triggering state untested"
+    },
+    {
+      "checkin": "512d944945",
+      "source": "https://sqlite.org/src/info/512d944945",
+      "upstream_summary": "Fix compiler warnings.",
+      "assessment_inference": "release/test/diagnostic only"
+    },
+    {
+      "checkin": "7927329d25",
+      "source": "https://sqlite.org/src/info/7927329d25",
+      "upstream_summary": "Have sqlite3_drop_modules() take the database mutex.",
+      "assessment_inference": "core C API/configuration; invocation conditions not established"
+    },
+    {
+      "checkin": "6826c17021",
+      "source": "https://sqlite.org/src/info/6826c17021",
+      "upstream_summary": "Check for cells extending too far past the end of a page while search an index.",
+      "assessment_inference": "core journal/WAL/btree; relevant to local files, triggering state untested"
+    },
+    {
+      "checkin": "9471fa2c9c",
+      "source": "https://sqlite.org/src/info/9471fa2c9c",
+      "upstream_summary": "When rolling back a journal that contains a super-journal pointer, only attempt to unlink the super-journal if (a) the filename looks like one that SQLite might have generated, and (b) the super-journal contains the name of the journal being rolled back. This is to limit the extent to which SQLite can be caused to delete arbitrary files by supplying it with a crafted hot-journal.",
+      "assessment_inference": "core journal/WAL/btree; relevant to local files, triggering state untested"
+    },
+    {
+      "checkin": "a9cea5b555",
+      "source": "https://sqlite.org/src/info/a9cea5b555",
+      "upstream_summary": "Fix the sqlite3ParseUri() for improved defenses against ridiculously long URI inputs causing integer overflow problems.",
+      "assessment_inference": "core C API/configuration; invocation conditions not established"
+    },
+    {
+      "checkin": "d9177ed965",
+      "source": "https://sqlite.org/src/info/d9177ed965",
+      "upstream_summary": "Revert the recent fixes to backup code and instead fix the problem reported by forum post 15d82885e2 (that a call to sqlite3_deserialize() after sqlite3_backup_init() but before the first call to sqlite3_backup_step() on the destination db of a backup could cause a crash) by deferring caching the pointer to the destination Btree until after it is locked.",
+      "assessment_inference": "core C API/configuration; invocation conditions not established"
+    },
+    {
+      "checkin": "121a749d0f",
+      "source": "https://sqlite.org/src/info/121a749d0f",
+      "upstream_summary": "Merge the fixes for the use-after-free problem caused by executing an ATTACH when a backup operation was active, and for the OOB read in the unused spellfix1 extension.",
+      "assessment_inference": "core C API/configuration; invocation conditions not established"
+    },
+    {
+      "checkin": "246f46614f",
+      "source": "https://sqlite.org/src/info/246f46614f",
+      "upstream_summary": "Do not use shared locks on SHM files when the filename is a long DOS-device path. Only used shared locks for UNC paths. Do not confuse the long-DOS-device syntax with UNC paths. Bugzilla 2016438.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "7e8de3ba28",
+      "source": "https://sqlite.org/src/info/7e8de3ba28",
+      "upstream_summary": "Fix a NULL pointer dereference that could occur in the unionvtab virtual table if the configuration SQL returned an SQL NULL value in place of a table name.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "ee4f5d82a3",
+      "source": "https://sqlite.org/src/info/ee4f5d82a3",
+      "upstream_summary": "Fix a NULL pointer dereference that can occur when misusing a extension virtual table that was created for testing purposes.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "c980094956",
+      "source": "https://sqlite.org/src/info/c980094956",
+      "upstream_summary": "Fixes for three separate AI-discovered bugs in non-deliverable extensions.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "4c773f5d64",
+      "source": "https://sqlite.org/src/info/4c773f5d64",
+      "upstream_summary": "Fixes for kvvfs journaling. Bug reports 2026-06-20T08:49:41Z and 2026-06-20T18:35:54Z.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "6c22c34e9a",
+      "source": "https://sqlite.org/src/info/6c22c34e9a",
+      "upstream_summary": "Fix a cast in fts3_write so that it is applied as intended.",
+      "assessment_inference": "compiled FTS/RTREE; workload reachability not established"
+    },
+    {
+      "checkin": "4d993e8f5f",
+      "source": "https://sqlite.org/src/info/4d993e8f5f",
+      "upstream_summary": "Fix an fts5 problem causing attempts to create locale=1 tables with more than 115 columns to fail.",
+      "assessment_inference": "compiled FTS/RTREE; workload reachability not established"
+    },
+    {
+      "checkin": "89d9120af9",
+      "source": "https://sqlite.org/src/info/89d9120af9",
+      "upstream_summary": "Fix CLI CSV test cases so that they suppress the CR on windows and thus work cross-platform. Test case changes only - no changes to code.",
+      "assessment_inference": "release/test/diagnostic only"
+    },
+    {
+      "checkin": "571846a9c2",
+      "source": "https://sqlite.org/src/info/571846a9c2",
+      "upstream_summary": "Improved detection of when the alternative windows-compatible main() is needed in the sqldiff.exe utility.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "38430aa5ed",
+      "source": "https://sqlite.org/src/info/38430aa5ed",
+      "upstream_summary": "Limit VIEW recursion depth to SQLITE_LIMIT_EXPR_DEPTH to prevent static overflow in malicious schemas with tens of thousands of levels of recursive views.",
+      "assessment_inference": "core SQL/JSON; workload reachability not established"
+    },
+    {
+      "checkin": "c25ac7af86",
+      "source": "https://sqlite.org/src/info/c25ac7af86",
+      "upstream_summary": "Fix instances of potential buffer overflow caused by loading the contents of a stat4 table with an absurd number of samples in a 32-bit build.",
+      "assessment_inference": "32-bit-specific trigger excluded by supported 64-bit targets"
+    },
+    {
+      "checkin": "b22709dcb3",
+      "source": "https://sqlite.org/src/info/b22709dcb3",
+      "upstream_summary": "Enhance SQLITE_LIMIT_TRIGGER_DEPTH so that it also limits a chain of distinct triggers during code generation.",
+      "assessment_inference": "core SQL/JSON; workload reachability not established"
+    },
+    {
+      "checkin": "5d344e0288",
+      "source": "https://sqlite.org/src/info/5d344e0288",
+      "upstream_summary": "Fix a problem sometimes causing an UPSERT to incorrectly convert an excluded.* column from type REAL to INT in cases where doing so does not cause data loss.",
+      "assessment_inference": "core SQL/JSON; workload reachability not established"
+    },
+    {
+      "checkin": "e10ff7cd09",
+      "source": "https://sqlite.org/src/info/e10ff7cd09",
+      "upstream_summary": "Improvements to handling of inequality constraints on generate_series().value against very large floating-point values.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "3a4667ce36",
+      "source": "https://sqlite.org/src/info/3a4667ce36",
+      "upstream_summary": "Avoid a possible buffer overrun in 32-bit builds of fts5 that could occur when processing corrupt records.",
+      "assessment_inference": "32-bit-specific trigger excluded by supported 64-bit targets"
+    },
+    {
+      "checkin": "4f21004f9b",
+      "source": "https://sqlite.org/src/info/4f21004f9b",
+      "upstream_summary": "Fix a problem that could cause fts5 to return incorrect answers when performing prefix queries on tokens with synonyms.",
+      "assessment_inference": "compiled FTS/RTREE; workload reachability not established"
+    },
+    {
+      "checkin": "ae568e059b",
+      "source": "https://sqlite.org/src/info/ae568e059b",
+      "upstream_summary": "Fix rounding behavior in the decimal extension when all leading digits are 9 and there is not fractional component.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "5019306601",
+      "source": "https://sqlite.org/src/info/5019306601",
+      "upstream_summary": "Make the --header option to the CLI sticky, so that it does not get turned off by subsequence --csv or similar mode change options.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "aa756c8038",
+      "source": "https://sqlite.org/src/info/aa756c8038",
+      "upstream_summary": "When reading a super-journal name from a journal file, allocate a new buffer rather than using Pager.pTmpSpace. This prevents a buffer overrun that could occur when using a VFS with a large sqlite3_vfs.mxPathname value with a database with a small page size.",
+      "assessment_inference": "core journal/WAL/btree; relevant to local files, triggering state untested"
+    },
+    {
+      "checkin": "85afd8e291",
+      "source": "https://sqlite.org/src/info/85afd8e291",
+      "upstream_summary": "Fix a buffer overwrite in fts3 that could occur while processing NEAR queries against corrupt records.",
+      "assessment_inference": "compiled FTS/RTREE; workload reachability not established"
+    },
+    {
+      "checkin": "9a79ca31ff",
+      "source": "https://sqlite.org/src/info/9a79ca31ff",
+      "upstream_summary": "When using a read-only WAL/SHM, handle a corrupt page size in the WAL file correctly.",
+      "assessment_inference": "core journal/WAL/btree; relevant to local files, triggering state untested"
+    },
+    {
+      "checkin": "42fe4d2e8b",
+      "source": "https://sqlite.org/src/info/42fe4d2e8b",
+      "upstream_summary": "Fix a signed integer overflow that could occur in fts3 when processing corrupt database records.",
+      "assessment_inference": "compiled FTS/RTREE; workload reachability not established"
+    },
+    {
+      "checkin": "a36fc58e55",
+      "source": "https://sqlite.org/src/info/a36fc58e55",
+      "upstream_summary": "Fix a signed-integer overflow in fts5 that might occur when dealing with strategicly corrupted records.",
+      "assessment_inference": "compiled FTS/RTREE; workload reachability not established"
+    },
+    {
+      "checkin": "c40f3e8e78",
+      "source": "https://sqlite.org/src/info/c40f3e8e78",
+      "upstream_summary": "Fix a possible signed integer overflow in the RBU extension given a maliciously crafted delta.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "1657b9716f",
+      "source": "https://sqlite.org/src/info/1657b9716f",
+      "upstream_summary": "Harden code that processes Fossil Deltas against OOM and maliciously malformed delta blobs.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "cd7bb77fdf",
+      "source": "https://sqlite.org/src/info/cd7bb77fdf",
+      "upstream_summary": "Enhance the \".ar -x\" command to add the undocumented --debug option and to give enhanced robustness to deliberately malformed archives.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "4e875ae5c3",
+      "source": "https://sqlite.org/src/info/4e875ae5c3",
+      "upstream_summary": "Improved detection of corrupt node IDs in RTree shadow tables.",
+      "assessment_inference": "compiled FTS/RTREE; workload reachability not established"
+    },
+    {
+      "checkin": "a6eb055c35",
+      "source": "https://sqlite.org/src/info/a6eb055c35",
+      "upstream_summary": "Fix four obscure yet separate problems in FTS5.",
+      "assessment_inference": "compiled FTS/RTREE; workload reachability not established"
+    },
+    {
+      "checkin": "10d9da4f48",
+      "source": "https://sqlite.org/src/info/10d9da4f48",
+      "upstream_summary": "Disable the vector-IN-SELECT optimization if the number of columns is so large that it would cause the WhereTerm.nChild column to wrap.",
+      "assessment_inference": "core SQL/JSON; workload reachability not established"
+    },
+    {
+      "checkin": "3be41e1752",
+      "source": "https://sqlite.org/src/info/3be41e1752",
+      "upstream_summary": "Fix a crash that could be caused by configuring the pager-cache with a bulk allocation too small to fit even one page.",
+      "assessment_inference": "core C API/configuration; invocation conditions not established"
+    },
+    {
+      "checkin": "e14e19c1b3",
+      "source": "https://sqlite.org/src/info/e14e19c1b3",
+      "upstream_summary": "Remove the data type ANY added to the shell's CSV imports.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "96818a375a",
+      "source": "https://sqlite.org/src/info/96818a375a",
+      "upstream_summary": "Increment the patch level to 3.53.3.",
+      "assessment_inference": "release/test/diagnostic only"
+    },
+    {
+      "checkin": "af0bf4ee77",
+      "source": "https://sqlite.org/src/info/af0bf4ee77",
+      "upstream_summary": "Fix problems with expressions like \"(?,?,?) IN (SELECT c,b,a FROM ...)\" when there is an index on columns \"c\", \"b\" and \"a\", but not in that order.",
+      "assessment_inference": "core SQL/JSON; workload reachability not established"
+    },
+    {
+      "checkin": "06fcd92e66",
+      "source": "https://sqlite.org/src/info/06fcd92e66",
+      "upstream_summary": "Remove all references to GetNativeSystemInfo() on Windows, which is reportedly not available when compiling with MinGW.",
+      "assessment_inference": "outside selected build (utility, optional extension, VFS or Windows)"
+    },
+    {
+      "checkin": "d6e03d8c77",
+      "source": "https://sqlite.org/src/info/d6e03d8c77",
+      "upstream_summary": "Version 3.53.2",
+      "assessment_inference": "release/test/diagnostic only"
+    }
+  ]
+}

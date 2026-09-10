@@ -1,0 +1,31 @@
+Observation date: 2026-09-09
+Normalization: retain commands, statuses and aggregate counts only. Raw compiler/test logs, filesystem paths, hostnames, environment values and test transcripts are not retained.
+
+python3 scripts/sqlite-readiness.py x86_64-unknown-linux-gnu
+PASS: isolated locked release build, Rust 1.97.1, rustfmt, Clippy -D warnings.
+PASS: exact SQLite 3.53.2 source ID, native compile options, on-disk DELETE and WAL transaction/locking/retry/reopen/integrity scenarios.
+PASS: sqlite3_libversion defined in executable; ELF NEEDED has no dynamic SQLite library. Full allowlisted result: linux-x86_64.json.
+
+python3 scripts/sqlite-source-equivalence.py <input-directory>
+PASS: both registry archive checksums; current latest candidate versions; tag/VCS commit; all package payload bytes; original manifests; complete parsed manifest normalization; three official SQLite amalgamation files.
+PASS: altered archive rejected (exit 1, empty stdout, sanitized stderr).
+PASS: invalid runtime target rejected (exit 1, empty stdout, sanitized stderr).
+PASS: Python AST syntax, all retained JSON parses, workflow YAML parse, four distinct native target rows, existing action pins only, read-only workflow permissions and explicit Bash pipefail shell.
+PASS: retained-file path/credential-pattern scan, manual public-content review and relative Markdown links.
+PASS: git diff --check; production tracked files and historical September 6 evidence unchanged.
+
+just verify
+Initial sandbox run: stopped at a fake-provider loopback bind denied by sandbox permissions.
+Rerun with loopback access: formatting, Clippy, build, docs and all 58 tests passed (37 unit, 7 configuration proof, 14 query proof).
+Line coverage: 94.14% (597 lines, 35 uncovered), exceeding the 90% gate.
+Overall exit 3: CodeScene could not run because CS_ACCESS_TOKEN was unset. No token was retrieved or printed.
+The fast gate is incomplete. New files remain uncommitted/unstaged; a managing agent must include them in its CodeScene review and final gate. The root gate does not automatically cover the isolated probe; the dedicated probe checks above do.
+
+Not run: GitHub Actions, three other native targets, actionlint, full gate, refreshed advisory/license audit, crash/disk failure/migration tests, production storage or release linkage.
+
+Manager integration checks on 2026-09-09 (local date):
+PASS: independent fresh archive retrieval and source-equivalence run reproduced the retained JSON, including all payload and manifest checks.
+PASS: independent isolated native release probe reproduced both file scenarios, exact version/source ID and static SQLite linkage.
+PASS: just verify with repository direnv wiring; 58 tests, 94.14% line coverage, CodeScene 10 for the probe.
+PASS: fresh exact-probe cargo deny under unchanged repository policy: advisories, bans, licenses, sources. Initial missing local probe license metadata was corrected to Apache-2.0; no dependency or policy change.
+PASS: complete added-file inventory, diff review, whitespace checks and public evidence privacy scan.
