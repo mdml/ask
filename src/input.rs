@@ -50,7 +50,7 @@ pub fn resolve(
     }
 }
 
-// Provisional composition: a convenience, not a security boundary. A blank
+// Composition is a convenience, not a security boundary. A blank
 // payload (for example stdin redirected from /dev/null) leaves the instruction alone.
 fn compose(instruction: &str, payload: &str) -> String {
     if payload.trim().is_empty() {
@@ -59,14 +59,14 @@ fn compose(instruction: &str, payload: &str) -> String {
     format!("{}\n\n{payload}", instruction.trim())
 }
 
-// Provisional terminal submission: EOF submits; SIGINT keeps its default behavior.
+// Terminal submission: EOF submits; SIGINT keeps its default behavior.
 fn multiline(reader: &mut impl io::Read, stderr: &mut impl io::Write) -> Result<String, Error> {
     stderr.write_all(b"ask> ").map_err(Error::Prompt)?;
     stderr.flush().map_err(Error::Prompt)?;
     submission(read(reader)?)
 }
 
-// Provisional empty-input policy for stdin-only and terminal submissions.
+// Empty stdin-only and terminal submissions are usage errors.
 fn submission(text: String) -> Result<String, Error> {
     if text.trim().is_empty() {
         return Err(Error::Empty);

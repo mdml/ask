@@ -361,6 +361,14 @@ fn terminal_multiline_submits_on_eof() {
 }
 
 #[test]
+fn terminal_ctrl_c_cancels_without_a_request() {
+    let fake = FakeProvider::start(Scenario::Stream);
+    let home = configured_home(&fake.base_url(), None, None);
+    terminal(&home, "cancel", &[]);
+    assert!(fake.recorded().is_none());
+}
+
+#[test]
 fn terminal_empty_submission_sends_no_request() {
     for scenario in ["empty", "whitespace"] {
         let fake = FakeProvider::start(Scenario::Stream);
