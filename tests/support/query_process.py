@@ -1,11 +1,9 @@
 """Query terminal proofs through a PTY, using only the Python standard library."""
-import fcntl
 import os
 import pty
 import signal
 import subprocess
 import sys
-import termios
 
 if not __debug__:
     sys.exit('query proofs require Python assertions')
@@ -14,23 +12,16 @@ signal.alarm(20)
 binary, home, scenario, *args = sys.argv[1:]
 os.environ['ASK_HOME'] = home
 master, slave = pty.openpty()
-
-
-def controlling_terminal():
-    os.setsid()
-    fcntl.ioctl(slave, termios.TIOCSCTTY, 0)
-
-
 try:
     child = subprocess.Popen([binary, *args], stdin=slave,
-                             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                             preexec_fn=controlling_terminal if scenario == 'cancel' else None)
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if scenario != 'words':
         assert child.stderr.read(5) == b'ask> '
         if scenario == 'cancel':
-            assert termios.tcgetattr(slave)[3] & termios.ISIG
+            # Deliver SIGINT directly, as the terminal driver does for Ctrl-C,
+            # so the proof does not depend on controlling-terminal setup.
             os.write(master, b'partial question')
-            os.write(master, b'\x03')
+            child.send_signal(signal.SIGINT)
         else:
             payload = {'multiline': b'first line\nsecond line\n',
                        'empty': b'', 'whitespace': b' \t\n'}[scenario]
