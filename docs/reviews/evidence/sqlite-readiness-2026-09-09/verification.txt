@@ -37,3 +37,8 @@ Independent-review corrections on 2026-09-10 UTC:
 Regression first: corrupted archive under PYTHONOPTIMIZE=1 incorrectly returned success; the new source-equivalence regression observed this failure before the fix.
 PASS after replacing Python assertions with unconditional checks: altered archive rejected with no stdout at optimization levels 0/1/2; valid source comparison passes at levels 0/1; pinned SQLite release SHA3-256 matches.
 Clarified enabled URI parsing versus untested extreme-length trigger, UTC observation dates, and the already-reviewed native extension-loading capability.
+
+Final focused-review follow-up on 2026-09-10 UTC:
+PASS: valid input produces identical evidence at optimization levels 0/1/2; corrupted archive is rejected at all levels. The regression also detects an intentionally always-failing verifier.
+PASS: all four corrected-script native jobs in https://github.com/mdml/ask/actions/runs/34428348459 at branch head 896bbbf72c59256c761005c16de4cabcbe10ebf9; normalized CI evidence now retains this run.
+PASS: all application CI jobs in https://github.com/mdml/ask/actions/runs/34428348490 at the same revision, including full gate and all four targets.
