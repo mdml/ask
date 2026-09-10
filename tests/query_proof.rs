@@ -142,8 +142,8 @@ fn no_prompt_is_a_usage_error_with_status_two() {
     assert_eq!(output.status.code(), Some(2));
     assert!(output.stdout.is_empty());
     assert_eq!(
-        output.stderr,
-        b"ask: usage: ask [new|n] <prompt words...> | ask [configure|c]\n"
+        String::from_utf8_lossy(&output.stderr),
+        "ask: usage: ask [new|n] <prompt words...> | ask [init|i] | ask [configure|c] check [FILE|-] | ask [configure|c] apply [FILE|-]\n"
     );
 }
 

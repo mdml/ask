@@ -1,6 +1,5 @@
 use std::{
     io::Cursor,
-    path::PathBuf,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -8,189 +7,226 @@ use super::*;
 
 static CASE_ID: AtomicUsize = AtomicUsize::new(0);
 
-const COMPLETE: &str = "local\nhttp://127.0.0.1:1/v1\nfake-model\nLOCAL_API_KEY\n\n\ny\n";
+const CANDIDATE: &str = r#"# a comment the exact bytes must keep
+default_profile = "default"
+
+[providers.local]
+kind = "openai-compatible"
+base_url   =    "http://127.0.0.1:1234/v1"
+api_key_env = "LOCAL_API_KEY"
+
+[profiles.default]
+provider = "local"
+model = "fake-model"
+"#;
 
 fn fresh_path() -> PathBuf {
     let id = CASE_ID.fetch_add(1, Ordering::SeqCst);
-    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("target/configure-unit-tests")
-        .join(format!("{}-{id}", std::process::id()));
-    dir.join("config.toml")
+        .join(format!("{}-{id}", std::process::id()))
+        .join("config.toml")
 }
 
-fn drive(path: &Path, answers: &str) -> (Result<(), ConfigureError>, String) {
-    let mut input = Cursor::new(answers.as_bytes().to_vec());
-    let mut output = Vec::new();
-    let result = run(path, &mut input, &mut output);
-    (result, String::from_utf8(output).unwrap())
+fn stdin(text: &str) -> Cursor<Vec<u8>> {
+    Cursor::new(text.as_bytes().to_vec())
 }
 
 #[test]
-fn complete_dialogue_writes_a_loadable_default_profile() {
+fn check_accepts_a_valid_candidate_and_writes_nothing() {
     let path = fresh_path();
-    let (result, transcript) = drive(&path, COMPLETE);
-    result.unwrap();
-    let target = crate::config::parse(&fs::read_to_string(&path).unwrap())
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(&path, "installed = true\n").unwrap();
+    let message = check(&Source::Stdin, &mut stdin(CANDIDATE)).unwrap();
+    assert_eq!(message, "standard input is a valid configuration");
+    assert_eq!(fs::read_to_string(&path).unwrap(), "installed = true\n");
+    let entries = fs::read_dir(path.parent().unwrap()).unwrap().count();
+    assert_eq!(entries, 1);
+}
+
+#[test]
+fn check_reports_an_invalid_candidate_by_source() {
+    let message = check(&Source::Stdin, &mut stdin("default_profile = 1\n")).unwrap_err();
+    assert!(
+        message.starts_with("standard input is not a valid configuration: "),
+        "{message}"
+    );
+}
+
+#[test]
+fn a_named_file_is_read_and_a_missing_one_is_reported() {
+    let path = fresh_path();
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let candidate = path.with_file_name("candidate.toml");
+    fs::write(&candidate, CANDIDATE).unwrap();
+    check(&Source::File(candidate), &mut stdin("")).unwrap();
+    let absent = path.with_file_name("absent.toml");
+    let message = check(&Source::File(absent), &mut stdin("")).unwrap_err();
+    assert!(message.starts_with("cannot read '"), "{message}");
+}
+
+#[test]
+fn apply_creates_then_replaces_and_preserves_exact_bytes() {
+    let path = fresh_path();
+    let created = apply(&path, &Source::Stdin, &mut stdin(CANDIDATE)).unwrap();
+    assert_eq!(created, format!("created '{}'", path.display()));
+    assert_eq!(fs::read(&path).unwrap(), CANDIDATE.as_bytes());
+
+    let replacement = CANDIDATE.replace("fake-model", "other-model");
+    let replaced = apply(&path, &Source::Stdin, &mut stdin(&replacement)).unwrap();
+    assert_eq!(replaced, format!("replaced '{}'", path.display()));
+    assert_eq!(fs::read(&path).unwrap(), replacement.as_bytes());
+}
+
+#[test]
+fn apply_refuses_an_invalid_candidate_and_leaves_the_destination_alone() {
+    let path = fresh_path();
+    apply(&path, &Source::Stdin, &mut stdin(CANDIDATE)).unwrap();
+    let message = apply(
+        &path,
+        &Source::Stdin,
+        &mut stdin(&CANDIDATE.replace("model =", "modle =")),
+    )
+    .unwrap_err();
+    assert!(message.contains("not a valid configuration"), "{message}");
+    assert_eq!(fs::read(&path).unwrap(), CANDIDATE.as_bytes());
+}
+
+#[test]
+fn apply_leaves_no_temporary_file_behind() {
+    let path = fresh_path();
+    apply(&path, &Source::Stdin, &mut stdin(CANDIDATE)).unwrap();
+    let entries: Vec<_> = fs::read_dir(path.parent().unwrap())
         .unwrap()
-        .resolve()
-        .unwrap();
-    assert_eq!(target.base_url, "http://127.0.0.1:1/v1");
-    assert_eq!(target.model, "fake-model");
-    assert_eq!(target.api_key_env, "LOCAL_API_KEY");
-    assert_eq!(target.system_prompt, crate::DEFAULT_SYSTEM_PROMPT);
-    assert!(transcript.contains(crate::DEFAULT_SYSTEM_PROMPT));
-    assert!(transcript.contains("Write this configuration? [y/N]: Wrote '"));
+        .map(|entry| entry.unwrap().file_name())
+        .collect();
+    assert_eq!(entries.len(), 2);
+    assert!(entries.contains(&std::ffi::OsString::from(".ask-config.lock")));
 }
 
 #[test]
-fn replacement_prompt_and_profile_name_are_recorded() {
-    let path = fresh_path();
-    let answers = "local\nhttps://example.test/v1\nm\nKEY\nBe terse.\nterse\nyes\n";
-    drive(&path, answers).0.unwrap();
-    let contents = fs::read_to_string(&path).unwrap();
-    assert!(contents.contains("default_profile = \"terse\""));
-    assert!(contents.contains("[profiles.terse]"));
-    let target = crate::config::parse(&contents).unwrap().resolve().unwrap();
-    assert_eq!(target.system_prompt, "Be terse.");
-}
-
-#[test]
-fn end_of_input_cancels_at_every_prompt_without_writing() {
-    let mut answers = String::new();
-    for line in COMPLETE.split_inclusive('\n') {
-        let path = fresh_path();
-        let (result, _) = drive(&path, &answers);
-        assert!(
-            matches!(result, Err(ConfigureError::Cancelled)),
-            "{answers:?}"
-        );
-        assert!(!path.exists());
-        answers.push_str(line);
-    }
-}
-
-#[test]
-fn declining_confirmation_cancels_without_writing() {
-    for refusal in ["n\n", "\n", "maybe\n"] {
-        let path = fresh_path();
-        let answers = COMPLETE.replace("y\n", refusal);
-        let (result, _) = drive(&path, &answers);
-        assert!(matches!(result, Err(ConfigureError::Cancelled)));
-        assert!(!path.exists());
-    }
-}
-
-#[test]
-fn invalid_answers_are_explained_and_asked_again() {
-    let path = fresh_path();
-    let answers = COMPLETE
-        .replacen("local\n", "\nlocal\n", 1)
-        .replacen("http://", "ftp://x\nhttp:// spaced\nhttp://\nhttp://", 1)
-        .replacen("LOCAL_API_KEY\n", "1KEY\nBAD-NAME\nLOCAL_API_KEY\n", 1);
-    let (result, transcript) = drive(&path, &answers);
-    result.unwrap();
-    assert_eq!(transcript.matches("A value is required.").count(), 1);
-    assert_eq!(
-        transcript
-            .matches("Enter an http:// or https:// URL with a host, no embedded credentials, and no query or fragment component.")
-            .count(),
-        3
-    );
-    assert_eq!(
-        transcript
-            .matches("Enter an environment variable name")
-            .count(),
-        2
-    );
-}
-
-#[test]
-fn existing_file_is_refused_before_any_prompt() {
+fn a_destination_that_changes_during_apply_is_not_replaced() {
     let path = fresh_path();
     fs::create_dir_all(path.parent().unwrap()).unwrap();
-    fs::write(&path, "original").unwrap();
-    let (result, transcript) = drive(&path, COMPLETE);
-    assert!(matches!(result, Err(ConfigureError::Exists(_))));
-    assert!(transcript.is_empty());
-    assert_eq!(fs::read_to_string(&path).unwrap(), "original");
+    fs::write(&path, "what apply read earlier\n").unwrap();
+    let before = current(&path).unwrap();
+    fs::write(&path, "a concurrent writer got here first\n").unwrap();
+    let temporary = path.with_file_name("candidate.tmp");
+    fs::write(&temporary, CANDIDATE).unwrap();
+    let message = replace(&path, &temporary, before.as_ref()).unwrap_err();
+    assert_eq!(
+        message,
+        format!(
+            "'{}' changed while it was being replaced; nothing was written",
+            path.display()
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(&path).unwrap(),
+        "a concurrent writer got here first\n"
+    );
+    assert_eq!(fs::read_to_string(&temporary).unwrap(), CANDIDATE);
 }
 
 #[test]
-fn file_appearing_during_the_dialogue_is_not_overwritten() {
-    let path = fresh_path();
-    fs::create_dir_all(path.parent().unwrap()).unwrap();
-    fs::write(&path, "original").unwrap();
-    assert!(matches!(
-        write_new(&path, "new"),
-        Err(ConfigureError::Exists(_))
-    ));
-    assert_eq!(fs::read_to_string(&path).unwrap(), "original");
-}
-
-#[test]
-fn unwritable_location_is_reported() {
+fn an_unreadable_destination_is_reported_before_anything_is_staged() {
     let path = fresh_path();
     fs::create_dir_all(path.parent().unwrap()).unwrap();
     fs::write(&path, "").unwrap();
     let nested = path.join("config.toml");
-    let (result, _) = drive(&nested, COMPLETE);
-    let message = result.unwrap_err().to_string();
+    let message = apply(&nested, &Source::Stdin, &mut stdin(CANDIDATE)).unwrap_err();
     assert!(message.starts_with("cannot write '"), "{message}");
 }
 
+#[cfg(unix)]
 #[test]
-fn errors_have_stable_messages() {
+fn a_failed_write_reports_the_destination_and_changes_nothing() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let path = fresh_path();
+    let directory = path.parent().unwrap();
+    fs::create_dir_all(directory).unwrap();
+    fs::set_permissions(directory, fs::Permissions::from_mode(0o555)).unwrap();
+    let message = apply(&path, &Source::Stdin, &mut stdin(CANDIDATE)).unwrap_err();
+    fs::set_permissions(directory, fs::Permissions::from_mode(0o755)).unwrap();
+    assert!(
+        message.starts_with(&format!("cannot write '{}': ", path.display())),
+        "{message}"
+    );
+    assert_eq!(fs::read_dir(directory).unwrap().count(), 0);
+}
+
+#[test]
+fn create_new_refuses_an_existing_destination() {
+    let path = fresh_path();
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(&path, "original").unwrap();
+    assert!(matches!(create_new(&path, b"new"), Err(WriteError::Exists)));
+    assert_eq!(fs::read_to_string(&path).unwrap(), "original");
     assert_eq!(
-        ConfigureError::Cancelled.to_string(),
-        "configuration cancelled; nothing was written"
+        cannot_write(&path, &WriteError::Exists),
+        format!("configuration already exists at '{}'", path.display())
     );
     assert_eq!(
-        ConfigureError::Exists("p".to_string()).to_string(),
-        "configuration already exists at 'p'; editing it is not yet supported"
+        cannot_write(&path, &WriteError::Failed("boom".to_string())),
+        format!("cannot write '{}': boom", path.display())
     );
-    let io_error: ConfigureError = io::Error::other("boom").into();
-    assert_eq!(io_error.to_string(), "cannot continue configuration: boom");
 }
 
 #[test]
-fn validators_accept_and_reject_expected_values() {
-    assert!(http_url("https://a").is_ok());
-    assert!(http_url("https://").is_err());
-    assert!(env_var_name("_A1").is_ok());
-    assert!(env_var_name("").is_err());
-    assert!(env_var_name("A B").is_err());
-}
-
-#[test]
-fn endpoint_validation_rejects_missing_hosts_and_embedded_credentials() {
-    for endpoint in [
-        "https:///v1",
-        "https://?q=x",
-        "https://user:secret@example.test/v1",
-    ] {
-        assert!(http_url(endpoint).is_err(), "{endpoint}");
+fn snapshot_precedes_candidate_read_and_checks_identity() {
+    struct Editor {
+        path: PathBuf,
+        input: Cursor<Vec<u8>>,
     }
-    assert!(http_url("http://[::1]:8080/v1").is_ok());
-}
-
-#[test]
-fn endpoint_validation_rejects_query_components() {
-    for endpoint in [
-        "https://example.test/v1?key=value",
-        "https://example.test/v1?",
-    ] {
-        assert!(http_url(endpoint).is_err(), "{endpoint}");
+    impl std::io::Read for Editor {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            if self.input.position() == 0 {
+                let other = self.path.with_extension("other");
+                fs::write(&other, CANDIDATE)?;
+                fs::rename(other, &self.path)?;
+            }
+            self.input.read(buf)
+        }
     }
-    assert!(http_url("https://example.test/v1").is_ok());
+    let path = fresh_path();
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(&path, CANDIDATE).unwrap();
+    let mut editor = Editor {
+        path: path.clone(),
+        input: stdin(CANDIDATE),
+    };
+    assert!(
+        apply(&path, &Source::Stdin, &mut editor)
+            .unwrap_err()
+            .contains("changed")
+    );
 }
 
 #[test]
-fn endpoint_validation_rejects_nonempty_fragment() {
-    assert!(http_url("https://example.test/v1#fragment").is_err());
-    assert!(http_url("https://example.test/v1%23fragment").is_ok());
+fn unsafe_destinations_are_refused_without_changing_their_targets() {
+    use std::os::unix::fs::symlink;
+    let path = fresh_path();
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let target = path.with_extension("target");
+    fs::write(&target, "original").unwrap();
+    symlink(&target, &path).unwrap();
+    assert!(apply(&path, &Source::Stdin, &mut stdin(CANDIDATE)).is_err());
+    assert_eq!(fs::read(&target).unwrap(), b"original");
+    fs::remove_file(&path).unwrap();
+    fs::create_dir(&path).unwrap();
+    assert!(apply(&path, &Source::Stdin, &mut stdin(CANDIDATE)).is_err());
 }
 
 #[test]
-fn endpoint_validation_rejects_empty_fragment() {
-    assert!(http_url("https://example.test/v1#").is_err());
+fn permissions_and_reusable_lock_inode_survive_publication() {
+    let path = fresh_path();
+    apply(&path, &Source::Stdin, &mut stdin(CANDIDATE)).unwrap();
+    assert_eq!(fs::metadata(&path).unwrap().mode() & 0o777, 0o600);
+    let lock = path.with_file_name(".ask-config.lock");
+    let inode = fs::metadata(&lock).unwrap().ino();
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o640)).unwrap();
+    apply(&path, &Source::Stdin, &mut stdin(CANDIDATE)).unwrap();
+    assert_eq!(fs::metadata(&path).unwrap().mode() & 0o777, 0o640);
+    assert_eq!(fs::metadata(&lock).unwrap().ino(), inode);
 }
