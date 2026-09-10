@@ -10,9 +10,9 @@ mod support;
 
 use std::{
     fs,
-    io::Write,
+    io::{self, Write},
     path::Path,
-    process::{Command, Output, Stdio},
+    process::{Child, Command, Output, Stdio},
 };
 
 use support::{
@@ -418,19 +418,62 @@ fn write_limited(home: &Path, arguments: &[&str]) -> Command {
 }
 
 fn drive(command: &mut Command, input: &str) -> Output {
-    let mut child = command
+    let child = command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    child
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(input.as_bytes())
-        .unwrap();
+    finish(child, input)
+}
+
+fn finish(mut child: Child, input: &str) -> Output {
+    write_input(child.stdin.take().unwrap(), input.as_bytes()).unwrap();
     child.wait_with_output().unwrap()
+}
+
+fn write_input(mut stdin: impl Write, input: &[u8]) -> io::Result<()> {
+    match stdin.write_all(input) {
+        // A command may refuse the operation before reading stdin. Its output
+        // and exit status still need to reach the proof's assertions.
+        Err(error) if error.kind() == io::ErrorKind::BrokenPipe => Ok(()),
+        result => result,
+    }
+}
+
+#[test]
+fn input_write_errors_other_than_broken_pipe_are_returned() {
+    let error = write_input(&mut [][..], b"input").unwrap_err();
+    assert_eq!(error.kind(), io::ErrorKind::WriteZero);
+}
+
+#[cfg(unix)]
+#[test]
+fn closed_child_stdin_preserves_output_and_exit_status() {
+    for status in [0, 7] {
+        let mut child = Command::new("sh")
+            .args([
+                "-c",
+                "exec 0<&-; printf 'child stdout'; printf 'child stderr' >&2; exit \"$1\"",
+                "closed-stdin",
+                &status.to_string(),
+            ])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        // Keep the writer open across wait(), which otherwise closes it. Waiting
+        // guarantees the child's reader is closed before finish() writes bytes.
+        let stdin = child.stdin.take().unwrap();
+        assert_eq!(child.wait().unwrap().code(), Some(status));
+        child.stdin = Some(stdin);
+
+        let output = finish(child, "unread input");
+        assert_eq!(output.status.code(), Some(status));
+        assert_eq!(output.stdout, b"child stdout");
+        assert_eq!(output.stderr, b"child stderr");
+    }
 }
 
 fn stderr(output: &Output) -> String {
