@@ -18,7 +18,9 @@
     "check_in": "9a79ca31ff",
     "date": "2026-06-12",
     "comment": "When using a read-only WAL/SHM, handle a corrupt page size in the WAL file correctly.",
-    "files_changed": ["src/wal.c"],
+    "files_changed": [
+      "src/wal.c"
+    ],
     "diff_summary": [
       {
         "function": "walDecodeFrame",
@@ -70,11 +72,11 @@
     },
     {
       "id": "C5",
-      "claim": "A read-only -shm mapping is PROT_READ and every successful map returns SQLITE_READONLY, which walIndexPage() records as WAL_SHM_RDONLY. When another process does hold the DMS lock, the shared memory is treated as reliable and read-only rather than unreliable.",
+      "claim": "A read-only -shm mapping is PROT_READ and every successful map returns SQLITE_READONLY, which walIndexPage() records as WAL_SHM_RDONLY. When another process holds a SHARED DMS lock, the shared memory is treated as reliable and read-only rather than unreliable. When another process holds an EXCLUSIVE DMS lock (held while initializing the -shm), unixLockSharedMemory() returns SQLITE_BUSY (lines 45093-45094), which walTryBeginRead() converts to WAL_RETRY; that is not a reliable read-only mapping.",
       "file": "sqlite3.c",
       "function": "unixShmMap",
       "line": 45293,
-      "condition": "pMem = osMmap(0, nMap, pShmNode->isReadonly ? PROT_READ : PROT_READ|PROT_WRITE, ...); ... if( pShmNode->isReadonly && rc==SQLITE_OK ) rc = SQLITE_READONLY;"
+      "condition": "unixLockSharedMemory: else if( lock.l_type==F_WRLCK ){ rc = SQLITE_BUSY; } | unixShmMap: pMem = osMmap(0, nMap, pShmNode->isReadonly ? PROT_READ : PROT_READ|PROT_WRITE, ...); ... if( pShmNode->isReadonly && rc==SQLITE_OK ) rc = SQLITE_READONLY;"
     },
     {
       "id": "C6",
@@ -86,7 +88,7 @@
     },
     {
       "id": "C7",
-      "claim": "In the reliable read-only-shm case (WAL_SHM_RDONLY set, bShmUnreliable clear), a malformed wal-index header yields SQLITE_READONLY_RECOVERY instead of running recovery, so this case never reaches the hardened function and never writes.",
+      "claim": "In the reliable read-only-shm case (WAL_SHM_RDONLY set, bShmUnreliable clear), a malformed wal-index header yields SQLITE_READONLY_RECOVERY instead of running recovery only if walLockShared(WAL_WRITE_LOCK) succeeds (lines 70143-70145); if that lock is busy, the busy code is returned instead. In neither outcome does this case reach the hardened function or write.",
       "file": "sqlite3.c",
       "function": "walIndexReadHdr",
       "line": 70096,
@@ -102,11 +104,11 @@
     },
     {
       "id": "C9",
-      "claim": "walIndexTryHdr() accepts a header whose szPage is 0 (it checks only the double-read consistency, isInit, and the header checksum) and derives pWal->szPage = 0 from it.",
+      "claim": "After walIndexRecover() the unreliable path does not call walIndexTryHdr() again: walBeginShmUnreliable() copies the recovered header directly into pWal->hdr (line 70286). pWal->szPage is assigned only by walIndexRecover() on a valid -wal header (line 68891), walIndexTryHdr() (line 70069), and the writer path (line 71538); none runs on this path for an invalid -wal header, so a freshly opened connection keeps szPage 0 from its zeroed allocation (sqlite3WalOpen, line 69145). Reaching the erroneous checksum additionally requires szWal>=WAL_HDRSIZE (line 70295), the -wal header salts to match the recovered header's zero salts (line 70312), at least one frame header to fit after the -wal header (line 70338), and walDecodeFrame() to see matching frame salts and a nonzero page number (lines 68457-68465).",
       "file": "sqlite3.c",
-      "function": "walIndexTryHdr",
-      "line": 70026,
-      "condition": "if( h1.isInit==0 ) return 1; walChecksumBytes(...); if( aCksum mismatch ) return 1; ... pWal->szPage = (pWal->hdr.szPage&0xfe00) + ((pWal->hdr.szPage&0x0001)<<16);"
+      "function": "walBeginShmUnreliable; walIndexRecover; walDecodeFrame",
+      "line": 70286,
+      "condition": "memcpy(&pWal->hdr, (void*)walIndexHdr(pWal), sizeof(WalIndexHdr)); ... if( szWal<WAL_HDRSIZE ){ ... goto begin_unreliable_shm_out; } ... if( memcmp(&pWal->hdr.aSalt, &aBuf[16], 8) ){ rc = WAL_RETRY; goto begin_unreliable_shm_out; } ... for(iOffset=walFrameOffset(pWal->hdr.mxFrame+1, pWal->szPage); iOffset+szFrame<=szWal; iOffset+=szFrame) | walDecodeFrame: if( memcmp(&pWal->hdr.aSalt, &aFrame[8], 8)!=0 ){ return 0; } pgno = sqlite3Get4byte(&aFrame[0]); if( pgno==0 ){ return 0; } walChecksumBytes(nativeCksum, aData, pWal->szPage, aCksum, aCksum);"
     },
     {
       "id": "C10",
@@ -169,16 +171,16 @@
       "claim": "The immutable parameter's documented contract is that the file cannot change even by a higher-privilege process; locking and change detection are disabled and a file that does change can produce incorrect results or SQLITE_CORRUPT.",
       "file": "sqlite3.h",
       "function": "URI filenames documentation, 'immutable' parameter",
-      "line": 4243,
+      "line": 3924,
       "condition": "When immutable is set, SQLite assumes that the database file cannot be changed, even by a process with higher privilege, and so the database is opened read-only and all locking and change detection is disabled. Caution: Setting the immutable property on a database file that does in fact change can result in incorrect query results and/or SQLITE_CORRUPT errors."
     },
     {
       "id": "C18",
-      "claim": "Checkpointing refuses any connection whose WAL or SHM is read-only. It does not consult the database file's own open flags, so a SQLITE_OPEN_READONLY connection with writable -wal and -shm reaches the checkpoint code at close; its writes to the O_RDONLY database descriptor cannot succeed at the VFS.",
+      "claim": "sqlite3WalClose() calls sqlite3WalCheckpoint() only after sqlite3OsLock(pDbFd, SQLITE_LOCK_EXCLUSIVE) succeeds (lines 69964-69965). unixLock() requests F_WRLCK on the database descriptor for an EXCLUSIVE lock (lines 42235-42246), which fails on an O_RDONLY descriptor, so a SQLITE_OPEN_READONLY connection attempts the lock at close and does not reach checkpoint writes. sqlite3WalCheckpoint()'s own refusal (line 71762) applies only when the -wal or -shm is read-only.",
       "file": "sqlite3.c",
       "function": "sqlite3WalCheckpoint; sqlite3WalClose; sqlite3PagerClose",
-      "line": 71737,
-      "condition": "if( pWal->readOnly ) return SQLITE_READONLY; | if( zBuf!=0 && SQLITE_OK==(rc = sqlite3OsLock(pWal->pDbFd, SQLITE_LOCK_EXCLUSIVE)) ){ rc = sqlite3WalCheckpoint(pWal, db, SQLITE_CHECKPOINT_PASSIVE, ...); } | if( db && 0==(db->flags & SQLITE_NoCkptOnClose) && SQLITE_OK==databaseIsUnmoved(pPager) ){ a = pTmp; } sqlite3WalClose(pPager->pWal, db, pPager->walSyncFlags, pPager->pageSize, a);"
+      "line": 69964,
+      "condition": "if( zBuf!=0 && SQLITE_OK==(rc = sqlite3OsLock(pWal->pDbFd, SQLITE_LOCK_EXCLUSIVE)) ){ rc = sqlite3WalCheckpoint(pWal, db, SQLITE_CHECKPOINT_PASSIVE, ...); } | unixLock: lock.l_type = F_WRLCK; ... if( eFileLock==RESERVED_LOCK ){ ... }else{ lock.l_start = SHARED_FIRST; lock.l_len = SHARED_SIZE; } if( unixFileLock(pFile, &lock) ){ ... rc = sqliteErrorFromPosixError(tErrno, SQLITE_IOERR_LOCK); } | sqlite3WalCheckpoint: if( pWal->readOnly ) return SQLITE_READONLY; | sqlite3PagerClose: if( db && 0==(db->flags & SQLITE_NoCkptOnClose) && SQLITE_OK==databaseIsUnmoved(pPager) ){ a = pTmp; } sqlite3WalClose(pPager->pWal, db, pPager->walSyncFlags, pPager->pageSize, a);"
     }
   ],
   "strategy_exclusion": [
@@ -203,13 +205,13 @@
     {
       "strategy": "Open with SQLITE_OPEN_READONLY and readonly_shm=1",
       "excludes_hardened_path": false,
-      "basis": "C4 opens the -shm read-only unconditionally; C3 returns SQLITE_READONLY_CANTINIT whenever no other process holds the DMS lock, which is the normal state for a single-process tool. This is the reporter's reproduction configuration.",
+      "basis": "C4 opens an existing -shm read-only unconditionally and does not create a missing one, so a missing -shm fails with SQLITE_CANTOPEN; C3 returns SQLITE_READONLY_CANTINIT for an existing readable -shm whenever no other process holds a DMS lock, which is the normal state for a single-process tool. This is the reporter's reproduction configuration.",
       "residual": "This is the configuration that most reliably enters the hardened path."
     },
     {
-      "strategy": "Open normally (read-write) and accept that recovery may write",
+      "strategy": "Open normally (read-write) with a writable -shm and accept that recovery may write",
       "excludes_hardened_path": true,
-      "basis": "C3 and C4: with a writable -shm the DMS lock is taken and the shared memory is initialized normally; isReadonly is never set, so SQLITE_READONLY_CANTINIT cannot be returned. C14: a hot journal is played back.",
+      "basis": "Excludes the path only together with a writable -shm. C3 and C4: when the O_RDWR|O_CREAT open of the -shm succeeds, the DMS lock is taken and the shared memory is initialized normally; isReadonly is never set, so SQLITE_READONLY_CANTINIT cannot be returned. If an existing -shm is not writable by the process, C4 falls back to O_RDONLY regardless of the database open flags and, with no competing DMS holder, C3 and C2 put the connection on the hardened path. C14: a hot journal is played back.",
       "residual": "WAL recovery writes the -shm, hot-journal playback writes the database file and deletes the journal, and close may checkpoint (C18). None of these is side-effect-free."
     },
     {
