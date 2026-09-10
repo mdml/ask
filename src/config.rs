@@ -1,18 +1,22 @@
-use std::{collections::HashMap, env, fmt, fs, path::PathBuf};
+use std::{collections::BTreeMap, env, fmt, fs, path::PathBuf};
 
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 
+use crate::validate;
+
 pub(crate) const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Config {
     pub(crate) default_profile: String,
-    pub(crate) providers: HashMap<String, ProviderConfig>,
-    pub(crate) profiles: HashMap<String, ProfileConfig>,
+    pub(crate) providers: BTreeMap<String, ProviderConfig>,
+    pub(crate) profiles: BTreeMap<String, ProfileConfig>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct ProviderConfig {
     pub(crate) kind: String,
     pub(crate) base_url: String,
@@ -25,6 +29,7 @@ pub(crate) struct ProviderConfig {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct ProfileConfig {
     pub(crate) provider: String,
     pub(crate) model: String,
@@ -44,26 +49,20 @@ pub struct Target {
 pub struct ConfigError(String);
 
 impl Config {
-    /// Renders the configuration as TOML in the schema `load` reads.
+    /// Renders the configuration as TOML in the schema the validator reads.
     pub fn to_toml(&self) -> Result<String, ConfigError> {
         toml::to_string(self)
             .map_err(|error| ConfigError(format!("cannot render configuration: {error}")))
     }
 
     pub fn resolve(self) -> Result<Target, ConfigError> {
-        let profile = self.profiles.get(&self.default_profile).ok_or_else(|| {
-            ConfigError(format!(
-                "default profile '{}' is not configured",
-                self.default_profile
-            ))
-        })?;
+        let profile = self
+            .profiles
+            .get(&self.default_profile)
+            .ok_or_else(|| ConfigError(validate::missing_profile(&self.default_profile)))?;
         let provider = self.providers.get(&profile.provider).ok_or_else(|| {
-            ConfigError(format!(
-                "profile '{}' references unknown provider '{}'",
-                self.default_profile, profile.provider
-            ))
+            ConfigError(validate::missing_provider(&self.default_profile, profile))
         })?;
-        validate_kind(&profile.provider, &provider.kind)?;
         Ok(Target {
             base_url: provider.base_url.clone(),
             api_key_env: provider.api_key_env.clone(),
@@ -83,20 +82,18 @@ impl fmt::Display for ConfigError {
     }
 }
 
+/// Reads the installed configuration and validates it with the same strict
+/// validator `ask configure check` applies to a candidate document.
 pub fn load() -> Result<Config, ConfigError> {
     let path = config_path()?;
     let contents = fs::read_to_string(&path)
         .map_err(|error| ConfigError(format!("cannot read '{}': {error}", path.display())))?;
-    parse(&contents).map_err(|error| {
+    validate::document(&contents).map_err(|problem| {
         ConfigError(format!(
-            "invalid configuration '{}': {error}",
+            "invalid configuration '{}': {problem}",
             path.display()
         ))
     })
-}
-
-pub(crate) fn parse(contents: &str) -> Result<Config, toml::de::Error> {
-    toml::from_str(contents)
 }
 
 pub fn config_path() -> Result<PathBuf, ConfigError> {
@@ -106,15 +103,6 @@ pub fn config_path() -> Result<PathBuf, ConfigError> {
     ProjectDirs::from("", "", "ask")
         .map(|dirs| dirs.config_dir().join("config.toml"))
         .ok_or_else(|| ConfigError("platform configuration directory is unavailable".to_string()))
-}
-
-fn validate_kind(name: &str, kind: &str) -> Result<(), ConfigError> {
-    if kind == "openai-compatible" {
-        return Ok(());
-    }
-    Err(ConfigError(format!(
-        "provider '{name}' has unsupported kind '{kind}'"
-    )))
 }
 
 const fn default_timeout_ms() -> u64 {

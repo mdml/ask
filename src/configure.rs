@@ -1,225 +1,215 @@
-//! Interactive creation of a fresh configuration file.
+//! Noninteractive checking and application of a complete configuration document.
 //!
-//! The dialogue is line oriented so it works with a terminal or redirected
-//! stdin. Every prompt and diagnostic goes to the supplied `stderr`; nothing
-//! is written to stdout. End of input at any prompt cancels without writing.
+//! `check` validates a candidate and writes nothing. `apply` validates the same
+//! candidate with the same validator and then installs its exact bytes. Neither
+//! reads a credential value nor contacts a provider.
 
 use std::{
-    collections::HashMap,
-    fmt, fs,
-    io::{self, BufRead, Write},
+    fs,
+    io::{self, Read, Write},
+    os::unix::fs::{MetadataExt, OpenOptionsExt, PermissionsExt},
     path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
 };
 
-use crate::config::{Config, ProfileConfig, ProviderConfig};
+use crate::{cli::Source, validate};
 
-const PROVIDER_KIND: &str = "openai-compatible";
-const DEFAULT_PROFILE_NAME: &str = "default";
-
+/// Why publishing a configuration file failed.
 #[derive(Debug)]
-pub enum ConfigureError {
-    Cancelled,
-    Exists(String),
+pub enum WriteError {
+    Exists,
     Failed(String),
 }
 
-impl fmt::Display for ConfigureError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Cancelled => formatter.write_str("configuration cancelled; nothing was written"),
-            Self::Exists(path) => write!(
-                formatter,
-                "configuration already exists at '{path}'; editing it is not yet supported"
-            ),
-            Self::Failed(message) => formatter.write_str(message),
+/// Validates a candidate document without touching the installed configuration.
+pub fn check(source: &Source, input: &mut impl Read) -> Result<String, String> {
+    let candidate = read(source, input)?;
+    validate::document(&candidate).map_err(|problem| invalid(source, &problem))?;
+    Ok(format!("{source} is a valid configuration"))
+}
+
+/// Validates a candidate document and installs its exact bytes at `destination`.
+pub fn apply(destination: &Path, source: &Source, input: &mut impl Read) -> Result<String, String> {
+    let _lock = publication_lock(destination).map_err(|error| cannot_write(destination, &error))?;
+    let before = current(destination)?;
+    let candidate = read(source, input)?;
+    validate::document(&candidate).map_err(|problem| invalid(source, &problem))?;
+    let replaced = install(destination, candidate.as_bytes(), before)?;
+    let verb = if replaced { "replaced" } else { "created" };
+    Ok(format!("{verb} '{}'", destination.display()))
+}
+
+fn invalid(source: &Source, problem: &str) -> String {
+    format!("{source} is not a valid configuration: {problem}")
+}
+
+fn read(source: &Source, input: &mut impl Read) -> Result<String, String> {
+    match source {
+        Source::Stdin => {
+            let mut candidate = String::new();
+            input
+                .read_to_string(&mut candidate)
+                .map_err(|error| format!("cannot read standard input: {error}"))?;
+            Ok(candidate)
         }
+        Source::File(path) => fs::read_to_string(path)
+            .map_err(|error| format!("cannot read '{}': {error}", path.display())),
     }
 }
 
-impl From<io::Error> for ConfigureError {
-    fn from(error: io::Error) -> Self {
-        Self::Failed(format!("cannot continue configuration: {error}"))
+/// Holds the reusable lock inode until publication finishes. Never unlink it:
+/// another writer may already have opened that same inode.
+fn publication_lock(destination: &Path) -> Result<fs::File, WriteError> {
+    if let Some(parent) = destination.parent() {
+        fs::create_dir_all(parent).map_err(failed)?;
     }
+    let path = destination.with_file_name(".ask-config.lock");
+    let file = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .mode(0o600)
+        .custom_flags(SAFE_OPEN)
+        .open(path)
+        .map_err(failed)?;
+    regular(&file.metadata().map_err(failed)?).map_err(failed)?;
+    file.try_lock()
+        .map_err(|_| WriteError::Failed("configuration publication lock is unavailable".into()))?;
+    Ok(file)
 }
 
-struct Dialogue<'a, R, W> {
-    input: &'a mut R,
-    output: &'a mut W,
+// O_NOFOLLOW | O_NONBLOCK: reject symlinks and never block on a substituted FIFO.
+#[cfg(target_os = "linux")]
+const SAFE_OPEN: i32 = 0x20000 | 0x800;
+#[cfg(target_os = "macos")]
+const SAFE_OPEN: i32 = 0x100 | 0x4;
+
+struct Snapshot {
+    bytes: Vec<u8>,
+    metadata: fs::Metadata,
 }
 
-/// Creates `path` from answers read on `input`. Refuses to touch an existing file.
-pub fn run<R: BufRead, W: Write>(
-    path: &Path,
-    input: &mut R,
-    output: &mut W,
-) -> Result<(), ConfigureError> {
-    if path.exists() {
-        return Err(ConfigureError::Exists(path.display().to_string()));
-    }
-    let mut dialogue = Dialogue { input, output };
-    dialogue.say(&format!("Creating '{}'.", path.display()))?;
-    let config = dialogue.collect()?;
-    let rendered = config
-        .to_toml()
-        .map_err(|error| ConfigureError::Failed(error.to_string()))?;
-    dialogue.say("\nConfiguration to write:\n")?;
-    dialogue.say(&rendered)?;
-    if !dialogue.confirm("Write this configuration? [y/N]: ")? {
-        return Err(ConfigureError::Cancelled);
-    }
-    write_new(path, &rendered)?;
-    dialogue.say(&format!("Wrote '{}'.", path.display()))
-}
-
-impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
-    fn collect(&mut self) -> Result<Config, ConfigureError> {
-        let provider_name = self.required("Provider name: ", non_empty)?;
-        let base_url = self.required("Endpoint base URL (http:// or https://): ", http_url)?;
-        let model = self.required("Model identifier: ", non_empty)?;
-        let api_key_env = self.required(
-            "Credential environment variable name (value is never read): ",
-            env_var_name,
-        )?;
-        let system_prompt = self.optional_prompt()?;
-        let profile_name = self
-            .optional(&format!("Profile name [{DEFAULT_PROFILE_NAME}]: "))?
-            .unwrap_or_else(|| DEFAULT_PROFILE_NAME.to_string());
-        let provider = ProviderConfig {
-            kind: PROVIDER_KIND.to_string(),
-            base_url,
-            api_key_env,
-            timeout_ms: crate::config::DEFAULT_TIMEOUT_MS,
-        };
-        let profile = ProfileConfig {
-            provider: provider_name.clone(),
-            model,
-            system_prompt,
-        };
-        Ok(Config {
-            default_profile: profile_name.clone(),
-            providers: HashMap::from([(provider_name, provider)]),
-            profiles: HashMap::from([(profile_name, profile)]),
-        })
-    }
-
-    fn optional_prompt(&mut self) -> Result<Option<String>, ConfigureError> {
-        self.say(&format!(
-            "Default system prompt: {}",
-            crate::DEFAULT_SYSTEM_PROMPT
-        ))?;
-        self.optional("Replacement system prompt (empty keeps the default): ")
-    }
-
-    fn required(
-        &mut self,
-        prompt: &str,
-        validate: fn(&str) -> Result<(), &'static str>,
-    ) -> Result<String, ConfigureError> {
-        loop {
-            let answer = self.ask(prompt)?;
-            match validate(&answer) {
-                Ok(()) => return Ok(answer),
-                Err(problem) => self.say(problem)?,
-            }
-        }
-    }
-
-    fn optional(&mut self, prompt: &str) -> Result<Option<String>, ConfigureError> {
-        let answer = self.ask(prompt)?;
-        Ok((!answer.is_empty()).then_some(answer))
-    }
-
-    fn confirm(&mut self, prompt: &str) -> Result<bool, ConfigureError> {
-        let answer = self.ask(prompt)?;
-        Ok(matches!(answer.to_ascii_lowercase().as_str(), "y" | "yes"))
-    }
-
-    fn ask(&mut self, prompt: &str) -> Result<String, ConfigureError> {
-        write!(self.output, "{prompt}")?;
-        self.output.flush()?;
-        let mut line = String::new();
-        if self.input.read_line(&mut line)? == 0 {
-            writeln!(self.output)?;
-            return Err(ConfigureError::Cancelled);
-        }
-        Ok(line.trim().to_string())
-    }
-
-    fn say(&mut self, text: &str) -> Result<(), ConfigureError> {
-        writeln!(self.output, "{text}")?;
-        Ok(())
-    }
-}
-
-fn non_empty(answer: &str) -> Result<(), &'static str> {
-    if answer.is_empty() {
-        return Err("A value is required.");
+fn regular(metadata: &fs::Metadata) -> io::Result<()> {
+    if !metadata.is_file() {
+        return Err(io::Error::other(
+            "configuration destination must be a regular file, not a symlink",
+        ));
     }
     Ok(())
 }
 
-fn http_url(answer: &str) -> Result<(), &'static str> {
-    let valid = answer
-        .parse::<rig_core::http_client::Uri>()
-        .ok()
-        .is_some_and(valid_endpoint);
-    if valid && !answer.contains('#') {
-        return Ok(());
+fn current(destination: &Path) -> Result<Option<Snapshot>, String> {
+    snapshot(destination)
+        .map_err(|error| format!("cannot read '{}': {error}", destination.display()))
+}
+
+fn snapshot(destination: &Path) -> io::Result<Option<Snapshot>> {
+    let metadata = match fs::symlink_metadata(destination) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(error),
+    };
+    regular(&metadata)?;
+    let mut file = fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(SAFE_OPEN)
+        .open(destination)?;
+    let metadata = file.metadata()?;
+    regular(&metadata)?;
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes)?;
+    Ok(Some(Snapshot { bytes, metadata }))
+}
+
+fn same(before: Option<&Snapshot>, after: Option<&Snapshot>) -> bool {
+    match (before, after) {
+        (None, None) => true,
+        (Some(a), Some(b)) => {
+            a.bytes == b.bytes
+                && a.metadata.dev() == b.metadata.dev()
+                && a.metadata.ino() == b.metadata.ino()
+                && a.metadata.mode() == b.metadata.mode()
+                && a.metadata.ctime() == b.metadata.ctime()
+                && a.metadata.ctime_nsec() == b.metadata.ctime_nsec()
+        }
+        _ => false,
     }
-    Err(
-        "Enter an http:// or https:// URL with a host, no embedded credentials, and no query or fragment component.",
-    )
 }
 
-fn valid_endpoint(uri: rig_core::http_client::Uri) -> bool {
-    let http = matches!(uri.scheme_str(), Some("http" | "https"));
-    let host = uri.host().is_some_and(|host| !host.is_empty());
-    let credentials = uri
-        .authority()
-        .is_some_and(|authority| authority.as_str().contains('@'));
-    let query = uri.query().is_some();
-    http && host && !credentials && !query
+/// Stage exact bytes, check the snapshot, then atomically publish under the lock.
+/// External editors ignoring the lock can race the check and rename; this is
+/// deliberately not an operating-system compare-and-swap guarantee.
+fn install(destination: &Path, contents: &[u8], before: Option<Snapshot>) -> Result<bool, String> {
+    let temporary = staged(destination, contents, before.as_ref())
+        .map_err(|error| cannot_write(destination, &error))?;
+    replace(destination, &temporary.path, before.as_ref())?;
+    Ok(before.is_some())
 }
 
-fn env_var_name(answer: &str) -> Result<(), &'static str> {
-    let mut characters = answer.chars();
-    let starts_well = characters.next().is_some_and(starts_env_var_name);
-    let continues_well = characters.all(continues_env_var_name);
-    let valid = starts_well && continues_well;
-    if valid {
-        return Ok(());
+fn replace(destination: &Path, temporary: &Path, before: Option<&Snapshot>) -> Result<(), String> {
+    if !same(before, current(destination)?.as_ref()) {
+        return Err(format!(
+            "'{}' changed while it was being replaced; nothing was written",
+            destination.display()
+        ));
     }
-    Err(
-        "Enter an environment variable name: letters, digits, and underscores, not starting with a digit.",
-    )
+    publish(destination, temporary, before.is_some())
+        .map_err(|error| cannot_write(destination, &error))
 }
 
-fn starts_env_var_name(character: char) -> bool {
-    character == '_' || character.is_ascii_alphabetic()
-}
-
-fn continues_env_var_name(character: char) -> bool {
-    character == '_' || character.is_ascii_alphanumeric()
-}
-
-/// Publishes a complete file without replacing a destination that appears
-/// during the dialogue. A failed write only affects the temporary file.
-fn write_new(path: &Path, contents: &str) -> Result<(), ConfigureError> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|error| cannot_write(path, &error))?;
-    }
-    let mut temporary =
-        TemporaryConfig::create(path).map_err(|error| cannot_write(path, &error))?;
-    temporary
-        .file
-        .write_all(contents.as_bytes())
-        .and_then(|()| temporary.file.sync_all())
-        .map_err(|error| cannot_write(path, &error))?;
-    fs::hard_link(&temporary.path, path).map_err(|error| match error.kind() {
-        io::ErrorKind::AlreadyExists => ConfigureError::Exists(path.display().to_string()),
-        _ => cannot_write(path, &error),
+fn publish(destination: &Path, temporary: &Path, replacing: bool) -> Result<(), WriteError> {
+    let result = if replacing {
+        fs::rename(temporary, destination)
+    } else {
+        fs::hard_link(temporary, destination)
+    };
+    result.map_err(|error| match error.kind() {
+        io::ErrorKind::AlreadyExists => WriteError::Exists,
+        _ => failed(error),
     })
+}
+
+/// Initialization participates in the same lock and never replaces a destination.
+pub(crate) fn create_new(destination: &Path, contents: &[u8]) -> Result<(), WriteError> {
+    let _lock = publication_lock(destination)?;
+    if fs::symlink_metadata(destination).is_ok() {
+        return Err(WriteError::Exists);
+    }
+    let temporary = staged(destination, contents, None)?;
+    publish(destination, &temporary.path, false)
+}
+
+fn staged(
+    destination: &Path,
+    contents: &[u8],
+    before: Option<&Snapshot>,
+) -> Result<TemporaryConfig, WriteError> {
+    let mut temporary = TemporaryConfig::create(destination).map_err(failed)?;
+    temporary.file.write_all(contents).map_err(failed)?;
+    if let Some(snapshot) = before {
+        temporary
+            .file
+            .set_permissions(fs::Permissions::from_mode(snapshot.metadata.mode() & 0o777))
+            .map_err(failed)?;
+    }
+    temporary.file.sync_all().map_err(failed)?;
+    Ok(temporary)
+}
+
+fn failed(error: io::Error) -> WriteError {
+    WriteError::Failed(error.to_string())
+}
+
+pub(crate) fn cannot_write(destination: &Path, error: &WriteError) -> String {
+    match error {
+        WriteError::Exists => format!(
+            "configuration already exists at '{}'",
+            destination.display()
+        ),
+        WriteError::Failed(detail) => {
+            format!("cannot write '{}': {detail}", destination.display())
+        }
+    }
 }
 
 struct TemporaryConfig {
@@ -237,6 +227,7 @@ impl TemporaryConfig {
             match fs::OpenOptions::new()
                 .write(true)
                 .create_new(true)
+                .mode(0o600)
                 .open(&path)
             {
                 Ok(file) => return Ok(Self { path, file }),
@@ -251,10 +242,6 @@ impl Drop for TemporaryConfig {
     fn drop(&mut self) {
         let _ = fs::remove_file(&self.path);
     }
-}
-
-fn cannot_write(path: &Path, error: &io::Error) -> ConfigureError {
-    ConfigureError::Failed(format!("cannot write '{}': {error}", path.display()))
 }
 
 #[cfg(test)]
