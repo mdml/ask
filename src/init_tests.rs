@@ -145,7 +145,7 @@ fn errors_have_stable_messages() {
     );
     assert_eq!(
         InitError::Exists("p".to_string()).to_string(),
-        "configuration already exists at 'p'; use 'ask configure apply' to replace it"
+        "configuration already exists at 'p'; 'ask configure apply' replaces regular files only"
     );
     let io_error: InitError = io::Error::other("boom").into();
     assert_eq!(io_error.to_string(), "cannot continue configuration: boom");

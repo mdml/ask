@@ -24,6 +24,8 @@ export CS_ACCESS_TOKEN="$(< "$HOME/.codescene/pat")"
 
 Run verification with `direnv exec . just verify` so the token is available without exporting it manually.
 
+The real-binary configuration proofs also require `python3` (Python 3 standard library only). Install it through the platform package manager if it is absent. The helpers refuse `PYTHONOPTIMIZE` settings that disable assertions; run the proofs with assertions enabled.
+
 ## Branch flow
 
 Development follows the process in `AGENTS.md`:

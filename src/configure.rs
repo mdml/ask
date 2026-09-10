@@ -100,7 +100,7 @@ fn regular(metadata: &fs::Metadata) -> io::Result<()> {
 
 fn current(destination: &Path) -> Result<Option<Snapshot>, String> {
     snapshot(destination)
-        .map_err(|error| format!("cannot read '{}': {error}", destination.display()))
+        .map_err(|error| format!("cannot inspect '{}': {error}", destination.display()))
 }
 
 fn snapshot(destination: &Path) -> io::Result<Option<Snapshot>> {

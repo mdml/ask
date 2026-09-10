@@ -127,11 +127,36 @@ fn init_refuses_an_existing_configuration_and_points_at_apply() {
     let transcript = failed(&interactive(&home, "init", ""));
     assert!(
         transcript.starts_with("ask: configuration already exists at '")
-            && transcript.ends_with("use 'ask configure apply' to replace it\n"),
+            && transcript.ends_with("'ask configure apply' replaces regular files only\n"),
         "{transcript}"
     );
     assert_eq!(transcript.lines().count(), 1);
     assert_eq!(fs::read_to_string(&path).unwrap(), "original = true\n");
+}
+
+#[cfg(unix)]
+#[test]
+fn symlink_destinations_are_refused_before_initialization_prompts() {
+    use std::os::unix::fs::symlink;
+    for dangling in [true, false] {
+        let home = fresh_home();
+        let target = home.join("target.toml");
+        if !dangling {
+            fs::write(&target, CANDIDATE).unwrap();
+        }
+        symlink(&target, home.join("config.toml")).unwrap();
+        let message = failed(&interactive(&home, "init", ""));
+        assert!(message.contains("already exists"), "{message}");
+        assert!(message.contains("regular files only"), "{message}");
+        assert_eq!(message.lines().count(), 1);
+        let message = failed(&configure(&home, &["configure", "apply", "-"], CANDIDATE));
+        assert!(message.contains("cannot inspect"), "{message}");
+        assert!(message.contains("not a symlink"), "{message}");
+        assert_eq!(target.exists(), !dangling);
+        if !dangling {
+            assert_eq!(fs::read_to_string(target).unwrap(), CANDIDATE);
+        }
+    }
 }
 
 #[cfg(unix)]

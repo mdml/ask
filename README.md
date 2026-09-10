@@ -22,16 +22,18 @@ ask n "what is 2+2"
 
 1. A provider name, for example `openrouter`.
 2. The endpoint base URL, which must use `http://` or `https://`, include a host, contain no embedded username/password credentials, and have no query or fragment component (including an empty trailing `?` or `#`).
-3. A model identifier, sent to the provider as typed.
+3. A model identifier, sent to the provider after trimming surrounding whitespace.
 4. The name of the environment variable that will hold the credential. `ask` validates the name only; it never reads or stores the value, and initialization makes no network request.
 5. An optional replacement system prompt. The current default system prompt is shown first, and an empty answer keeps it.
 6. A profile name, which defaults to `default`. The profile created becomes the default profile.
+
+Answers are trimmed and limited to one line. For a multiline system prompt, an explicitly empty system prompt, or significant surrounding whitespace, prepare the complete TOML document and use `ask configure check/apply`.
 
 An invalid answer prints a one-line explanation and asks again. The dialogue then shows the exact TOML it will write and asks for confirmation. Only `y` or `yes` writes the file; any other answer, or end of input at any prompt, cancels without writing and exits 1.
 
 `ask init` has no noninteractive all-default mode, because a provider target cannot be inferred. Answering it from redirected stdin still requires an answer for every prompt.
 
-`ask init` refuses to run when the configuration file already exists and leaves it unchanged; use `ask configure apply` to install a replacement. It requires hard-link support on the filesystem containing the configuration directory, including when `ASK_HOME` selects that directory: it publishes the fully written file with a hard link so that a configuration appearing during the dialogue is never overwritten. Both initialization and `apply` creation fail safely if the filesystem does not support hard links.
+`ask init` refuses to run when the configuration file already exists and leaves it unchanged; use `ask configure apply` to replace a regular file. Both commands refuse symlink destinations, including dangling symlinks; manage those paths explicitly before publishing a configuration. It requires hard-link support on the filesystem containing the configuration directory, including when `ASK_HOME` selects that directory: it publishes the fully written file with a hard link so that a configuration appearing during the dialogue is never overwritten. Both initialization and `apply` creation fail safely if the filesystem does not support hard links.
 
 A completed dialogue writes a file in the schema below, omitting `timeout_ms` and `system_prompt` when the defaults apply.
 
