@@ -1,0 +1,33 @@
+Observation date: 2026-09-10 UTC
+Normalization: retain commands, statuses, result codes, and public upstream identifiers only. Absolute paths, hostnames, user names, environment values, tokens, and raw compiler output are not retained.
+
+python3 -m py_compile scripts/sqlite-differential-probe.py
+PASS: byte-compiles without error. The generated __pycache__ was removed and is not staged.
+
+python3 scripts/sqlite-differential-probe.py <input-directory>
+PASS: three official amalgamation archives verified against pinned SHA-256; each extracted sqlite3.c verified against SQLite's published per-release SHA3-256.
+PASS: three shared libraries compiled with cc; reported library versions 3.53.2, 3.53.3, 3.53.4 with matching source ids.
+PASS: differential observed. Indexed SELECT on the corrupted index cell returned SQLITE_ROW under 3.53.2 and SQLITE_CORRUPT under 3.53.3 and 3.53.4. PRAGMA integrity_check reported "Extends off end of page" (tree 3, page 3, cell 0) as a result row in all three builds.
+Target: x86_64-unknown-linux-gnu only. Not run: the exact rusqlite/libsqlite3-sys bundled feature build, the other three supported targets, exploitability, healthy-write corruption, crash/power-loss durability.
+
+Fix ancestry (evidence/sqlite-adoption-2026-09-10/fix-ancestry.json)
+PASS: six check-ins located in the SQLite branch timelines; commit dates, comments, and containing releases taken from each info page and the change log.
+Correction: bf70dadc2d is contained in 3.53.4 only, absent from 3.53.3 and from the candidate 3.53.2, superseding the September 9 inference. The five other check-ins first shipped in 3.53.3 and are absent from 3.53.2.
+Limit: not a line-by-line patch audit, not an exhaustive branch or CVE audit.
+
+Route comparison (evidence/sqlite-adoption-2026-09-10/route-comparison.json)
+PASS: rusqlite 0.40.2 and libsqlite3-sys 0.38.2 are the highest non-yanked stable registry versions; candidate checksums recorded.
+PASS: rusqlite v0.40.2 was published 2026-08-08, after the 3.53.4 bump 901f9946 (2026-07-25), but its tag commit e88f112 does not descend from that bump; GitHub compare 901f9946...e88f112 reports diverged, behind 28, so the release still bundles 3.53.2.
+PASS: rusqlite master 726c921 header reports SQLITE_VERSION 3.53.4 and source id bf7c7f30; no crate release contains it.
+PASS: no open milestone, release/bump pull request, or issue on 2026-09-10 UTC signals an imminent crate release bundling 3.53.4.
+PASS: libsqlite3-sys 0.38.2 build.rs supports bundled, LIBSQLITE3_SYS_USE_PKG_CONFIG, SQLITE3_LIB_DIR/SQLITE3_INCLUDE_DIR external linking with SQLITE3_STATIC, and LIBSQLITE3_FLAGS.
+PASS: deny.toml sets unknown-git = deny and unknown-registry = deny; a rusqlite git source is denied without a policy exception.
+Limit: registry, GitHub, and master observations are HTTPS-source facts, not signed publisher attestations.
+
+Fast gate: direnv exec . just verify
+PASS: exit 0. Formatting, Clippy, build, all tests (63 unit, 29 configuration proof, 14 query proof) passed; line coverage 94.32%, above the 90% gate.
+CodeScene (fast gate): no Rust files staged in this change, so no file was scored; the change is documentation and one Python script. No token was retrieved or printed.
+
+Privacy scan
+PASS: staged diff scanned for /home/, /Users/, machine paths, hostnames, user names, session URLs, /tmp/claude scratch paths, and tokens; none present. Retrieval URLs are public upstream sources.
+PASS: git diff --check; production tracked files unchanged; the September 9 record gained only a one-line supersession pointer.

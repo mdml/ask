@@ -1,0 +1,57 @@
+{
+  "observation_date": "2026-09-10",
+  "note": "Registry index rows, GitHub API commit/compare/release/branch/milestone responses, and the rusqlite master header were retrieved over HTTPS. These are source observations, not signed publisher attestations. Digests below are recomputed locally.",
+  "registry": {
+    "rusqlite": {
+      "index": "https://index.crates.io/ru/sq/rusqlite",
+      "highest_non_yanked_stable": "0.40.2",
+      "candidate_version": "0.40.2",
+      "candidate_cksum_sha256": "23f2a97da3e3873c73cb2a2e71b35c40ff95e0b1eefa8d72d8499a6928c3b5b3"
+    },
+    "libsqlite3_sys": {
+      "index": "https://index.crates.io/li/bs/libsqlite3-sys",
+      "highest_non_yanked_stable": "0.38.2",
+      "candidate_version": "0.38.2",
+      "candidate_cksum_sha256": "f1d20bef17f513b9b3004532233187769cd072d790971f4e4da0e346eb6401e8"
+    }
+  },
+  "candidate_bundled_sqlite": "3.53.2",
+  "sqlite_latest_release": {"version": "3.53.4", "date": "2026-07-24", "source": "https://sqlite.org/changes.html"},
+  "rusqlite_release_history": {
+    "tag_v0.40.2": {
+      "commit": "e88f112bef7899234a497baed5cc3c3d553deeb8",
+      "published_at": "2026-08-08T14:20:24Z",
+      "bundled_sqlite": "3.53.2"
+    },
+    "sqlite_bump_commits": [
+      {"sha": "ac222923ff13216a71aa23363fb5e4ccb1819ad5", "date": "2026-06-04", "message": "Bump bundled SQLite version to 3.53.2"},
+      {"sha": "2a71e35d94b2a02f7dd4a0c4cfd59c339370e747", "date": "2026-06-29", "message": "Bump bundled SQLite version to 3.53.3"},
+      {"sha": "901f9946efdaaa289e6b1c5bd56dc67f4b651e51", "date": "2026-07-25", "message": "Bump bundled SQLite version to 3.53.4"}
+    ],
+    "release_lag_finding": "v0.40.2 was published on 2026-08-08, after the 3.53.4 bump 901f9946 (2026-07-25), but the tag commit e88f112 does not descend from that bump: the bump is not an ancestor of the tag commit (GitHub compare 901f9946...e88f112 reports diverged, behind 28). The v0.40.2 release line forked before the 3.53.4 bump landed on master, so the newest crate release still bundles 3.53.2. A newer crate version number does not imply a newer bundled SQLite.",
+    "master_head": {
+      "sha": "726c921a350591abffdc99ac8d8a5bea21fbb208",
+      "date": "2026-09-06T07:01:19Z",
+      "bundled_sqlite_header_version": "3.53.4",
+      "bundled_sqlite_source_id": "2026-07-24 19:02:57 bf7c7f30031888f4e796e429ab3978879485813aaca6f641c7b33e4e09459bcc",
+      "header_source": "https://raw.githubusercontent.com/rusqlite/rusqlite/master/libsqlite3-sys/sqlite3/sqlite3.h",
+      "header_bump_commit": {"sha": "901f9946efdaaa289e6b1c5bd56dc67f4b651e51", "date": "2026-07-25T09:56:35Z"}
+    },
+    "upcoming_release_signal": {
+      "open_milestones": [],
+      "open_release_or_bump_prs_issues": [],
+      "note": "No open milestone, PR, or issue on 2026-09-10 UTC indicates a planned or imminent crate release bundling 3.53.4. Latest release v0.40.2 is dated 2026-08-08; master is 3 commits ahead of and 85 behind that tag."
+    }
+  },
+  "libsqlite3_sys_build_modes": {
+    "source": "libsqlite3-sys 0.38.2 build.rs",
+    "bundled": "features bundled / bundled-windows / bundled-sqlcipher compile the crate-internal amalgamation with cc and fixed flags (SQLITE_ENABLE_FTS3/FTS3_PARENTHESIS/FTS5/JSON1/RTREE, SQLITE_DEFAULT_FOREIGN_KEYS=1, and others).",
+    "pkg_config": "LIBSQLITE3_SYS_USE_PKG_CONFIG selects pkg-config discovery of a system library.",
+    "external_library": "Without a bundled feature, SQLITE3_LIB_DIR plus SQLITE3_INCLUDE_DIR link an external library; SQLITE3_STATIC (non-zero) forces static linking, otherwise dylib. SQLITE3_INCLUDE_DIR must be set when SQLITE3_LIB_DIR is set.",
+    "extra_flags": "LIBSQLITE3_FLAGS passes additional -D/-U or SQLITE_* defines into the bundled compile."
+  },
+  "policy": {
+    "deny_toml": "unknown-git = deny; unknown-registry = deny",
+    "implication": "A rusqlite git dependency (unpublished master carrying 3.53.4) is a git source and is denied by current policy; adopting it would require an owner-approved policy exception, direct provenance review of the pinned commit, acceptance of its unreleased rusqlite changes, and deliberate reviewed updates for every later move; a locked build needs no vendoring."
+  }
+}
