@@ -30,7 +30,9 @@ The real-binary configuration proofs also require `python3` (Python 3 standard l
 
 Development follows the process in `AGENTS.md`:
 
-Feature work happens on branches in isolated git worktrees under `<repo-root>/.worktrees/`. Open pull requests into protected `staging`. Promotion to protected `main` happens through a reviewed, fully gated pull request when a named proof or milestone passes. Direct pushes, force-pushes, and branch deletion are blocked on `staging` and `main`.
+Feature work happens on branches in isolated git worktrees under `<repo-root>/.worktrees/`. Open pull requests into protected `staging`. Promotion to protected `main` happens through a reviewed, fully gated pull request when a named proof or milestone passes. Direct pushes, force-pushes, and branch deletion are blocked on `staging` and `main`. Feature PRs use rebase merges into `staging`; promotion PRs use merge commits into `main`.
+
+GitHub requires `verify-full` and all four supported-target checks for `main`, with “Require branches to be up to date before merging” disabled. This allows promotion without rewriting protected `staging` or adding merge commits to its linear history. Do not use the promotion PR’s branch-update merge or rebase actions on `staging`. The combined promotion revision must pass verification against the current `main`; refresh that revision and its checks if either branch moves before owner merge.
 
 ## Verification gates
 
@@ -43,7 +45,9 @@ The fast gate runs formatting, Clippy (warnings denied), build, documentation (w
 
 Override the coverage minimum with `ASK_COVERAGE_MIN` and the full-gate base ref with `ASK_VERIFY_BASE` when needed.
 
-CI runs the full gate on pull requests into `staging`; the per-commit workflow can also be dispatched manually to run the fast gate on a branch.
+For a promotion, fetch the current branches and check out the PR’s combined merge revision in an isolated worktree. Run `just verify-full --base origin/main` through the repository’s direnv wiring; the default `origin/staging` base would omit the promoted changes from CodeScene review. Record the source, base, and combined revisions with the verification evidence.
+
+CI runs the full gate and native builds/tests on macOS and Linux, each on arm64 and x86-64, for PRs into `staging` and `main`. Promotion CI uses `origin/main` as its comparison base. The per-commit workflow can also be dispatched manually to run the fast gate on a branch.
 
 ## Proofs
 
