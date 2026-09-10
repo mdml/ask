@@ -1,5 +1,7 @@
 # SQLite adoption readiness follow-up
 
+> The applicability inferences in this record are superseded by the [September 10 SQLite adoption record](sqlite-adoption-2026-09-10.md); in particular, `bf70dadc2d` does not apply to the candidate 3.53.2. This record remains a historical assessment of source correspondence and the release probe.
+
 Assessment date: 2026-09-10 UTC (September 9 local assessment label). This dated record extends the [September 6 dependency assessment](sqlite-dependency-assessment.md), which remains historical. Scope is the proposed dependency's source correspondence, upstream fixes, and an isolated release probe. It does not adopt SQLite, implement storage, change production dependencies, or select storage semantics. The [evidence guide](evidence/sqlite-readiness-2026-09-09/README.md) supplies reproduction commands and evidence boundaries.
 
 ## Candidate and current releases

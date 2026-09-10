@@ -1,0 +1,87 @@
+{
+  "probe": "sqlite-differential-index-corruption",
+  "page_size": 512,
+  "corruption": {
+    "target": "first index-leaf cell payload-length byte",
+    "from": 4,
+    "to": 100,
+    "page": 3,
+    "page_type": "index-leaf",
+    "cell_offset": 507,
+    "payload_length_before": 4,
+    "payload_length_after": 100
+  },
+  "compile_flags": [
+    "-O1",
+    "-fPIC",
+    "-shared",
+    "-DSQLITE_THREADSAFE=1",
+    "-DSQLITE_ENABLE_API_ARMOR",
+    "-DSQLITE_DEFAULT_FOREIGN_KEYS=1"
+  ],
+  "indexed_select_sql": "SELECT v FROM t INDEXED BY ix WHERE v = 'a';",
+  "builds": [
+    {
+      "version": "3.53.2",
+      "libversion": "3.53.2",
+      "sourceid": "2026-06-03 19:12:13 d6e03d8c777cfa2d35e3b60d8ec3e0187f3e9f99d8e2ee9cac695fd6fcdf1a24",
+      "library": "libsqlite3probe.so",
+      "has_index_bounds_fix": false,
+      "indexed_select": {
+        "prepare_code": "SQLITE_OK",
+        "step_code": "SQLITE_ROW",
+        "text": "a"
+      },
+      "integrity_check": {
+        "step_code": "SQLITE_ROW",
+        "report": "*** in database main ***\nTree 3 page 3 cell 0: Extends off end of page"
+      }
+    },
+    {
+      "version": "3.53.3",
+      "libversion": "3.53.3",
+      "sourceid": "2026-06-26 20:14:12 d4c0e51e4aeb96955b99185ab9cde75c339e2c29c3f3f12428d364a10d782c62",
+      "library": "libsqlite3probe.so",
+      "has_index_bounds_fix": true,
+      "indexed_select": {
+        "prepare_code": "SQLITE_OK",
+        "step_code": "SQLITE_CORRUPT",
+        "text": null
+      },
+      "integrity_check": {
+        "step_code": "SQLITE_ROW",
+        "report": "*** in database main ***\nTree 3 page 3 cell 0: Extends off end of page"
+      }
+    },
+    {
+      "version": "3.53.4",
+      "libversion": "3.53.4",
+      "sourceid": "2026-07-24 19:02:57 bf7c7f30031888f4e796e429ab3978879485813aaca6f641c7b33e4e09459bcc",
+      "library": "libsqlite3probe.so",
+      "has_index_bounds_fix": true,
+      "indexed_select": {
+        "prepare_code": "SQLITE_OK",
+        "step_code": "SQLITE_CORRUPT",
+        "text": null
+      },
+      "integrity_check": {
+        "step_code": "SQLITE_ROW",
+        "report": "*** in database main ***\nTree 3 page 3 cell 0: Extends off end of page"
+      }
+    }
+  ],
+  "database_sha256": {
+    "pristine": "592ea35de84e881b7ca562ea6c1510538d60eb396c3a8ead377eed0de4d757b7",
+    "corrupt": "e1dd749c57d10f26076bc8d0c543244616d08c6d19f469bef63c1399d9836c57"
+  },
+  "summary": {
+    "pre_fix_select": "SQLITE_ROW",
+    "post_fix_select": [
+      "SQLITE_CORRUPT"
+    ],
+    "integrity_check_codes": [
+      "SQLITE_ROW"
+    ],
+    "differential_observed": true
+  }
+}
