@@ -13,7 +13,7 @@ fn terminal(values: &[&str]) -> Result<Command, String> {
 }
 
 fn query(text: &str) -> Result<Command, String> {
-    Ok(Command::Query(text.to_string()))
+    Ok(Command::Query(Some(text.to_string())))
 }
 
 fn usage() -> Result<Command, String> {
@@ -32,9 +32,11 @@ fn aliases_strip_the_command() {
 }
 
 #[test]
-fn empty_prompt_is_a_usage_error() {
-    assert_eq!(piped(&[]), usage());
-    assert_eq!(piped(&["new"]), usage());
+fn empty_query_words_are_resolved_from_stdin() {
+    for args in [&[][..], &["new"][..], &["n"][..]] {
+        assert_eq!(piped(args), Ok(Command::Query(None)));
+        assert_eq!(terminal(args), Ok(Command::Query(None)));
+    }
 }
 
 #[test]
