@@ -1,0 +1,210 @@
+Normalization: <probe-root> replaces temporary directory paths; trailing whitespace removed.
+advisories ok, bans ok, licenses ok, sources ok
+warning[license-not-encountered]: license was not encountered
+   ┌─ <probe-root>/deny.toml:17:6
+   │
+17 │     "Apache-2.0 WITH LLVM-exception",
+   │      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ unmatched license allowance
+
+warning[license-not-encountered]: license was not encountered
+   ┌─ <probe-root>/deny.toml:19:6
+   │
+19 │     "BSD-2-Clause",
+   │      ━━━━━━━━━━━━ unmatched license allowance
+
+warning[license-not-encountered]: license was not encountered
+   ┌─ <probe-root>/deny.toml:23:6
+   │
+23 │     "Zlib",
+   │      ━━━━ unmatched license allowance
+
+warning[duplicate]: found 2 duplicate entries for crate 'core-foundation'
+   ┌─ <probe-root>/rusqlite-system/Cargo.lock:16:1
+   │
+16 │ ╭ core-foundation 0.9.4 registry+https://github.com/rust-lang/crates.io-index
+17 │ │ core-foundation 0.10.1 registry+https://github.com/rust-lang/crates.io-index
+   │ ╰────────────────────────────────────────────────────────────────────────────┘ lock entries
+   │
+   ├ core-foundation v0.9.4
+     └── system-configuration v0.7.0
+         └── hyper-util v0.1.20
+             ├── hyper-rustls v0.27.9
+             │   └── reqwest v0.13.4
+             │       └── rig-core v0.42.0
+             │           └── ask v0.1.0
+             └── reqwest v0.13.4 (*)
+   ├ core-foundation v0.10.1
+     ├── rustls-platform-verifier v0.7.0
+     │   └── reqwest v0.13.4
+     │       └── rig-core v0.42.0
+     │           └── ask v0.1.0
+     └── security-framework v3.7.0
+         ├── rustls-native-certs v0.8.4
+         │   └── rustls-platform-verifier v0.7.0 (*)
+         └── rustls-platform-verifier v0.7.0 (*)
+
+warning[duplicate]: found 2 duplicate entries for crate 'syn'
+    ┌─ <probe-root>/rusqlite-system/Cargo.lock:121:1
+    │
+121 │ ╭ syn 2.0.119 registry+https://github.com/rust-lang/crates.io-index
+122 │ │ syn 3.0.5 registry+https://github.com/rust-lang/crates.io-index
+    │ ╰───────────────────────────────────────────────────────────────┘ lock entries
+    │
+    ├ syn v2.0.119
+      ├── async-stream-impl v0.3.6
+      │   └── async-stream v0.3.6
+      │       └── rig-core v0.42.0
+      │           └── ask v0.1.0
+      ├── pin-project-internal v1.1.13
+      │   └── pin-project v1.1.13
+      │       └── tracing-futures v0.2.5
+      │           └── rig-core v0.42.0 (*)
+      ├── synstructure v0.13.2
+      │   ├── yoke-derive v0.8.2
+      │   │   └── yoke v0.8.3
+      │   │       ├── icu_collections v2.3.0
+      │   │       │   ├── icu_normalizer v2.3.0
+      │   │       │   │   └── idna_adapter v1.2.2
+      │   │       │   │       └── idna v1.1.0
+      │   │       │   │           └── url v2.5.8
+      │   │       │   │               ├── reqwest v0.13.4
+      │   │       │   │               │   └── rig-core v0.42.0 (*)
+      │   │       │   │               ├── rig-core v0.42.0 (*)
+      │   │       │   │               └── tower-http v0.6.11
+      │   │       │   │                   └── reqwest v0.13.4 (*)
+      │   │       │   └── icu_properties v2.3.0
+      │   │       │       └── idna_adapter v1.2.2 (*)
+      │   │       ├── icu_provider v2.3.1
+      │   │       │   ├── icu_normalizer v2.3.0 (*)
+      │   │       │   └── icu_properties v2.3.0 (*)
+      │   │       ├── zerotrie v0.2.5
+      │   │       │   ├── icu_properties v2.3.0 (*)
+      │   │       │   └── icu_provider v2.3.1 (*)
+      │   │       └── zerovec v0.11.8
+      │   │           ├── icu_collections v2.3.0 (*)
+      │   │           ├── icu_locale_core v2.3.0
+      │   │           │   ├── icu_properties v2.3.0 (*)
+      │   │           │   └── icu_provider v2.3.1 (*)
+      │   │           ├── icu_normalizer v2.3.0 (*)
+      │   │           ├── icu_properties v2.3.0 (*)
+      │   │           ├── icu_provider v2.3.1 (*)
+      │   │           ├── potential_utf v0.1.6
+      │   │           │   └── icu_collections v2.3.0 (*)
+      │   │           └── tinystr v0.8.4
+      │   │               └── icu_locale_core v2.3.0 (*)
+      │   └── zerofrom-derive v0.1.7
+      │       └── zerofrom v0.1.8
+      │           ├── icu_collections v2.3.0 (*)
+      │           ├── icu_provider v2.3.1 (*)
+      │           ├── yoke v0.8.3 (*)
+      │           ├── zerotrie v0.2.5 (*)
+      │           └── zerovec v0.11.8 (*)
+      ├── tracing-attributes v0.1.31
+      │   └── tracing v0.1.44
+      │       ├── h2 v0.4.19
+      │       │   ├── hyper v1.11.1
+      │       │   │   ├── hyper-rustls v0.27.9
+      │       │   │   │   └── reqwest v0.13.4 (*)
+      │       │   │   ├── hyper-util v0.1.20
+      │       │   │   │   ├── hyper-rustls v0.27.9 (*)
+      │       │   │   │   └── reqwest v0.13.4 (*)
+      │       │   │   └── reqwest v0.13.4 (*)
+      │       │   └── reqwest v0.13.4 (*)
+      │       ├── hyper-util v0.1.20 (*)
+      │       ├── rig-core v0.42.0 (*)
+      │       └── tracing-futures v0.2.5 (*)
+      ├── yoke-derive v0.8.2 (*)
+      └── zerofrom-derive v0.1.7 (*)
+    ├ syn v3.0.5
+      ├── displaydoc v0.2.7
+      │   ├── icu_collections v2.3.0
+      │   │   ├── icu_normalizer v2.3.0
+      │   │   │   └── idna_adapter v1.2.2
+      │   │   │       └── idna v1.1.0
+      │   │   │           └── url v2.5.8
+      │   │   │               ├── reqwest v0.13.4
+      │   │   │               │   └── rig-core v0.42.0
+      │   │   │               │       └── ask v0.1.0
+      │   │   │               ├── rig-core v0.42.0 (*)
+      │   │   │               └── tower-http v0.6.11
+      │   │   │                   └── reqwest v0.13.4 (*)
+      │   │   └── icu_properties v2.3.0
+      │   │       └── idna_adapter v1.2.2 (*)
+      │   ├── icu_locale_core v2.3.0
+      │   │   ├── icu_properties v2.3.0 (*)
+      │   │   └── icu_provider v2.3.1
+      │   │       ├── icu_normalizer v2.3.0 (*)
+      │   │       └── icu_properties v2.3.0 (*)
+      │   ├── icu_properties v2.3.0 (*)
+      │   ├── icu_provider v2.3.1 (*)
+      │   ├── tinystr v0.8.4
+      │   │   └── icu_locale_core v2.3.0 (*)
+      │   └── zerotrie v0.2.5
+      │       ├── icu_properties v2.3.0 (*)
+      │       └── icu_provider v2.3.1 (*)
+      ├── futures-macro v0.3.34
+      │   └── futures-util v0.3.34
+      │       ├── ask v0.1.0 (*)
+      │       ├── futures v0.3.34
+      │       │   ├── rig-core v0.42.0 (*)
+      │       │   └── tracing-futures v0.2.5
+      │       │       └── rig-core v0.42.0 (*)
+      │       ├── futures-executor v0.3.34
+      │       │   └── futures v0.3.34 (*)
+      │       ├── hyper-util v0.1.20
+      │       │   ├── hyper-rustls v0.27.9
+      │       │   │   └── reqwest v0.13.4 (*)
+      │       │   └── reqwest v0.13.4 (*)
+      │       ├── reqwest v0.13.4 (*)
+      │       ├── tower v0.5.3
+      │       │   ├── reqwest v0.13.4 (*)
+      │       │   └── tower-http v0.6.11 (*)
+      │       └── tower-http v0.6.11 (*)
+      ├── ref-cast-impl v1.0.27
+      │   └── ref-cast v1.0.27
+      │       └── schemars v1.2.2
+      │           └── rig-core v0.42.0 (*)
+      ├── schemars_derive v1.2.2
+      │   └── schemars v1.2.2 (*)
+      ├── serde_derive v1.0.229
+      │   └── serde v1.0.229
+      │       ├── ask v0.1.0 (*)
+      │       ├── reqwest v0.13.4 (*)
+      │       ├── rig-core v0.42.0 (*)
+      │       └── schemars v1.2.2 (*)
+      ├── serde_derive_internals v0.30.0
+      │   └── schemars_derive v1.2.2 (*)
+      ├── thiserror-impl v2.0.20
+      │   └── thiserror v2.0.20
+      │       └── rig-core v0.42.0 (*)
+      ├── tokio-macros v2.7.2
+      │   └── tokio v1.53.1
+      │       ├── ask v0.1.0 (*)
+      │       ├── h2 v0.4.19
+      │       │   ├── hyper v1.11.1
+      │       │   │   ├── hyper-rustls v0.27.9 (*)
+      │       │   │   ├── hyper-util v0.1.20 (*)
+      │       │   │   └── reqwest v0.13.4 (*)
+      │       │   └── reqwest v0.13.4 (*)
+      │       ├── hyper v1.11.1 (*)
+      │       ├── hyper-rustls v0.27.9 (*)
+      │       ├── hyper-util v0.1.20 (*)
+      │       ├── reqwest v0.13.4 (*)
+      │       ├── rig-core v0.42.0 (*)
+      │       ├── tokio-rustls v0.26.5
+      │       │   ├── hyper-rustls v0.27.9 (*)
+      │       │   └── reqwest v0.13.4 (*)
+      │       ├── tokio-util v0.7.19
+      │       │   ├── h2 v0.4.19 (*)
+      │       │   └── reqwest v0.13.4 (*)
+      │       └── tower v0.5.3 (*)
+      └── zerovec-derive v0.11.6
+          └── zerovec v0.11.8
+              ├── icu_collections v2.3.0 (*)
+              ├── icu_locale_core v2.3.0 (*)
+              ├── icu_normalizer v2.3.0 (*)
+              ├── icu_properties v2.3.0 (*)
+              ├── icu_provider v2.3.1 (*)
+              ├── potential_utf v0.1.6
+              │   └── icu_collections v2.3.0 (*)
+              └── tinystr v0.8.4 (*)

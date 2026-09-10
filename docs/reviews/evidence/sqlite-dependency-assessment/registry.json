@@ -1,0 +1,1029 @@
+{
+  "date": "2026-09-06",
+  "normalization": "Selected crates.io crate, version and owner fields; published_by reduced to login.",
+  "crates": {
+    "rusqlite": {
+      "crate": {
+        "name": "rusqlite",
+        "repository": "https://github.com/rusqlite/rusqlite",
+        "max_stable_version": "0.40.2",
+        "updated_at": "2026-08-08T14:21:52.570893Z",
+        "downloads": 102445790
+      },
+      "version": {
+        "num": "0.40.2",
+        "created_at": "2026-08-08T14:21:52.570893Z",
+        "license": "MIT",
+        "rust_version": null,
+        "checksum": "23f2a97da3e3873c73cb2a2e71b35c40ff95e0b1eefa8d72d8499a6928c3b5b3",
+        "features": {
+          "array": [
+            "vtab",
+            "pointer"
+          ],
+          "backup": [],
+          "blob": [],
+          "buildtime_bindgen": [
+            "libsqlite3-sys?/buildtime_bindgen",
+            "sqlite-wasm-rs?/bindgen"
+          ],
+          "bundled": [
+            "libsqlite3-sys?/bundled",
+            "modern_sqlite"
+          ],
+          "bundled-full": [
+            "modern-full",
+            "bundled"
+          ],
+          "bundled-sqlcipher": [
+            "libsqlite3-sys?/bundled-sqlcipher",
+            "bundled"
+          ],
+          "bundled-sqlcipher-vendored-openssl": [
+            "libsqlite3-sys?/bundled-sqlcipher-vendored-openssl",
+            "bundled-sqlcipher"
+          ],
+          "bundled-windows": [
+            "libsqlite3-sys?/bundled-windows"
+          ],
+          "cache": [
+            "hashlink"
+          ],
+          "collation": [],
+          "column_decltype": [],
+          "column_metadata": [
+            "libsqlite3-sys?/column_metadata"
+          ],
+          "csvtab": [
+            "csv",
+            "vtab"
+          ],
+          "default": [
+            "cache",
+            "ffi-sqlite-wasm-rs"
+          ],
+          "extra_check": [],
+          "fallible_uint": [],
+          "ffi-sqlite-wasm-rs": [
+            "dep:sqlite-wasm-rs"
+          ],
+          "functions": [],
+          "hooks": [],
+          "i128_blob": [],
+          "in_gecko": [
+            "modern_sqlite",
+            "libsqlite3-sys?/in_gecko"
+          ],
+          "limits": [],
+          "load_extension": [],
+          "loadable_extension": [
+            "libsqlite3-sys?/loadable_extension"
+          ],
+          "modern-full": [
+            "array",
+            "backup",
+            "blob",
+            "modern_sqlite",
+            "chrono",
+            "collation",
+            "column_metadata",
+            "column_decltype",
+            "csvtab",
+            "extra_check",
+            "functions",
+            "hooks",
+            "i128_blob",
+            "jiff",
+            "limits",
+            "load_extension",
+            "serde_json",
+            "serialize",
+            "series",
+            "time",
+            "trace",
+            "unlock_notify",
+            "url",
+            "uuid",
+            "vtab",
+            "window"
+          ],
+          "modern_sqlite": [
+            "libsqlite3-sys?/bundled_bindings"
+          ],
+          "pointer": [],
+          "preupdate_hook": [
+            "libsqlite3-sys?/preupdate_hook",
+            "hooks"
+          ],
+          "serialize": [],
+          "series": [
+            "vtab"
+          ],
+          "session": [
+            "libsqlite3-sys?/session",
+            "hooks"
+          ],
+          "sqlcipher": [
+            "libsqlite3-sys?/sqlcipher"
+          ],
+          "trace": [],
+          "unlock_notify": [
+            "libsqlite3-sys?/unlock_notify"
+          ],
+          "vtab": [],
+          "wasm32-wasi-vfs": [
+            "libsqlite3-sys?/wasm32-wasi-vfs"
+          ],
+          "window": [
+            "functions"
+          ],
+          "with-asan": [
+            "libsqlite3-sys?/with-asan"
+          ]
+        },
+        "published_by": {
+          "login": "gwenn"
+        }
+      },
+      "owners": [
+        {
+          "login": "thomcc",
+          "kind": "user"
+        },
+        {
+          "login": "gwenn",
+          "kind": "user"
+        }
+      ]
+    },
+    "libsqlite3-sys": {
+      "crate": {
+        "name": "libsqlite3-sys",
+        "repository": "https://github.com/rusqlite/rusqlite",
+        "max_stable_version": "0.38.2",
+        "updated_at": "2026-08-08T14:21:30.774453Z",
+        "downloads": 224692677
+      },
+      "version": {
+        "num": "0.38.2",
+        "created_at": "2026-08-08T14:21:30.774453Z",
+        "license": "MIT",
+        "rust_version": null,
+        "checksum": "f1d20bef17f513b9b3004532233187769cd072d790971f4e4da0e346eb6401e8",
+        "features": {
+          "buildtime_bindgen": [
+            "bindgen",
+            "pkg-config",
+            "vcpkg"
+          ],
+          "bundled": [
+            "cc",
+            "bundled_bindings"
+          ],
+          "bundled-sqlcipher": [
+            "bundled"
+          ],
+          "bundled-sqlcipher-vendored-openssl": [
+            "bundled-sqlcipher",
+            "openssl-sys/vendored"
+          ],
+          "bundled-windows": [
+            "cc",
+            "bundled_bindings"
+          ],
+          "bundled_bindings": [],
+          "column_metadata": [],
+          "default": [
+            "min_sqlite_version_3_34_1"
+          ],
+          "in_gecko": [],
+          "loadable_extension": [
+            "prettyplease",
+            "quote",
+            "syn"
+          ],
+          "min_sqlite_version_3_34_1": [
+            "pkg-config",
+            "vcpkg"
+          ],
+          "preupdate_hook": [
+            "buildtime_bindgen"
+          ],
+          "session": [
+            "preupdate_hook",
+            "buildtime_bindgen"
+          ],
+          "sqlcipher": [],
+          "unlock_notify": [],
+          "wasm32-wasi-vfs": [],
+          "with-asan": []
+        },
+        "published_by": {
+          "login": "gwenn"
+        }
+      },
+      "owners": [
+        {
+          "login": "thomcc",
+          "kind": "user"
+        },
+        {
+          "login": "gwenn",
+          "kind": "user"
+        }
+      ]
+    },
+    "sqlx": {
+      "crate": {
+        "name": "sqlx",
+        "repository": "https://github.com/launchbadge/sqlx",
+        "max_stable_version": "0.9.0",
+        "updated_at": "2026-05-21T17:35:53.403466Z",
+        "downloads": 141675613
+      },
+      "version": {
+        "num": "0.9.0",
+        "created_at": "2026-05-21T17:35:53.403466Z",
+        "license": "MIT OR Apache-2.0",
+        "rust_version": "1.94.0",
+        "checksum": "378620ccc25c62c89d8be1c819e76a88d59bdcc3304733330788948e619bfd71",
+        "features": {
+          "_rt-async-global-executor": [],
+          "_rt-async-std": [],
+          "_rt-smol": [],
+          "_rt-tokio": [],
+          "_sqlite": [],
+          "_unstable-all-types": [
+            "bigdecimal",
+            "rust_decimal",
+            "json",
+            "time",
+            "chrono",
+            "ipnet",
+            "ipnetwork",
+            "mac_address",
+            "uuid",
+            "bit-vec",
+            "bstr"
+          ],
+          "_unstable-docs": [
+            "all-databases",
+            "_unstable-all-types",
+            "sqlx-sqlite/_unstable-docs"
+          ],
+          "all-databases": [
+            "mysql",
+            "sqlite",
+            "postgres",
+            "any"
+          ],
+          "any": [
+            "sqlx-core/any",
+            "sqlx-mysql?/any",
+            "sqlx-postgres?/any",
+            "sqlx-sqlite?/any"
+          ],
+          "bigdecimal": [
+            "sqlx-core/bigdecimal",
+            "sqlx-macros?/bigdecimal",
+            "sqlx-mysql?/bigdecimal",
+            "sqlx-postgres?/bigdecimal"
+          ],
+          "bit-vec": [
+            "sqlx-core/bit-vec",
+            "sqlx-macros?/bit-vec",
+            "sqlx-postgres?/bit-vec"
+          ],
+          "bstr": [
+            "sqlx-core/bstr"
+          ],
+          "chrono": [
+            "sqlx-core/chrono",
+            "sqlx-macros?/chrono",
+            "sqlx-mysql?/chrono",
+            "sqlx-postgres?/chrono",
+            "sqlx-sqlite?/chrono"
+          ],
+          "default": [
+            "any",
+            "macros",
+            "migrate",
+            "json"
+          ],
+          "derive": [
+            "sqlx-macros/derive"
+          ],
+          "ipnet": [
+            "sqlx-core/ipnet",
+            "sqlx-macros?/ipnet",
+            "sqlx-postgres?/ipnet"
+          ],
+          "ipnetwork": [
+            "sqlx-core/ipnetwork",
+            "sqlx-macros?/ipnetwork",
+            "sqlx-postgres?/ipnetwork"
+          ],
+          "json": [
+            "sqlx-core/json",
+            "sqlx-macros?/json",
+            "sqlx-mysql?/json",
+            "sqlx-postgres?/json",
+            "sqlx-sqlite?/json"
+          ],
+          "mac_address": [
+            "sqlx-core/mac_address",
+            "sqlx-macros?/mac_address",
+            "sqlx-postgres?/mac_address"
+          ],
+          "macros": [
+            "derive",
+            "sqlx-macros/macros",
+            "sqlx-core/offline",
+            "sqlx-mysql?/offline",
+            "sqlx-postgres?/offline",
+            "sqlx-sqlite?/offline"
+          ],
+          "migrate": [
+            "sqlx-core/migrate",
+            "sqlx-macros?/migrate",
+            "sqlx-mysql?/migrate",
+            "sqlx-postgres?/migrate",
+            "sqlx-sqlite?/migrate"
+          ],
+          "mysql": [
+            "sqlx-mysql",
+            "sqlx-macros?/mysql"
+          ],
+          "mysql-rsa": [
+            "mysql",
+            "sqlx-mysql/rsa",
+            "sqlx-macros?/mysql-rsa"
+          ],
+          "postgres": [
+            "sqlx-postgres",
+            "sqlx-macros?/postgres"
+          ],
+          "regexp": [
+            "sqlx-sqlite?/regexp"
+          ],
+          "runtime-async-global-executor": [
+            "_rt-async-global-executor",
+            "sqlx-core/_rt-async-global-executor",
+            "sqlx-macros?/_rt-async-global-executor"
+          ],
+          "runtime-async-std": [
+            "_rt-async-std",
+            "sqlx-core/_rt-async-std",
+            "sqlx-macros?/_rt-async-std"
+          ],
+          "runtime-smol": [
+            "_rt-smol",
+            "sqlx-core/_rt-smol",
+            "sqlx-macros?/_rt-smol"
+          ],
+          "runtime-tokio": [
+            "_rt-tokio",
+            "sqlx-core/_rt-tokio",
+            "sqlx-macros?/_rt-tokio"
+          ],
+          "rust_decimal": [
+            "sqlx-core/rust_decimal",
+            "sqlx-macros?/rust_decimal",
+            "sqlx-mysql?/rust_decimal",
+            "sqlx-postgres?/rust_decimal"
+          ],
+          "sqlite": [
+            "sqlite-bundled",
+            "sqlite-deserialize",
+            "sqlite-load-extension",
+            "sqlite-unlock-notify"
+          ],
+          "sqlite-bundled": [
+            "_sqlite",
+            "sqlx-sqlite/bundled",
+            "sqlx-macros?/sqlite"
+          ],
+          "sqlite-deserialize": [
+            "sqlx-sqlite/deserialize"
+          ],
+          "sqlite-load-extension": [
+            "sqlx-sqlite/load-extension",
+            "sqlx-macros?/sqlite-load-extension"
+          ],
+          "sqlite-preupdate-hook": [
+            "sqlx-sqlite/preupdate-hook"
+          ],
+          "sqlite-unbundled": [
+            "_sqlite",
+            "sqlx-sqlite/unbundled",
+            "sqlx-macros?/sqlite-unbundled"
+          ],
+          "sqlite-unlock-notify": [
+            "sqlx-sqlite/unlock-notify"
+          ],
+          "sqlx-toml": [
+            "sqlx-core/sqlx-toml",
+            "sqlx-macros?/sqlx-toml",
+            "sqlx-sqlite?/sqlx-toml"
+          ],
+          "time": [
+            "sqlx-core/time",
+            "sqlx-macros?/time",
+            "sqlx-mysql?/time",
+            "sqlx-postgres?/time",
+            "sqlx-sqlite?/time"
+          ],
+          "tls-native-tls": [
+            "sqlx-core/_tls-native-tls",
+            "sqlx-macros?/_tls-native-tls"
+          ],
+          "tls-none": [],
+          "tls-rustls": [
+            "tls-rustls-ring"
+          ],
+          "tls-rustls-aws-lc-rs": [
+            "sqlx-core/_tls-rustls-aws-lc-rs",
+            "sqlx-macros?/_tls-rustls-aws-lc-rs"
+          ],
+          "tls-rustls-ring": [
+            "tls-rustls-ring-webpki"
+          ],
+          "tls-rustls-ring-native-roots": [
+            "sqlx-core/_tls-rustls-ring-native-roots",
+            "sqlx-macros?/_tls-rustls-ring-native-roots"
+          ],
+          "tls-rustls-ring-webpki": [
+            "sqlx-core/_tls-rustls-ring-webpki",
+            "sqlx-macros?/_tls-rustls-ring-webpki"
+          ],
+          "uuid": [
+            "sqlx-core/uuid",
+            "sqlx-macros?/uuid",
+            "sqlx-mysql?/uuid",
+            "sqlx-postgres?/uuid",
+            "sqlx-sqlite?/uuid"
+          ]
+        },
+        "published_by": {
+          "login": "abonander"
+        }
+      },
+      "owners": [
+        {
+          "login": "abonander",
+          "kind": "user"
+        },
+        {
+          "login": "mehcode",
+          "kind": "user"
+        }
+      ]
+    },
+    "diesel": {
+      "crate": {
+        "name": "diesel",
+        "repository": "https://github.com/diesel-rs/diesel",
+        "max_stable_version": "2.3.13",
+        "updated_at": "2026-09-04T14:51:08.196268Z",
+        "downloads": 35127363
+      },
+      "version": {
+        "num": "2.3.13",
+        "created_at": "2026-09-04T14:51:08.196268Z",
+        "license": "MIT OR Apache-2.0",
+        "rust_version": "1.86.0",
+        "checksum": "e3b934ddbdcb2abb9f9fc9c30bd47bcc5618b615eea1d334cda5fdf8ff9b072a",
+        "features": {
+          "128-column-tables": [
+            "64-column-tables",
+            "diesel_derives/128-column-tables"
+          ],
+          "32-column-tables": [
+            "diesel_derives/32-column-tables"
+          ],
+          "64-column-tables": [
+            "32-column-tables",
+            "diesel_derives/64-column-tables"
+          ],
+          "__with_asan_tests": [
+            "libsqlite3-sys?/bundled",
+            "libsqlite3-sys?/with-asan",
+            "pq-sys?/bundled",
+            "pq-src?/with-asan",
+            "mysqlclient-sys?/bundled",
+            "mysqlclient-src?/with-asan"
+          ],
+          "chrono": [
+            "diesel_derives/chrono",
+            "dep:chrono"
+          ],
+          "default": [
+            "with-deprecated",
+            "32-column-tables"
+          ],
+          "extras": [
+            "chrono",
+            "time",
+            "serde_json",
+            "uuid",
+            "network-address",
+            "numeric",
+            "r2d2"
+          ],
+          "huge-tables": [
+            "64-column-tables"
+          ],
+          "i-implement-a-third-party-backend-and-opt-into-breaking-changes": [],
+          "ipnet-address": [
+            "dep:ipnet",
+            "dep:libc"
+          ],
+          "large-tables": [
+            "32-column-tables"
+          ],
+          "mysql": [
+            "dep:mysqlclient-sys",
+            "dep:url",
+            "dep:percent-encoding",
+            "dep:bitflags",
+            "mysql_backend"
+          ],
+          "mysql_backend": [
+            "diesel_derives/mysql",
+            "dep:byteorder"
+          ],
+          "network-address": [
+            "dep:ipnetwork",
+            "dep:libc"
+          ],
+          "numeric": [
+            "dep:num-bigint",
+            "dep:bigdecimal",
+            "dep:num-traits",
+            "dep:num-integer",
+            "diesel_derives/numeric"
+          ],
+          "postgres": [
+            "dep:pq-sys",
+            "postgres_backend"
+          ],
+          "postgres_backend": [
+            "diesel_derives/postgres",
+            "dep:bitflags",
+            "dep:byteorder",
+            "dep:itoa"
+          ],
+          "r2d2": [
+            "diesel_derives/r2d2",
+            "dep:r2d2"
+          ],
+          "returning_clauses_for_sqlite_3_35": [
+            "sqlite"
+          ],
+          "serde_json": [
+            "dep:serde_json"
+          ],
+          "sqlite": [
+            "dep:libsqlite3-sys",
+            "dep:sqlite-wasm-rs",
+            "diesel_derives/sqlite",
+            "time?/formatting",
+            "time?/parsing"
+          ],
+          "time": [
+            "diesel_derives/time",
+            "dep:time"
+          ],
+          "unstable": [
+            "diesel_derives/nightly"
+          ],
+          "uuid": [
+            "dep:uuid"
+          ],
+          "with-deprecated": [
+            "diesel_derives/with-deprecated"
+          ],
+          "without-deprecated": [
+            "diesel_derives/without-deprecated"
+          ]
+        },
+        "published_by": {
+          "login": "weiznich"
+        }
+      },
+      "owners": [
+        {
+          "login": "killercup",
+          "kind": "user"
+        },
+        {
+          "login": "sgrif",
+          "kind": "user"
+        },
+        {
+          "login": "github:diesel-rs:core",
+          "kind": "team"
+        }
+      ]
+    },
+    "sqlite": {
+      "crate": {
+        "name": "sqlite",
+        "repository": "https://github.com/stainless-steel/sqlite",
+        "max_stable_version": "0.37.0",
+        "updated_at": "2025-03-28T11:03:48.086206Z",
+        "downloads": 2212188
+      },
+      "version": {
+        "num": "0.37.0",
+        "created_at": "2025-03-28T11:03:48.086206Z",
+        "license": "Apache-2.0 OR MIT",
+        "rust_version": null,
+        "checksum": "f66e9c01a11936154f3910dbba732c01f8b591543bc4d6672bddee79fd9c4783",
+        "features": {
+          "bundled": [
+            "sqlite3-sys/bundled"
+          ],
+          "default": [
+            "linkage"
+          ],
+          "encryption": [
+            "sqlite3-sys/encryption"
+          ],
+          "extension": [],
+          "linkage": [
+            "sqlite3-sys/linkage"
+          ]
+        },
+        "published_by": {
+          "login": "IvanUkhov"
+        }
+      },
+      "owners": [
+        {
+          "login": "IvanUkhov",
+          "kind": "user"
+        }
+      ]
+    },
+    "tokio-rusqlite": {
+      "crate": {
+        "name": "tokio-rusqlite",
+        "repository": "https://github.com/programatik29/tokio-rusqlite",
+        "max_stable_version": "0.8.0",
+        "updated_at": "2026-09-06T09:43:25.779698Z",
+        "downloads": 1880259
+      },
+      "version": {
+        "num": "0.8.0",
+        "created_at": "2026-09-06T09:43:25.779698Z",
+        "license": "MIT",
+        "rust_version": null,
+        "checksum": "bce5670317c76f8505e7e5a8d655330a435fc35d3deaf756de8406db64a94e8c",
+        "features": {
+          "array": [
+            "rusqlite/array"
+          ],
+          "backup": [
+            "rusqlite/backup"
+          ],
+          "blob": [
+            "rusqlite/blob"
+          ],
+          "buildtime_bindgen": [
+            "rusqlite/buildtime_bindgen"
+          ],
+          "bundled": [
+            "rusqlite/bundled"
+          ],
+          "bundled-full": [
+            "rusqlite/bundled-full"
+          ],
+          "bundled-sqlcipher": [
+            "rusqlite/bundled-sqlcipher"
+          ],
+          "bundled-sqlcipher-vendored-openssl": [
+            "rusqlite/bundled-sqlcipher-vendored-openssl"
+          ],
+          "bundled-windows": [
+            "rusqlite/bundled-windows"
+          ],
+          "chrono": [
+            "rusqlite/chrono"
+          ],
+          "collation": [
+            "rusqlite/collation"
+          ],
+          "column_decltype": [
+            "rusqlite/column_decltype"
+          ],
+          "column_metadata": [
+            "rusqlite/column_metadata"
+          ],
+          "csv": [
+            "rusqlite/csv"
+          ],
+          "csvtab": [
+            "rusqlite/csvtab"
+          ],
+          "default": [],
+          "extra_check": [
+            "rusqlite/extra_check"
+          ],
+          "functions": [
+            "rusqlite/functions"
+          ],
+          "hooks": [
+            "rusqlite/hooks"
+          ],
+          "i128_blob": [
+            "rusqlite/i128_blob"
+          ],
+          "in_gecko": [
+            "rusqlite/in_gecko"
+          ],
+          "jiff": [
+            "rusqlite/jiff"
+          ],
+          "limits": [
+            "rusqlite/limits"
+          ],
+          "load_extension": [
+            "rusqlite/load_extension"
+          ],
+          "loadable_extension": [
+            "rusqlite/loadable_extension"
+          ],
+          "modern-full": [
+            "rusqlite/modern-full"
+          ],
+          "modern_sqlite": [
+            "rusqlite/modern_sqlite"
+          ],
+          "preupdate_hook": [
+            "rusqlite/preupdate_hook"
+          ],
+          "rusqlite-macros": [
+            "rusqlite/rusqlite-macros"
+          ],
+          "serde_json": [
+            "rusqlite/serde_json"
+          ],
+          "serialize": [
+            "rusqlite/serialize"
+          ],
+          "series": [
+            "rusqlite/series"
+          ],
+          "session": [
+            "rusqlite/session"
+          ],
+          "sqlcipher": [
+            "rusqlite/sqlcipher"
+          ],
+          "time": [
+            "rusqlite/time"
+          ],
+          "trace": [
+            "rusqlite/trace"
+          ],
+          "unlock_notify": [
+            "rusqlite/unlock_notify"
+          ],
+          "url": [
+            "rusqlite/url"
+          ],
+          "uuid": [
+            "rusqlite/uuid"
+          ],
+          "vtab": [
+            "rusqlite/vtab"
+          ],
+          "wasm32-wasi-vfs": [
+            "rusqlite/wasm32-wasi-vfs"
+          ],
+          "window": [
+            "rusqlite/window"
+          ],
+          "with-asan": [
+            "rusqlite/with-asan"
+          ]
+        },
+        "published_by": {
+          "login": "abs0luty"
+        }
+      },
+      "owners": [
+        {
+          "login": "programatik29",
+          "kind": "user"
+        },
+        {
+          "login": "abs0luty",
+          "kind": "user"
+        }
+      ]
+    },
+    "libsql": {
+      "crate": {
+        "name": "libsql",
+        "repository": "https://github.com/tursodatabase/libsql",
+        "max_stable_version": "0.9.30",
+        "updated_at": "2026-06-02T06:12:49.617597Z",
+        "downloads": 1995658
+      },
+      "version": {
+        "num": "0.9.30",
+        "created_at": "2026-03-19T15:13:17.991530Z",
+        "license": "MIT",
+        "rust_version": null,
+        "checksum": "30fe980ac5693ed1f3db490559fb578885e913a018df64af8a1a46e1959a78df",
+        "features": {
+          "cloudflare": [
+            "wasm",
+            "dep:worker"
+          ],
+          "core": [
+            "libsql-sys",
+            "dep:bitflags",
+            "dep:bytes",
+            "dep:futures",
+            "dep:parking_lot"
+          ],
+          "default": [
+            "core",
+            "replication",
+            "remote",
+            "sync",
+            "tls"
+          ],
+          "encryption": [
+            "core",
+            "libsql-sys/encryption",
+            "dep:bytes"
+          ],
+          "hrana": [
+            "parser",
+            "serde",
+            "stream",
+            "dep:base64",
+            "dep:serde_json",
+            "dep:futures",
+            "dep:tokio",
+            "dep:tokio-util",
+            "dep:bytes",
+            "dep:libsql-hrana"
+          ],
+          "parser": [
+            "dep:sqlite3-parser",
+            "dep:fallible-iterator"
+          ],
+          "remote": [
+            "hrana",
+            "dep:base64",
+            "dep:tower",
+            "dep:hyper",
+            "dep:hyper",
+            "dep:http",
+            "dep:tokio",
+            "dep:futures",
+            "dep:bitflags"
+          ],
+          "replication": [
+            "core",
+            "parser",
+            "serde",
+            "stream",
+            "dep:tower",
+            "dep:hyper",
+            "dep:http",
+            "dep:tokio",
+            "dep:anyhow",
+            "dep:bincode",
+            "dep:zerocopy",
+            "dep:bytes",
+            "dep:uuid",
+            "dep:tokio-stream",
+            "dep:parking_lot",
+            "dep:tokio",
+            "dep:tonic",
+            "dep:tonic-web",
+            "dep:tower-http",
+            "dep:futures",
+            "dep:libsql_replication"
+          ],
+          "serde": [
+            "dep:serde"
+          ],
+          "stream": [
+            "dep:futures",
+            "dep:async-stream"
+          ],
+          "sync": [
+            "core",
+            "parser",
+            "serde",
+            "stream",
+            "remote",
+            "replication",
+            "dep:base64",
+            "dep:tower",
+            "dep:hyper",
+            "dep:http",
+            "dep:tokio",
+            "dep:zerocopy",
+            "dep:bytes",
+            "dep:tokio",
+            "dep:futures",
+            "dep:serde_json",
+            "dep:crc32fast",
+            "dep:chrono",
+            "dep:uuid",
+            "tokio/fs"
+          ],
+          "tls": [
+            "dep:hyper-rustls"
+          ],
+          "wasm": [
+            "hrana"
+          ]
+        },
+        "published_by": {
+          "login": "penberg"
+        }
+      },
+      "owners": [
+        {
+          "login": "glommer",
+          "kind": "user"
+        },
+        {
+          "login": "penberg",
+          "kind": "user"
+        },
+        {
+          "login": "github:tursodatabase:publish",
+          "kind": "team"
+        }
+      ]
+    },
+    "turso": {
+      "crate": {
+        "name": "turso",
+        "repository": "https://github.com/tursodatabase/turso",
+        "max_stable_version": "0.7.2",
+        "updated_at": "2026-09-04T04:26:35.124174Z",
+        "downloads": 854404
+      },
+      "version": {
+        "num": "0.7.2",
+        "created_at": "2026-07-30T13:43:13.067798Z",
+        "license": "MIT",
+        "rust_version": null,
+        "checksum": "f9491d7a80312c5abe66a4409e4dce02065503a235453c94b9e4133877e39ffc",
+        "features": {
+          "default": [
+            "mimalloc",
+            "fts"
+          ],
+          "fts": [
+            "turso_sdk_kit/fts"
+          ],
+          "io_memory_yield": [
+            "turso_core/io_memory_yield"
+          ],
+          "mimalloc": [
+            "dep:mimalloc"
+          ],
+          "pure-rust-crypto": [
+            "turso_sdk_kit/pure-rust-crypto",
+            "turso_sync_sdk_kit/pure-rust-crypto"
+          ],
+          "stacker": [
+            "turso_core/stacker"
+          ],
+          "sync": [
+            "dep:hyper",
+            "dep:tokio",
+            "dep:hyper-rustls",
+            "dep:hyper-util",
+            "dep:http-body-util",
+            "dep:bytes"
+          ],
+          "test_helper": [
+            "turso_core/test_helper"
+          ]
+        },
+        "published_by": {
+          "login": "penberg"
+        }
+      },
+      "owners": [
+        {
+          "login": "penberg",
+          "kind": "user"
+        }
+      ]
+    }
+  }
+}

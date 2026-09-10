@@ -13,9 +13,13 @@ provider = "local"
 model = "fake-model"
 "#;
 
+fn resolved(contents: &str) -> Target {
+    validate::document(contents).unwrap().resolve().unwrap()
+}
+
 #[test]
 fn parses_and_resolves_defaults() {
-    let target = parse(CONFIG).unwrap().resolve().unwrap();
+    let target = resolved(CONFIG);
     assert_eq!(target.base_url, "http://127.0.0.1:1234/v1");
     assert_eq!(target.api_key_env, "LOCAL_API_KEY");
     assert_eq!(target.timeout_ms, 30_000);
@@ -34,46 +38,60 @@ fn profile_replaces_prompt_and_provider_timeout() {
             "model = \"fake-model\"",
             "model = \"fake-model\"\nsystem_prompt = \"Custom\"",
         );
-    let target = parse(&configured).unwrap().resolve().unwrap();
+    let target = resolved(&configured);
     assert_eq!(target.timeout_ms, 41);
     assert_eq!(target.system_prompt, "Custom");
 }
 
 #[test]
-fn malformed_toml_has_a_parse_error() {
-    assert!(parse("default_profile = [").is_err());
-}
-
-#[test]
-fn missing_default_profile_is_named() {
-    let config = CONFIG.replace(
-        "default_profile = \"default\"",
-        "default_profile = \"missing\"",
-    );
+fn resolve_reports_a_default_profile_that_is_absent() {
+    let config = Config {
+        default_profile: "missing".to_string(),
+        providers: BTreeMap::new(),
+        profiles: BTreeMap::new(),
+    };
     assert_eq!(
-        config_error(&config),
-        "default profile 'missing' is not configured"
+        config.resolve().unwrap_err().to_string(),
+        "default_profile references an unknown profile"
     );
 }
 
 #[test]
-fn missing_provider_is_named() {
-    let config = CONFIG.replace("provider = \"local\"", "provider = \"missing\"");
+fn resolve_reports_a_provider_that_is_absent() {
+    let config = Config {
+        default_profile: "default".to_string(),
+        providers: BTreeMap::new(),
+        profiles: BTreeMap::from([(
+            "default".to_string(),
+            ProfileConfig {
+                provider: "missing".to_string(),
+                model: "m".to_string(),
+                system_prompt: None,
+            },
+        )]),
+    };
     assert_eq!(
-        config_error(&config),
-        "profile 'default' references unknown provider 'missing'"
+        config.resolve().unwrap_err().to_string(),
+        "profiles.provider references an unknown provider"
     );
 }
 
 #[test]
-fn unsupported_provider_kind_is_named() {
-    let config = CONFIG.replace("openai-compatible", "other");
-    assert_eq!(
-        config_error(&config),
-        "provider 'local' has unsupported kind 'other'"
-    );
+fn rendered_toml_round_trips_and_omits_defaults() {
+    let mut config = validate::document(CONFIG).unwrap();
+    config.profiles.get_mut("default").unwrap().system_prompt =
+        Some("Say \"yes\"\twith tabs".to_string());
+    let rendered = config.to_toml().unwrap();
+    assert!(!rendered.contains("timeout_ms"));
+    let target = resolved(&rendered);
+    assert_eq!(target.system_prompt, "Say \"yes\"\twith tabs");
+    assert_eq!(target.base_url, "http://127.0.0.1:1234/v1");
 }
 
-fn config_error(contents: &str) -> String {
-    parse(contents).unwrap().resolve().unwrap_err().to_string()
+#[test]
+fn rendered_toml_keeps_a_custom_timeout() {
+    let mut config = validate::document(CONFIG).unwrap();
+    config.providers.get_mut("local").unwrap().timeout_ms = 41;
+    let rendered = config.to_toml().unwrap();
+    assert!(rendered.contains("timeout_ms = 41"));
 }

@@ -2,12 +2,20 @@
 
 mod cli;
 mod config;
+mod configure;
+mod init;
 mod output;
 mod provider;
 mod runner;
 mod stats;
+mod validate;
 
-use std::{env, io, process::ExitCode, time::Instant};
+use std::{
+    env,
+    io::{self, IsTerminal},
+    process::ExitCode,
+    time::Instant,
+};
 
 use output::AnswerWriter;
 use provider::RigProvider;
@@ -26,8 +34,10 @@ async fn execute(
     stderr: &mut impl io::Write,
 ) -> ExitCode {
     let wall_start = Instant::now();
-    let prompt = match cli::parse(args) {
-        Ok(prompt) => prompt,
+    let prompt = match cli::parse(args, io::stdin().is_terminal()) {
+        Ok(cli::Command::Query(prompt)) => prompt,
+        Ok(cli::Command::Init) => return init(stderr),
+        Ok(cli::Command::Configure(action)) => return configure(&action, stderr),
         Err(message) => return report(stderr, &message, ExitCode::from(2)),
     };
     let target = match config::load().and_then(config::Config::resolve) {
@@ -44,6 +54,32 @@ async fn execute(
         Ok(statistics) => report(stderr, &statistics.to_string(), ExitCode::SUCCESS),
         Err(error) if error.is_broken_pipe() => ExitCode::SUCCESS,
         Err(error) => report(stderr, &error.to_string(), ExitCode::FAILURE),
+    }
+}
+
+fn init(stderr: &mut impl io::Write) -> ExitCode {
+    let path = match config::config_path() {
+        Ok(path) => path,
+        Err(error) => return report(stderr, &error.to_string(), ExitCode::FAILURE),
+    };
+    match init::run(&path, &mut io::stdin().lock(), stderr) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => report(stderr, &error.to_string(), ExitCode::FAILURE),
+    }
+}
+
+fn configure(action: &cli::Action, stderr: &mut impl io::Write) -> ExitCode {
+    let mut stdin = io::stdin().lock();
+    let outcome = match action {
+        cli::Action::Check(source) => configure::check(source, &mut stdin),
+        cli::Action::Apply(source) => match config::config_path() {
+            Ok(path) => configure::apply(&path, source, &mut stdin),
+            Err(error) => Err(error.to_string()),
+        },
+    };
+    match outcome {
+        Ok(message) => report(stderr, &message, ExitCode::SUCCESS),
+        Err(message) => report(stderr, &message, ExitCode::FAILURE),
     }
 }
 
