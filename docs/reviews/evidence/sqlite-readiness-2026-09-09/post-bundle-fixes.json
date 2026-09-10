@@ -1,5 +1,5 @@
 {
-  "retrieved": "2026-09-09",
+  "retrieved": "2026-09-10",
   "source": "https://sqlite.org/src/timeline?from=version-3.53.2&to=version-3.53.4&y=ci",
   "scope": "80 branch check-in summaries including endpoints; classification is build/workload inference, not exploit testing or exhaustive code audit",
   "checkins": [
@@ -259,7 +259,7 @@
       "checkin": "a9cea5b555",
       "source": "https://sqlite.org/src/info/a9cea5b555",
       "upstream_summary": "Fix the sqlite3ParseUri() for improved defenses against ridiculously long URI inputs causing integer overflow problems.",
-      "assessment_inference": "core C API/configuration; invocation conditions not established"
+      "assessment_inference": "URI parsing enabled by compiled USE_URI and default SQLITE_OPEN_URI; extreme input-length trigger untested"
     },
     {
       "checkin": "d9177ed965",
@@ -483,5 +483,6 @@
       "upstream_summary": "Version 3.53.2",
       "assessment_inference": "release/test/diagnostic only"
     }
-  ]
+  ],
+  "date_basis": "UTC; the directory uses the September 9 local assessment label"
 }
