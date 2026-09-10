@@ -4,7 +4,7 @@ const USAGE: &str = "usage: ask [new|n] <prompt words...> | ask [init|i] | ask [
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
-    Query(String),
+    Query(Option<String>),
     Init,
     Configure(Action),
 }
@@ -47,10 +47,7 @@ pub fn parse(
         }
         _ => {}
     }
-    if words.is_empty() {
-        return Err(USAGE.to_string());
-    }
-    Ok(Command::Query(words.join(" ")))
+    Ok(Command::Query((!words.is_empty()).then(|| words.join(" "))))
 }
 
 fn configure(rest: &[String], stdin_is_terminal: bool) -> Result<Command, String> {

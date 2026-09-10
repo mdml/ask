@@ -4,6 +4,7 @@ mod cli;
 mod config;
 mod configure;
 mod init;
+mod input;
 mod output;
 mod provider;
 mod runner;
@@ -34,7 +35,9 @@ async fn execute(
     stderr: &mut impl io::Write,
 ) -> ExitCode {
     let wall_start = Instant::now();
-    let prompt = match cli::parse(args, io::stdin().is_terminal()) {
+    let stdin = io::stdin();
+    let stdin_is_terminal = stdin.is_terminal();
+    let words = match cli::parse(args, stdin_is_terminal) {
         Ok(cli::Command::Query(prompt)) => prompt,
         Ok(cli::Command::Init) => return init(stderr),
         Ok(cli::Command::Configure(action)) => return configure(&action, stderr),
@@ -47,6 +50,15 @@ async fn execute(
     let credential = match credential(&target.api_key_env) {
         Ok(value) => value,
         Err(message) => return report(stderr, &message, ExitCode::FAILURE),
+    };
+    let prompt = match input::resolve(
+        words.as_deref(),
+        stdin_is_terminal,
+        &mut stdin.lock(),
+        stderr,
+    ) {
+        Ok(prompt) => prompt,
+        Err(error) => return report(stderr, &error.to_string(), error.status()),
     };
     let provider = RigProvider::new(&target, credential);
     let mut answer = AnswerWriter::new(stdout);
