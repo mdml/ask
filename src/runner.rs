@@ -174,11 +174,11 @@ impl Limit {
     }
 }
 
+/// Ends a partial answer. The provider or timeout failure that stopped the
+/// stream stays the reported error even if finishing stdout also fails.
 fn after_partial<W: io::Write>(output: &mut AnswerWriter<'_, W>, original: RunError) -> RunError {
-    match output.finish(false) {
-        Ok(()) => original,
-        Err(error) => RunError::Output(error),
-    }
+    let _ = output.finish(false);
+    original
 }
 
 #[cfg(test)]
@@ -202,6 +202,32 @@ mod tests {
             RunError::Timeout(25).to_string(),
             "provider request timed out after 25 ms"
         );
+    }
+
+    /// Accepts answer text, then reports a closed pipe for the final newline.
+    struct ClosedAfterText(bool);
+
+    impl io::Write for ClosedAfterText {
+        fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+            if self.0 {
+                return Err(io::ErrorKind::BrokenPipe.into());
+            }
+            self.0 = true;
+            Ok(bytes.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn a_closed_pipe_while_finishing_keeps_the_provider_failure() {
+        let mut stdout = ClosedAfterText(false);
+        let mut output = AnswerWriter::new(&mut stdout);
+        output.write_chunk("partial").unwrap();
+        let error = after_partial(&mut output, RunError::Provider("reset".into()));
+        assert_eq!(error.class(), "provider");
     }
 
     #[test]

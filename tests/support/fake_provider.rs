@@ -30,6 +30,8 @@ pub enum Scenario {
 pub struct RecordedRequest {
     pub path: String,
     pub authorization_present: bool,
+    /// Whether the bearer credential is exactly the test fixture's.
+    pub authorization_is_fixture: bool,
     pub model: String,
     pub messages: Vec<(String, String)>,
 }
@@ -225,10 +227,18 @@ fn read_request(stream: &mut TcpStream) -> Option<RecordedRequest> {
     let authorization_present = headers
         .lines()
         .any(|line| line.to_ascii_lowercase().starts_with("authorization:"));
+    let fixture = format!(
+        "authorization: bearer {}",
+        super::CREDENTIAL.to_ascii_lowercase()
+    );
+    let authorization_is_fixture = headers
+        .lines()
+        .any(|line| line.trim().to_ascii_lowercase() == fixture);
     let value: Value = rig_core::serde_json::from_slice(body).ok()?;
     Some(RecordedRequest {
         path,
         authorization_present,
+        authorization_is_fixture,
         model: value["model"].as_str()?.to_string(),
         messages: messages(&value),
     })
