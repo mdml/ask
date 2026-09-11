@@ -6,7 +6,7 @@ Thank you for helping build `ask`. This document describes the repository workfl
 
 Install Rust 1.97.1 with [rustup](https://rustup.rs/) or rely on the pinned toolchain in `rust-toolchain.toml`.
 
-Clean builds require a C toolchain and CMake because Rig's Rustls path builds the bundled AWS-LC C and assembly sources.
+Clean builds require a C toolchain and CMake because Rig's Rustls path builds the bundled AWS-LC C and assembly sources and `libsqlite3-sys` compiles the bundled SQLite amalgamation.
 
 Install pinned helper tools with [mise](https://mise.jdx.dev/):
 
