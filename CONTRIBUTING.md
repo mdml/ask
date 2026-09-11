@@ -62,7 +62,7 @@ The configure proof drives `ask init` with redirected stdin, validates and appli
 
 ## Dependency updates
 
-Dependency updates are proposed for human review through Dependabot and nightly advisory checks. They are never auto-merged. Dependabot opens its pull requests against `staging`, like other feature changes, so updates reach `main` only through promotion.
+Dependency updates are proposed for human review through Dependabot and nightly advisory checks. They are never auto-merged. Dependabot version-update pull requests target `staging`, like other feature changes, so those updates reach `main` only through promotion. Dependabot reads that setting from `main`, so it applies only after it has been promoted. Dependabot security-update pull requests always target the default branch, `main`, and do not follow `target-branch`; apply such an update through a pull request to `staging` rather than merging it into `main` directly.
 
 ## Questions
 
