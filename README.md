@@ -83,7 +83,28 @@ model = "fake-model"
 
 `api_key_env` names the environment variable that supplies the credential; `ask` does not store credential values. The request timeout defaults to 30 seconds and must be greater than zero. When a profile sets no `system_prompt`, `ask` sends this default system prompt: "Answer briefly in plain Markdown suitable for a terminal." A profile's `system_prompt` replaces it. Retention and display settings are not yet implemented.
 
-The answer is streamed to stdout as unstyled Markdown and ends with exactly one newline. Statistics, warnings, usage errors, and diagnostics are written to stderr. A successful query exits 0, and provider and configuration failures exit 1. If the stdout reader closes early, `ask` exits 0 without a diagnostic. Running `ask` with no prompt words currently prints a usage message and exits 2; the intended behavior, an interactive multiline `>` prompt, is not yet implemented.
+### Query input and output
+
+`ask`, `ask new`, and `ask n` resolve query input the same way:
+
+- Redirected stdin without prompt words supplies the prompt.
+- Prompt words with redirected stdin supply an instruction and an input payload, respectively. When stdin is an open pipe that carries no payload, such as under `ssh` without `-n` or in a job runner, `ask` waits for EOF; redirect stdin from `/dev/null` in that case.
+- Terminal stdin with prompt words uses the words immediately, without reading stdin. Configuration and credential problems are reported before any input is read or prompted for.
+- Terminal stdin without prompt words opens a multiline prompt on stderr and reads the query from the terminal.
+
+```sh
+printf 'what is 2+2' | ask
+printf '> first line\n> second line\n' | ask "remove blockquoting from this text"
+ask n
+```
+
+The composition rule joins the instruction, a blank line, and the payload as `"{instruction}\n\n{payload}"`. Prompt words are joined with single spaces and surrounding whitespace is trimmed in every mode; the UTF-8 payload is preserved byte for byte, including leading whitespace and trailing newlines. An empty or whitespace-only payload, such as stdin redirected from `/dev/null`, leaves the instruction alone. Prompt words that are empty or whitespace-only are a usage error whether stdin is a terminal or redirected, and nothing is read. This is a compositional convenience, not a security boundary.
+
+The multiline prompt prints `ask> ` on stderr before the first line and reads until EOF. At the start of a line, Ctrl-D sends EOF and submits the collected text unchanged. On a partially typed line, Ctrl-D first makes the terminal deliver the pending text; a second Ctrl-D submits. Ctrl-C cancels the multiline prompt: no provider request is sent and nothing is written to stdout. `ask` installs no signal handler and exits by the default SIGINT disposition (status 130 in most shells). Empty or whitespace-only input from either a terminal submission or redirected stdin without prompt words is rejected with exit 2 and a one-line stderr diagnostic; no provider request is sent.
+
+Stdin must be valid UTF-8 and is read to EOF. There is no application-imposed size cap for stdin in 0.1.0. Invalid UTF-8 and input read failures exit 1 with one `ask: ...` stderr diagnostic line, empty stdout, and no provider request; invalid bytes are never converted lossily.
+
+The answer is streamed to stdout as unstyled Markdown and ends with exactly one newline. Prompts, statistics, warnings, usage errors, and diagnostics are written to stderr. A successful query exits 0, usage errors exit 2, and provider and configuration failures exit 1. A streaming failure preserves any partial answer and reports the error on stderr. If the stdout reader closes early, `ask` exits 0 without a diagnostic.
 
 ## Development
 

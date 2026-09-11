@@ -1,0 +1,50 @@
+"""Query terminal proofs through a PTY, using only the Python standard library."""
+import os
+import pty
+import signal
+import subprocess
+import sys
+
+if not __debug__:
+    sys.exit('query proofs require Python assertions')
+
+signal.alarm(20)
+binary, home, scenario, *args = sys.argv[1:]
+os.environ['ASK_HOME'] = home
+master, slave = pty.openpty()
+try:
+    # SIG_DFL for SIGINT in the child, even if the runner inherited SIG_IGN.
+    child = subprocess.Popen([binary, *args], stdin=slave,
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_DFL))
+    if scenario != 'words':
+        assert child.stderr.read(5) == b'ask> '
+        if scenario == 'cancel':
+            # Deliver SIGINT directly, as the terminal driver does for Ctrl-C,
+            # so the proof does not depend on controlling-terminal setup.
+            os.write(master, b'partial question')
+            child.send_signal(signal.SIGINT)
+        else:
+            payload = {'multiline': b'first line\nsecond line\n',
+                       'empty': b'', 'whitespace': b' \t\n'}[scenario]
+            os.write(master, payload + b'\x04')
+    out, err = child.communicate(timeout=10)
+    if scenario == 'cancel':
+        assert child.returncode == -signal.SIGINT, (child.returncode, err)
+        assert not out, out
+    elif scenario in ('empty', 'whitespace'):
+        assert child.returncode == 2, (child.returncode, err)
+        assert not out, out
+        assert err.startswith(b'ask: '), err
+        assert len(err.splitlines()) == 1, err
+    else:
+        assert child.returncode == 0, (child.returncode, err)
+        assert out == b'**4**\n', out
+        assert err.startswith(b'ask: fake-model'), err
+        assert len(err.splitlines()) == 1, err
+finally:
+    os.close(slave)
+    os.close(master)
+    if child.poll() is None:
+        child.kill()
+        child.wait()

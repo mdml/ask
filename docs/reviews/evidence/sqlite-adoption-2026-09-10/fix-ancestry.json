@@ -1,0 +1,78 @@
+{
+  "observation_date": "2026-09-10",
+  "method": "SQLite check-in identifiers were located in the two branch timelines below; each identifier's info page supplied its commit date, comment, and containing release. Release dates and per-release sqlite3.c SHA3-256 digests come from the SQLite change log. Presence in a 3.53 branch timeline interval that ends at a release tag means the check-in is an ancestor of that release and of the later 3.53 branch release recorded here; other branches and later reversions were not checked.",
+  "sources": {
+    "timeline_3.53.2_to_3.53.3": "https://sqlite.org/src/timeline?from=version-3.53.2&to=version-3.53.3&y=ci",
+    "timeline_3.53.3_to_3.53.4": "https://sqlite.org/src/timeline?from=version-3.53.3&to=version-3.53.4&y=ci",
+    "change_log": "https://sqlite.org/changes.html",
+    "check_in_info": "https://sqlite.org/src/info/<check-in-id>"
+  },
+  "releases": [
+    {"version": "3.53.2", "date": "2026-06-03", "sqlite3_c_sha3_256": "44fd61b9f93b4155105cb2d80c957ae6c64a8b5bd6ed51a4992f0dbd438e4e11", "source_id": "2026-06-03 19:12:13 d6e03d8c777cfa2d35e3b60d8ec3e0187f3e9f99d8e2ee9cac695fd6fcdf1a24"},
+    {"version": "3.53.3", "date": "2026-06-26", "sqlite3_c_sha3_256": "28e484abdaa43630e34040ef6ed92be973a1ad54107803d8af5145b889c23ed7", "source_id": "2026-06-26 20:14:12 d4c0e51e4aeb96955b99185ab9cde75c339e2c29c3f3f12428d364a10d782c62"},
+    {"version": "3.53.4", "date": "2026-07-24", "sqlite3_c_sha3_256": "67f423e9ebbbdc473cbc4772c872ee6b89f31fde4ed0279a5c25d5f65c043a16", "source_id": "2026-07-24 19:02:57 bf7c7f30031888f4e796e429ab3978879485813aaca6f641c7b33e4e09459bcc"}
+  ],
+  "check_ins": [
+    {
+      "id": "6826c17021",
+      "date": "2026-06-24",
+      "comment": "Check for cells extending too far past the end of a page while searching an index.",
+      "in_3.53.3": true,
+      "in_3.53.4": true,
+      "first_release": "3.53.3",
+      "absent_from_candidate_3.53.2": true,
+      "class": "index-page bounds check on read"
+    },
+    {
+      "id": "1a888ea60b",
+      "date": "2026-06-26",
+      "comment": "Improved detection of corrupt freelist chains on btree pages, plus assert()s guarding the min-heap in PRAGMA integrity_check.",
+      "in_3.53.3": true,
+      "in_3.53.4": true,
+      "first_release": "3.53.3",
+      "absent_from_candidate_3.53.2": true,
+      "class": "freelist corruption detection"
+    },
+    {
+      "id": "9471fa2c9c",
+      "date": "2026-06-24",
+      "comment": "When rolling back a journal containing a super-journal pointer, only unlink the super-journal if the filename looks generated and the super-journal names the journal being rolled back. Limits crafted hot-journal file deletion.",
+      "in_3.53.3": true,
+      "in_3.53.4": true,
+      "first_release": "3.53.3",
+      "absent_from_candidate_3.53.2": true,
+      "class": "crafted hot-journal file-deletion trust boundary"
+    },
+    {
+      "id": "9a79ca31ff",
+      "date": "2026-06-12",
+      "comment": "When using a read-only WAL/SHM, handle a corrupt page size in the WAL file correctly.",
+      "in_3.53.3": true,
+      "in_3.53.4": true,
+      "first_release": "3.53.3",
+      "absent_from_candidate_3.53.2": true,
+      "class": "read-only WAL corrupt page-size handling"
+    },
+    {
+      "id": "aa756c8038",
+      "date": "2026-06-12",
+      "comment": "When reading a super-journal name from a journal file, allocate a new buffer rather than using Pager.pTmpSpace. Prevents a buffer overrun with a VFS with large sqlite3_vfs.mxPathname and a small page size.",
+      "in_3.53.3": true,
+      "in_3.53.4": true,
+      "first_release": "3.53.3",
+      "absent_from_candidate_3.53.2": true,
+      "class": "custom-VFS large-mxPathname buffer overrun"
+    },
+    {
+      "id": "bf70dadc2d",
+      "date": "2026-07-20",
+      "comment": "Ensure a hot journal is rolled back when a crash leaves a super-journal record whose magic and length are correct but whose name and checksum are both zeroed. Forum post 2026-07-20T18:27:00Z.",
+      "in_3.53.3": false,
+      "in_3.53.4": true,
+      "first_release": "3.53.4",
+      "absent_from_candidate_3.53.2": true,
+      "class": "zeroed super-journal recovery regression",
+      "supersedes_note": "Corrects the September 9 readiness inference. The upstream forum report (https://sqlite.org/forum/info/2026-07-20T18:27:00Z) places the regression in 3.53.3 and excludes 3.53.2: the 3.53.3 refactor of readSuperJournal() introduced the empty-name path, while 3.53.2 pager_playback() tests zSuper[0]. The candidate 3.53.2 is not exposed to this regression."
+    }
+  ]
+}
