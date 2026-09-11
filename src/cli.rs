@@ -1,12 +1,19 @@
 use std::{fmt, path::PathBuf};
 
-const USAGE: &str = "usage: ask [new|n] <prompt words...> | ask [init|i] | ask [configure|c] check [FILE|-] | ask [configure|c] apply [FILE|-]";
+const USAGE: &str = "usage: ask [new|n] <prompt words...> | ask [reply|r] <prompt words...> | ask [init|i] | ask [configure|c] check [FILE|-] | ask [configure|c] apply [FILE|-]";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
-    Query(Option<String>),
+    Query(Mode, Option<String>),
     Init,
     Configure(Action),
+}
+
+/// Whether a query starts a new thread or continues the current one.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Mode {
+    New,
+    Reply,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -38,16 +45,21 @@ pub fn parse(
     stdin_is_terminal: bool,
 ) -> Result<Command, String> {
     let mut words: Vec<String> = args.into_iter().collect();
-    match words.first().map(String::as_str) {
+    let (mode, named) = match words.first().map(String::as_str) {
         Some("init" | "i") if words.len() == 1 => return Ok(Command::Init),
         Some("init" | "i") => return Err(USAGE.to_string()),
         Some("configure" | "c") => return configure(&words[1..], stdin_is_terminal),
-        Some("new" | "n") => {
-            words.remove(0);
-        }
-        _ => {}
+        Some("new" | "n") => (Mode::New, true),
+        Some("reply" | "r") => (Mode::Reply, true),
+        _ => (Mode::New, false),
+    };
+    if named {
+        words.remove(0);
     }
-    Ok(Command::Query((!words.is_empty()).then(|| words.join(" "))))
+    Ok(Command::Query(
+        mode,
+        (!words.is_empty()).then(|| words.join(" ")),
+    ))
 }
 
 fn configure(rest: &[String], stdin_is_terminal: bool) -> Result<Command, String> {

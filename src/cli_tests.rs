@@ -13,7 +13,7 @@ fn terminal(values: &[&str]) -> Result<Command, String> {
 }
 
 fn query(text: &str) -> Result<Command, String> {
-    Ok(Command::Query(Some(text.to_string())))
+    Ok(Command::Query(Mode::New, Some(text.to_string())))
 }
 
 fn usage() -> Result<Command, String> {
@@ -34,8 +34,19 @@ fn aliases_strip_the_command() {
 #[test]
 fn empty_query_words_are_resolved_from_stdin() {
     for args in [&[][..], &["new"][..], &["n"][..]] {
-        assert_eq!(piped(args), Ok(Command::Query(None)));
-        assert_eq!(terminal(args), Ok(Command::Query(None)));
+        assert_eq!(piped(args), Ok(Command::Query(Mode::New, None)));
+        assert_eq!(terminal(args), Ok(Command::Query(Mode::New, None)));
+    }
+}
+
+#[test]
+fn reply_and_its_alias_continue_the_current_thread() {
+    for name in ["reply", "r"] {
+        assert_eq!(
+            piped(&[name, "and", "then"]),
+            Ok(Command::Query(Mode::Reply, Some("and then".to_string())))
+        );
+        assert_eq!(terminal(&[name]), Ok(Command::Query(Mode::Reply, None)));
     }
 }
 
