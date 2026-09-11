@@ -64,6 +64,9 @@ impl Gate {
 struct Shared {
     recorded: Mutex<Vec<RecordedRequest>>,
     gate: Gate,
+    /// The one request whose response waits for the gate, or `None` when
+    /// every response waits for it.
+    held: Option<usize>,
     stop: AtomicBool,
 }
 
@@ -78,19 +81,26 @@ pub struct FakeProvider {
 
 impl FakeProvider {
     pub fn start(scenario: Scenario) -> Self {
-        Self::launch(vec![scenario], true)
+        Self::launch(vec![scenario], true, None)
     }
 
     pub fn sequence(scenarios: Vec<Scenario>) -> Self {
-        Self::launch(scenarios, true)
+        Self::launch(scenarios, true, None)
     }
 
     /// Records requests but withholds every response until [`Self::release`].
     pub fn gated(scenario: Scenario) -> Self {
-        Self::launch(vec![scenario], false)
+        Self::launch(vec![scenario], false, None)
     }
 
-    fn launch(scenarios: Vec<Scenario>, open: bool) -> Self {
+    /// Like [`Self::sequence`], but withholds only the response to the
+    /// zero-based request `held` until [`Self::release`], answering later
+    /// requests meanwhile.
+    pub fn holding(scenarios: Vec<Scenario>, held: usize) -> Self {
+        Self::launch(scenarios, false, Some(held))
+    }
+
+    fn launch(scenarios: Vec<Scenario>, open: bool, held: Option<usize>) -> Self {
         let serial = FAKE_LOCK
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -99,6 +109,7 @@ impl FakeProvider {
         let shared = Arc::new(Shared {
             recorded: Mutex::new(Vec::new()),
             gate: Gate::new(open),
+            held,
             stop: AtomicBool::new(false),
         });
         let thread_shared = Arc::clone(&shared);
@@ -156,7 +167,7 @@ impl Drop for FakeProvider {
     }
 }
 
-fn serve(listener: &TcpListener, scenarios: &[Scenario], shared: &Shared) {
+fn serve(listener: &TcpListener, scenarios: &[Scenario], shared: &Arc<Shared>) {
     for connection in listener.incoming() {
         if shared.stop.load(Ordering::SeqCst) {
             return;
@@ -170,8 +181,31 @@ fn serve(listener: &TcpListener, scenarios: &[Scenario], shared: &Shared) {
             recorded.push(request);
             recorded.len() - 1
         };
-        shared.gate.wait();
-        respond(&mut stream, scenarios[index.min(scenarios.len() - 1)]);
+        answer(
+            stream,
+            scenarios[index.min(scenarios.len() - 1)],
+            index,
+            shared,
+        );
+    }
+}
+
+/// Answers a singly held request on its own thread so later requests are
+/// served while it waits.
+fn answer(mut stream: TcpStream, scenario: Scenario, index: usize, shared: &Arc<Shared>) {
+    match shared.held {
+        Some(held) if held == index => {
+            let shared = Arc::clone(shared);
+            thread::spawn(move || {
+                shared.gate.wait();
+                respond(&mut stream, scenario);
+            });
+        }
+        Some(_) => respond(&mut stream, scenario),
+        None => {
+            shared.gate.wait();
+            respond(&mut stream, scenario);
+        }
     }
 }
 
