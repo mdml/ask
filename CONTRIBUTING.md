@@ -62,7 +62,7 @@ The configure proof drives `ask init` with redirected stdin, validates and appli
 
 ## Dependency updates
 
-Dependency updates are proposed for human review through Dependabot and nightly advisory checks. They are never auto-merged.
+Dependency updates are proposed for human review through Dependabot and nightly advisory checks. They are never auto-merged. Dependabot opens its pull requests against `staging`, like other feature changes, so updates reach `main` only through promotion.
 
 ## Questions
 
