@@ -102,6 +102,51 @@ fn new_forms_start_fresh_threads() {
 }
 
 #[test]
+fn an_overlapped_reply_appends_to_its_pinned_thread_and_finishes_current() {
+    let fake = FakeProvider::holding(
+        vec![
+            Scenario::Answer("a1"),
+            Scenario::Answer("r1"),
+            Scenario::Answer("b1"),
+            Scenario::Answer("r2"),
+        ],
+        1,
+    );
+    let home = configured(&fake.base_url());
+    answered(&ask(&home, &["new", "qa"]), b"a1\n");
+    let reply = command(&home, true)
+        .args(["reply", "follow"])
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    assert_eq!(
+        fake.requests(2)[1].messages,
+        conversation(&["qa", "a1", "follow"])
+    );
+    answered(&ask(&home, &["new", "qb"]), b"b1\n");
+    assert_rows(&home, &[("SELECT thread_id FROM current_thread", "2")]);
+    fake.release();
+    answered(&reply.wait_with_output().unwrap(), b"r1\n");
+    assert_rows(
+        &home,
+        &[
+            (
+                "SELECT group_concat(thread_id || ':' || turns, ',') FROM (SELECT thread_id, count(*) AS turns FROM turns GROUP BY thread_id ORDER BY thread_id)",
+                "1:2,2:1",
+            ),
+            ("SELECT thread_id FROM current_thread", "1"),
+        ],
+    );
+    answered(&ask(&home, &["r", "again"]), b"r2\n");
+    assert_eq!(
+        fake.requests(4)[3].messages,
+        conversation(&["qa", "a1", "follow", "r1", "again"])
+    );
+}
+
+#[test]
 fn reply_accepts_piped_input() {
     let fake = FakeProvider::start(Scenario::Answer("ok"));
     let home = configured(&fake.base_url());
