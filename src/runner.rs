@@ -6,8 +6,7 @@ use tokio::time::{Duration, timeout_at};
 use crate::{
     config::Target,
     output::AnswerWriter,
-    provider::{Event, PromptProvider, Request},
-    stats::Statistics,
+    provider::{Event, EventStream, PromptProvider, ProviderError, Request, Usage},
 };
 
 #[derive(Debug)]
@@ -20,6 +19,23 @@ pub enum RunError {
 impl RunError {
     pub fn is_broken_pipe(&self) -> bool {
         matches!(self, Self::Output(error) if error.kind() == io::ErrorKind::BrokenPipe)
+    }
+
+    pub const fn is_output(&self) -> bool {
+        matches!(self, Self::Output(_))
+    }
+
+    /// A text-free failure category suitable for statistics.
+    pub const fn class(&self) -> &'static str {
+        match self {
+            Self::Provider(_) => "provider",
+            Self::Timeout(_) => "timeout",
+            Self::Output(_) => "output",
+        }
+    }
+
+    fn provider(error: ProviderError) -> Self {
+        Self::Provider(error.to_string())
     }
 }
 
@@ -38,71 +54,131 @@ impl fmt::Display for RunError {
     }
 }
 
+/// Everything one query produced, whether it finished or failed. `answer` is
+/// the raw text received from the provider, before stdout normalization.
+pub struct Outcome {
+    pub answer: String,
+    pub usage: Option<Usage>,
+    pub api: Duration,
+    pub first_token: Option<Duration>,
+    pub error: Option<RunError>,
+}
+
 pub async fn run<P: PromptProvider, W: io::Write>(
     provider: &P,
     target: &Target,
-    prompt: &str,
-    wall_start: Instant,
+    request: Request<'_>,
     output: &mut AnswerWriter<'_, W>,
-) -> Result<Statistics, RunError> {
-    let api_start = Instant::now();
-    let deadline = tokio::time::Instant::now() + Duration::from_millis(target.timeout_ms);
-    let request = Request {
-        prompt,
-        system_prompt: &target.system_prompt,
-    };
-    let started = within(deadline, target.timeout_ms, provider.start(request)).await?;
-    let mut stream = started.map_err(|error| RunError::Provider(error.to_string()))?;
-    let mut first_token = None;
-    let mut usage = None;
-    loop {
-        let item = match within(deadline, target.timeout_ms, stream.next()).await {
-            Ok(item) => item,
-            Err(error) => return Err(after_partial(output, error)),
-        };
-        let Some(item) = item else { break };
-        let event = match item {
-            Ok(event) => event,
-            Err(error) => {
-                let error = RunError::Provider(error.to_string());
-                return Err(after_partial(output, error));
-            }
-        };
-        match event {
-            Event::Text(text) => {
-                first_token.get_or_insert_with(|| api_start.elapsed());
-                output.write_chunk(&text).map_err(RunError::Output)?;
-            }
-            Event::Usage(reported) => usage = reported,
-            Event::Other => {}
+) -> Outcome {
+    let mut progress = Progress::new();
+    let error = progress.stream(provider, target, request, output).await;
+    progress.into_outcome(error.err())
+}
+
+struct Progress {
+    start: Instant,
+    answer: String,
+    usage: Option<Usage>,
+    first_token: Option<Duration>,
+    api: Option<Duration>,
+}
+
+impl Progress {
+    fn new() -> Self {
+        Self {
+            start: Instant::now(),
+            answer: String::new(),
+            usage: None,
+            first_token: None,
+            api: None,
         }
     }
-    let api = api_start.elapsed();
-    output.finish(true).map_err(RunError::Output)?;
-    Ok(Statistics {
-        model: target.model.clone(),
-        wall: wall_start.elapsed(),
-        api,
-        ttft: first_token.unwrap_or(api),
-        usage,
-    })
+
+    async fn stream<P: PromptProvider, W: io::Write>(
+        &mut self,
+        provider: &P,
+        target: &Target,
+        request: Request<'_>,
+        output: &mut AnswerWriter<'_, W>,
+    ) -> Result<(), RunError> {
+        let limit = Limit::new(target.timeout_ms);
+        let started = limit.within(provider.start(request)).await?;
+        let mut stream = started.map_err(RunError::provider)?;
+        while let Some(event) = limit
+            .next(&mut stream)
+            .await
+            .map_err(|error| after_partial(output, error))?
+        {
+            self.accept(event, output)?;
+        }
+        self.api = Some(self.start.elapsed());
+        output.finish(true).map_err(RunError::Output)
+    }
+
+    fn accept<W: io::Write>(
+        &mut self,
+        event: Event,
+        output: &mut AnswerWriter<'_, W>,
+    ) -> Result<(), RunError> {
+        match event {
+            Event::Text(text) => {
+                let start = self.start;
+                self.first_token.get_or_insert_with(|| start.elapsed());
+                self.answer.push_str(&text);
+                output.write_chunk(&text).map_err(RunError::Output)
+            }
+            Event::Usage(reported) => {
+                self.usage = reported;
+                Ok(())
+            }
+            Event::Other => Ok(()),
+        }
+    }
+
+    fn into_outcome(self, error: Option<RunError>) -> Outcome {
+        Outcome {
+            api: self.api.unwrap_or_else(|| self.start.elapsed()),
+            answer: self.answer,
+            usage: self.usage,
+            first_token: self.first_token,
+            error,
+        }
+    }
 }
 
-async fn within<F: Future>(
+/// The single request deadline shared by connection and every stream item.
+struct Limit {
     deadline: tokio::time::Instant,
     timeout_ms: u64,
-    future: F,
-) -> Result<F::Output, RunError> {
-    timeout_at(deadline, future)
-        .await
-        .map_err(|_| RunError::Timeout(timeout_ms))
 }
 
-fn after_partial<W: io::Write>(output: &mut AnswerWriter<'_, W>, original: RunError) -> RunError {
-    match output.finish(false) {
-        Ok(()) => original,
-        Err(error) => RunError::Output(error),
+impl Limit {
+    fn new(timeout_ms: u64) -> Self {
+        Self {
+            deadline: tokio::time::Instant::now() + Duration::from_millis(timeout_ms),
+            timeout_ms,
+        }
     }
+
+    async fn within<F: Future>(&self, future: F) -> Result<F::Output, RunError> {
+        timeout_at(self.deadline, future)
+            .await
+            .map_err(|_| RunError::Timeout(self.timeout_ms))
+    }
+
+    async fn next(&self, stream: &mut EventStream) -> Result<Option<Event>, RunError> {
+        match self.within(stream.next()).await? {
+            None => Ok(None),
+            Some(item) => item.map(Some).map_err(RunError::provider),
+        }
+    }
+}
+
+/// Ends a partial answer. The provider or timeout failure that stopped the
+/// stream stays the reported error even if finishing stdout also fails.
+fn after_partial<W: io::Write>(output: &mut AnswerWriter<'_, W>, original: RunError) -> RunError {
+    let _ = output.finish(false);
+    original
 }
 
 #[cfg(test)]
@@ -126,5 +202,41 @@ mod tests {
             RunError::Timeout(25).to_string(),
             "provider request timed out after 25 ms"
         );
+    }
+
+    /// Accepts answer text, then reports a closed pipe for the final newline.
+    struct ClosedAfterText(bool);
+
+    impl io::Write for ClosedAfterText {
+        fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+            if self.0 {
+                return Err(io::ErrorKind::BrokenPipe.into());
+            }
+            self.0 = true;
+            Ok(bytes.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn a_closed_pipe_while_finishing_keeps_the_provider_failure() {
+        let mut stdout = ClosedAfterText(false);
+        let mut output = AnswerWriter::new(&mut stdout);
+        output.write_chunk("partial").unwrap();
+        let error = after_partial(&mut output, RunError::Provider("reset".into()));
+        assert_eq!(error.class(), "provider");
+    }
+
+    #[test]
+    fn classes_carry_no_message_text() {
+        let output = RunError::Output(io::Error::other("detail"));
+        assert_eq!(RunError::Provider("detail".into()).class(), "provider");
+        assert_eq!(RunError::Timeout(1).class(), "timeout");
+        assert_eq!(output.class(), "output");
+        assert!(output.is_output());
+        assert!(!RunError::Timeout(1).is_output());
     }
 }

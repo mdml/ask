@@ -7,8 +7,10 @@ mod init;
 mod input;
 mod output;
 mod provider;
+mod query;
 mod runner;
 mod stats;
+mod store;
 mod validate;
 
 use std::{
@@ -17,9 +19,6 @@ use std::{
     process::ExitCode,
     time::Instant,
 };
-
-use output::AnswerWriter;
-use provider::RigProvider;
 
 pub const DEFAULT_SYSTEM_PROMPT: &str = "Answer briefly in plain Markdown suitable for a terminal.";
 
@@ -35,38 +34,20 @@ async fn execute(
     stderr: &mut impl io::Write,
 ) -> ExitCode {
     let wall_start = Instant::now();
-    let stdin = io::stdin();
-    let stdin_is_terminal = stdin.is_terminal();
-    let words = match cli::parse(args, stdin_is_terminal) {
-        Ok(cli::Command::Query(prompt)) => prompt,
+    let stdin_is_terminal = io::stdin().is_terminal();
+    let (mode, words) = match cli::parse(args, stdin_is_terminal) {
+        Ok(cli::Command::Query(mode, words)) => (mode, words),
         Ok(cli::Command::Init) => return init(stderr),
         Ok(cli::Command::Configure(action)) => return configure(&action, stderr),
         Err(message) => return report(stderr, &message, ExitCode::from(2)),
     };
-    let target = match config::load().and_then(config::Config::resolve) {
-        Ok(target) => target,
-        Err(error) => return report(stderr, &error.to_string(), ExitCode::FAILURE),
-    };
-    let credential = match credential(&target.api_key_env) {
-        Ok(value) => value,
-        Err(message) => return report(stderr, &message, ExitCode::FAILURE),
-    };
-    let prompt = match input::resolve(
-        words.as_deref(),
+    let query = query::Query {
+        mode,
+        words: words.as_deref(),
         stdin_is_terminal,
-        &mut stdin.lock(),
-        stderr,
-    ) {
-        Ok(prompt) => prompt,
-        Err(error) => return report(stderr, &error.to_string(), error.status()),
+        started: wall_start,
     };
-    let provider = RigProvider::new(&target, credential);
-    let mut answer = AnswerWriter::new(stdout);
-    match runner::run(&provider, &target, &prompt, wall_start, &mut answer).await {
-        Ok(statistics) => report(stderr, &statistics.to_string(), ExitCode::SUCCESS),
-        Err(error) if error.is_broken_pipe() => ExitCode::SUCCESS,
-        Err(error) => report(stderr, &error.to_string(), ExitCode::FAILURE),
-    }
+    query::run(query, stdout, stderr).await
 }
 
 fn init(stderr: &mut impl io::Write) -> ExitCode {
