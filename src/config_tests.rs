@@ -20,6 +20,8 @@ fn resolved(contents: &str) -> Target {
 #[test]
 fn parses_and_resolves_defaults() {
     let target = resolved(CONFIG);
+    assert_eq!(target.profile, "default");
+    assert_eq!(target.kind, "openai-compatible");
     assert_eq!(target.base_url, "http://127.0.0.1:1234/v1");
     assert_eq!(target.api_key_env, "LOCAL_API_KEY");
     assert_eq!(target.timeout_ms, 30_000);

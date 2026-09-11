@@ -2,7 +2,7 @@
 
 `ask` is a fast, opinionated terminal lookup tool for asking language models quick questions without starting an agent session.
 
-**Status: pre-alpha.** The query, initialization, and configuration commands are implemented, but interfaces may change before the first `0.1.0` release. The only provider kind currently supported is `openai-compatible`.
+**Status: pre-alpha.** The query, reply, initialization, and configuration commands are implemented, but interfaces may change before the first `0.1.0` release. The only provider kind currently supported is `openai-compatible`.
 
 ## Usage
 
@@ -13,6 +13,8 @@ ask "what is 2+2"
 ask new "what is 2+2"
 ask n "what is 2+2"
 ```
+
+`ask reply` and `ask r` continue the current thread; see [Threads and replies](#threads-and-replies).
 
 `ask` reads `$ASK_HOME/config.toml` when `ASK_HOME` is set. Otherwise, it reads `config.toml` from the platform-standard configuration directory for an application named `ask`.
 
@@ -85,11 +87,11 @@ model = "fake-model"
 
 ### Query input and output
 
-`ask`, `ask new`, and `ask n` resolve query input the same way:
+`ask`, `ask new`, `ask n`, `ask reply`, and `ask r` resolve query input the same way:
 
 - Redirected stdin without prompt words supplies the prompt.
 - Prompt words with redirected stdin supply an instruction and an input payload, respectively. When stdin is an open pipe that carries no payload, such as under `ssh` without `-n` or in a job runner, `ask` waits for EOF; redirect stdin from `/dev/null` in that case.
-- Terminal stdin with prompt words uses the words immediately, without reading stdin. Configuration and credential problems are reported before any input is read or prompted for.
+- Terminal stdin with prompt words uses the words immediately, without reading stdin. Configuration, credential, database, and missing-current-thread problems are reported before any input is read or prompted for.
 - Terminal stdin without prompt words opens a multiline prompt on stderr and reads the query from the terminal.
 
 ```sh
@@ -104,7 +106,45 @@ The multiline prompt prints `ask> ` on stderr before the first line and reads un
 
 Stdin must be valid UTF-8 and is read to EOF. There is no application-imposed size cap for stdin in 0.1.0. Invalid UTF-8 and input read failures exit 1 with one `ask: ...` stderr diagnostic line, empty stdout, and no provider request; invalid bytes are never converted lossily.
 
-The answer is streamed to stdout as unstyled Markdown and ends with exactly one newline. Prompts, statistics, warnings, usage errors, and diagnostics are written to stderr. A successful query exits 0, usage errors exit 2, and provider and configuration failures exit 1. A streaming failure preserves any partial answer and reports the error on stderr. If the stdout reader closes early, `ask` exits 0 without a diagnostic.
+The answer is streamed to stdout as unstyled Markdown and ends with exactly one newline. Prompts, statistics, warnings, usage errors, and diagnostics are written to stderr. A successful query exits 0, usage errors exit 2, and provider and configuration failures exit 1. A streaming failure preserves any partial answer and reports the error on stderr. If the stdout reader closes early, `ask` exits 0 without a diagnostic, unless recording the partial turn fails.
+
+### Threads and replies
+
+`ask`, `ask new`, and `ask n` start a new thread. `ask reply` and `ask r` continue the current thread from a separate process:
+
+```sh
+ask "who was u.s. president in 1846"
+ask r "who succeeded him"
+```
+
+A thread keeps the profile resolved when the thread was created: profile name, provider kind, base URL, model, system prompt, timeout, and the name of the credential environment variable, never its value. Replies use that snapshot even after the configuration's default profile changes, and they work when the installed configuration is missing or invalid; they need only the credential environment variable the snapshot names. A reply sends the system prompt, then each earlier complete turn of the thread in order as a user message followed by an assistant message, then the new prompt. The assistant message is the raw answer text the provider returned, without the final-newline normalization `ask` applies on stdout.
+
+The current thread is global to the data directory. A thread becomes current when the command that created or continued it records its turn; when commands overlap, the last to finish wins. A reply reads its thread when it starts and appends only to that thread. `ask reply` with no current thread exits 1 with ``ask: no current thread; start one with `ask new` `` on stderr and sends no request.
+
+Each query becomes a turn with the status complete or partial:
+
+- A successful answer, including an empty one, is a complete turn.
+- A provider or streaming failure after some answer text records a partial turn with the failure reason. Stdout keeps the partial answer and `ask` exits 1. On `ask new`, the partial turn still creates the thread and makes it current.
+- If the stdout reader closes after answer text, `ask` records a partial turn with the reason `output closed` and exits 0 without a diagnostic.
+- A failure before any answer text appends no turn, creates no thread, and leaves the current thread unchanged.
+- Ctrl-C during streaming ends the process by the default SIGINT disposition, and nothing is recorded.
+
+Partial turns are stored but never sent as context.
+
+### Local history and statistics
+
+`ask new` and `ask reply` store history and statistics in one SQLite database: `$ASK_HOME/data/ask.sqlite3` when `ASK_HOME` is set, otherwise `ask.sqlite3` in the platform-standard data directory for an application named `ask`. They create a missing data directory with mode `0700` and a missing database with mode `0600`, and leave existing permissions alone. `ask init` and `ask configure` never open the database. Both query commands open it before sending a request, so a database that cannot be opened, or whose schema version is newer than this `ask` supports, fails the command with exit 1 before any request.
+
+The database records:
+
+- threads, each with its profile snapshot;
+- turns: the prompt, the raw answer text, the status, and the reason for a partial turn;
+- one statistics row per query sent to the provider: start time, command, profile name, provider kind, base URL, model, outcome (complete, partial, or failed), error class (provider, timeout, or output), wall, API, and time-to-first-token durations, and token counts when the provider reports them. Statistics rows contain no prompt or answer text;
+- provider health: for each provider target (provider kind, base URL, and model), only the time of the latest success and the time and error class of the latest failure. Output failures are not provider-health observations.
+
+Credential values are never stored. History has no expiry yet; it is kept until the database is removed.
+
+Everything one query records is written after the answer finishes or fails, in one transaction: the thread (for `ask new`), the turn, the statistics row, the provider-health update, and the current-thread change. Nothing is written while the answer streams. If the answer was delivered to stdout but that transaction fails, stdout keeps the answer, `ask` exits 1, and stderr reports `ask: answer was delivered but not recorded: <cause>` without repeating the prompt. If a query failed before any answer text and its statistics cannot be recorded, stderr adds `ask: query statistics were not recorded: <cause>`.
 
 ## Development
 
