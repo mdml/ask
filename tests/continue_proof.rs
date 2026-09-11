@@ -376,7 +376,7 @@ fn assert_snapshot(requests: &[RecordedRequest]) {
     let system = ("system".to_string(), TERSE.to_string());
     assert!(
         requests.iter().all(|request| request.model == "fake-model"
-            && request.authorization_present
+            && request.authorization_is_fixture
             && request.messages[0] == system),
         "{requests:?}"
     );
