@@ -70,12 +70,13 @@ with tempfile.TemporaryDirectory(prefix="ask-toolchain-") as tmp:
     (shadow / "cargo-deny").chmod(0o755)
     failures = []
 
-    def check(label, changes=None, reject=False, args=()):
+    def check(label, changes=None, reject=False, rejection=None, args=()):
         marker.unlink(missing_ok=True)
         shutil.rmtree(fixture / "target", ignore_errors=True)
         result = subprocess.run([str(scripts / "verify.sh"), *args], cwd=fixture,
                                 env=env | (changes or {}), text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        good = (result.returncode == 2 and "toolchain override" in result.stdout) if reject else (
+        good = (result.returncode == 2 and f"toolchain override in {rejection}" in result.stdout) if rejection else (
+            result.returncode == 2 and "toolchain override" in result.stdout) if reject else (
             result.returncode == 0 and "verify.sh: all checks passed" in result.stdout)
         if not good or marker.exists():
             failures.append(label)
@@ -89,6 +90,12 @@ with tempfile.TemporaryDirectory(prefix="ask-toolchain-") as tmp:
     check("shadow Cargo and Rust tools on PATH", {"PATH": f'{shadow}:{env["PATH"]}'})
     for key in overrides:
         check(key, {key: str(shadow / "rustc")}, reject=True)
+    for key in ("RUSTFLAGS", "CARGO_ENCODED_RUSTFLAGS"):
+        check(key, {key: "--cfg=ask_verify_override"}, reject=True)
+    for key in ("CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER",
+                "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS",
+                "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER"):
+        check(key, {key: str(shadow / "rustc")}, reject=True)
     for location in (fixture / ".cargo", parent / ".cargo", parent / "cargo-home"):
         location.mkdir(exist_ok=True)
         for section, key in (("build", "rustc"), ("build", "rustdoc"), ("build", "rustc-wrapper"),
@@ -98,6 +105,19 @@ with tempfile.TemporaryDirectory(prefix="ask-toolchain-") as tmp:
             config.write_text(f'[{section}]\n{key} = {value}\n')
             changes = {"CARGO_HOME": str(location)} if location.name == "cargo-home" else {}
             check(f"{location.relative_to(parent)}/{section}.{key}", changes, reject=True)
+            config.unlink()
+    for location in (fixture / ".cargo", parent / ".cargo", parent / "cargo-home"):
+        location.mkdir(exist_ok=True)
+        config = location / "config.toml"
+        changes = {"CARGO_HOME": str(location)} if location.name == "cargo-home" else {}
+        for section, key in (("build", "rustflags"), ("target.x86_64-unknown-linux-gnu", "linker"),
+                             ("target.x86_64-unknown-linux-gnu", "rustflags"),
+                             ("target.x86_64-unknown-linux-gnu", "runner")):
+            value = '"--cfg=ask_verify_override"' if key == "rustflags" else f'"{shadow / "rustc"}"'
+            config.write_text(f'[{section}]\n{key} = {value}\n')
+            tomllib.loads(config.read_text())
+            rejection = f"Cargo config {section}.{key}"
+            check(f"{location.relative_to(parent)}/{section}.{key}", changes, reject=True, rejection=rejection)
             config.unlink()
     for location in (fixture / ".cargo", parent / ".cargo", parent / "cargo-home"):
         location.mkdir(exist_ok=True)
