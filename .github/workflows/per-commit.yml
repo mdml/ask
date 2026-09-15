@@ -2,6 +2,9 @@ name: per-commit
 
 on:
   workflow_dispatch:
+  # Transitional: PRs into `staging` keep the `verify` check its ruleset
+  # requires until the branch is retired (see CONTRIBUTING.md). New PRs
+  # target `milestone/*` or `main` and run `full.yml`.
   pull_request:
     branches:
       - staging

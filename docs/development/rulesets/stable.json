@@ -1,0 +1,15 @@
+{
+  "name": "stable",
+  "target": "branch",
+  "enforcement": "active",
+  "bypass_actors": [],
+  "conditions": {
+    "ref_name": {
+      "include": ["refs/heads/stable"],
+      "exclude": []
+    }
+  },
+  "rules": [
+    { "type": "deletion" }
+  ]
+}
