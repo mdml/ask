@@ -11,6 +11,10 @@ verify:
 verify-full *args:
     scripts/verify.sh --full {{ args }}
 
+# Toolchain regression (also included in both gates).
+verify-toolchain-test:
+    scripts/verify-toolchain-test.sh
+
 fmt:
     cargo fmt --all
 
