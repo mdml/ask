@@ -30,24 +30,50 @@ The real-binary configuration and query proofs also require `python3` (Python 3 
 
 Development follows the process in `AGENTS.md`:
 
-Feature work happens on branches in isolated git worktrees under `<repo-root>/.worktrees/`. Open pull requests into protected `staging`. Promotion to protected `main` happens through a reviewed, fully gated pull request when a named proof or milestone passes. Direct pushes, force-pushes, and branch deletion are blocked on `staging` and `main`. Feature PRs use rebase merges into `staging`; promotion PRs use merge commits into `main`.
+Feature work happens on branches in isolated git worktrees under `<repo-root>/.worktrees/`. Each milestone has one umbrella branch, `milestone/<name>`, created from `main`. Open feature pull requests into the umbrella; they are rebase-merged so the umbrella stays linear. Umbrella branches are never rebased, merged into, or force-pushed to catch up with `main`; do not use a promotion PR’s branch-update merge or rebase actions on the umbrella. Promotion to protected `main` happens through a fully gated pull request from the umbrella (or the conflict-resolution promotion branch described below), merged by merge commit by the managing agent after the milestone's named proofs pass, without per-PR owner approval.
 
-GitHub requires `verify-full` and all four supported-target checks for `main`, with “Require branches to be up to date before merging” disabled. This allows promotion without rewriting protected `staging` or adding merge commits to its linear history. Do not use the promotion PR’s branch-update merge or rebase actions on `staging`. The combined promotion revision must pass verification against the current `main`; refresh that revision and its checks if either branch moves before owner merge.
+Branch protection lives in GitHub rulesets. The `main` ruleset is active: it blocks direct pushes, force-pushes, and deletion, allows only merge-commit pull requests, requires `verify-full` and the four supported-target checks, and leaves “Require branches to be up to date before merging” disabled so a promotion merge lands without touching the umbrella. The applied umbrella ruleset in `docs/development/rulesets/milestone.json` blocks force-pushes, requires rebase-only pull requests, and requires the same checks on an up-to-date branch. The managing agent reviews and applies rulesets under the owner's standing authorization; `docs/development/rulesets/README.md` distinguishes proposed settings from recorded applied settings.
+
+Promotion to `stable` requires the owner's authorization for each release; the managing agent performs the push once authorized. The `stable` branch is not created until the first authorized release. Its applied deletion-block ruleset is in `docs/development/rulesets/stable.json`, and `SECURITY.md` lists the checks a push to `stable` must pass. The release workflow does not exist yet.
+
+### Promotion candidate
+
+Verification and the three independent reviews happen before the promotion PR exists, on a candidate the managing agent builds locally:
+
+1. Fetch, then record immutable commit IDs for the base (`git rev-parse origin/main`) and source (`git rev-parse origin/milestone/<name>`). Use those IDs in subsequent commands, not moving branch refs.
+2. Build the combined revision in a detached worktree: `git worktree add --detach .worktrees/promote-<name>-candidate <base>`, then `git merge --no-ff <source>` inside it. This worktree is never pushed; the umbrella is untouched. If this merge conflicts, follow the conflict route below.
+3. Record the combined revision and tree (`git rev-parse HEAD HEAD^{tree}`). In that worktree run `direnv exec . just verify-full --base <base>`, the milestone's named proofs, and the three independent reviews in [agent-contracts.md](docs/development/agent-contracts.md). Dispose of every finding before proceeding. A changed candidate requires the full gate and all three reviews again.
+4. Open the promotion PR into `main` with the base, umbrella source, PR head (normally the source), combined revision and tree, verification evidence, and review findings, dispositions, and reruns. After opening, fetch `refs/pull/<n>/merge` from origin and compare `git rev-parse FETCH_HEAD^{tree}` with the recorded tree; confirm the merge ref's parents match the recorded base and PR head. Wait for the full gate and all four supported-target checks on this PR candidate.
+5. Immediately before merging, fetch again and confirm that `main`, the umbrella, and the PR head still match the recorded IDs and that GitHub's merge tree still matches. The managing agent merges by merge commit after all gates and named proofs pass, without per-PR owner approval. Use `gh pr merge <n> --merge --match-head-commit <pr-head>`; do not enable auto-merge or bypass required checks.
+
+If `main`, the umbrella, or the PR head moves before merge, the candidate is stale: freeze a new candidate, rerun verification and all three reviews, and replace the recorded evidence. Never use GitHub's branch-update merge or rebase actions on the umbrella. Serialize promotions to `main` during the final comparison and merge; if the resulting merge differs from the recorded candidate, stop release work and investigate.
+
+#### Conflict route
+
+If the local merge conflicts, abort it with `git merge --abort`. Create a disposable branch from the recorded umbrella source in a separate worktree: `git worktree add -b promote/<name> .worktrees/promote-<name> <source>`. There, run `git merge --no-ff <base>`, resolve conflicts, stage the resolution, run the fast gate, and commit the merge with a Conventional Commit message. Do not rebase, force-push, or merge main into the protected umbrella.
+
+Record this resolution commit as the PR head. Recreate the detached candidate from the same base and merge that PR head with `git merge --no-ff <pr-head>`. Complete step 3 on this combined revision, then push only the promotion branch and follow steps 4–5 for its PR into `main`. The PR records both the original umbrella source and the resolution commit, including the conflict-resolution diff. If either frozen branch moves, prepare a fresh promotion branch and candidate; do not rewrite the umbrella or reuse stale review evidence.
 
 ## Verification gates
 
 The single verification entrypoint is `scripts/verify.sh`, exposed through `just`:
 
 - `just verify` — fast gate. Every commit must pass this before landing.
-- `just verify-full` — full gate. Required before merge to `staging` or `main`.
+- `just verify-full` — full gate. Required for every pull request, including feature PRs into an umbrella branch and promotion PRs into `main`.
 
-The fast gate runs formatting, Clippy (warnings denied), build, documentation (warnings denied), line-coverage threshold (default 90%), and CodeScene on staged Rust files. The full gate adds `cargo deny` policy checks and CodeScene on Rust files changed relative to the base branch (default `origin/staging`).
+The fast gate runs formatting, Clippy (warnings denied), build, documentation (warnings denied), line-coverage threshold (default 90%), and CodeScene on staged Rust files. The full gate adds `cargo deny` policy checks and CodeScene on Rust files changed relative to the base branch (default `origin/main`).
 
-Override the coverage minimum with `ASK_COVERAGE_MIN` and the full-gate base ref with `ASK_VERIFY_BASE` when needed.
+Override the coverage minimum with `ASK_COVERAGE_MIN` and the full-gate base ref with `ASK_VERIFY_BASE` or `--base` when needed. For a feature PR, `just verify-full --base origin/milestone/<name>` limits CodeScene review to the feature's changes; the default `origin/main` base also covers them and is the baseline for umbrella candidates and promotions.
 
-For a promotion, fetch the current branches and check out the PR’s combined merge revision in an isolated worktree. Run `just verify-full --base origin/main` through the repository’s direnv wiring; the default `origin/staging` base would omit the promoted changes from CodeScene review. Record the source, base, and combined revisions with the verification evidence.
+Both gates resolve Cargo, rustc, rustdoc, rustfmt, Clippy, and coverage's LLVM tools from the sole Rust pin in `rust-toolchain.toml`, overriding ambient `RUSTUP_TOOLCHAIN`, directory overrides, and Rust tools on `PATH`. Compiler, formatter, Clippy, LLVM-tool, wrapper, `RUSTFLAGS`, encoded Rust flags, target linker/rustflags/runner, and relevant Cargo-alias environment overrides are rejected with status 2; Cargo configuration at repository, ancestor, and Cargo-home locations is also rejected if it overrides compilers, wrappers, build rustflags, target linker/rustflags/runner, sets Rust/Cargo/Clippy/LLVM environment variables or `PATH`, aliases an invoked helper (`fmt`, `clippy`, `llvm-cov`, or `deny`), or includes other configuration files. Unrelated Cargo aliases and normal Cargo home, target-directory, and job settings remain allowed. Remove rejected entries for verification; the gate never edits configuration. Verification requires Python 3.11 or newer for standard-library TOML parsing. The fast gate includes `just verify-toolchain-test`: real formatting, Clippy, compilation, documentation, and coverage on a temporary dependency-free crate, plus conflicting-environment and Cargo-configuration cases. It needs only the pinned toolchain and the existing verification helpers; the fixture replaces CodeScene and the nested regression invocation to avoid recursion.
 
-CI runs the full gate and native builds/tests on macOS and Linux, each on arm64 and x86-64, for PRs into `staging` and `main`. Promotion CI uses `origin/main` as its comparison base. The per-commit workflow can also be dispatched manually to run the fast gate on a branch.
+For a promotion, run the full gate on the locally built combined revision as described under Promotion candidate above, and record the base, source, and combined revisions with the evidence.
+
+CI runs the full gate and native builds/tests on macOS and Linux, each on arm64 and x86-64, for PRs into `main` and `milestone/*` branches, comparing against the PR base. The per-commit workflow can be dispatched manually to run the fast gate on a branch.
+
+## Transition from `staging`
+
+Until 2026-09-15 feature PRs targeted `staging` and promotion PRs went from `staging` to `main`. On 2026-09-15, `staging` and its ruleset `22294283` were retired after the open dependency updates were rehomed separately; no dependency update was merged as part of retirement. The per-commit workflow is now available only for manually dispatched fast-gate runs.
 
 ## Proofs
 
@@ -73,7 +99,7 @@ Storage unit tests in `src/store_tests.rs` cover paths and permissions, schema c
 
 ## Dependency updates
 
-Dependency updates are proposed for human review through Dependabot and nightly advisory checks. They are never auto-merged. Dependabot version-update pull requests target `staging`, like other feature changes, so those updates reach `main` only through promotion. Dependabot reads that setting from `main`, so it applies only after it has been promoted. Dependabot security-update pull requests always target the default branch, `main`, and do not follow `target-branch`; apply such an update through a pull request to `staging` rather than merging it into `main` directly.
+Dependency updates arrive as Dependabot pull requests, for both version and security updates, against the default branch, `main`, where the full gate runs; nightly advisory checks only report. Unattended bot integration and GitHub auto-merge are never enabled; the managing agent explicitly merges reviewed, fully gated updates. The managing agent integrates each update after review and the quarantine and exception rules in `SECURITY.md`: retarget it to the active umbrella with `gh pr edit <n> --base milestone/<name>` and rebase-merge it there. If Dependabot cannot rebase onto the umbrella, recreate the update on a feature branch. Dependabot PRs never merge directly into `main`.
 
 ## Questions
 
