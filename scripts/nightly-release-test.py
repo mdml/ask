@@ -7,6 +7,8 @@ import importlib.util
 import io
 import json
 from pathlib import Path
+import stat
+import subprocess
 import tarfile
 import tempfile
 import sys
@@ -206,6 +208,44 @@ class PackagingTests(unittest.TestCase):
             with self.subTest(release=release):
                 with self.assertRaises(ValueError):
                     nightly.verify_upload(release, destination, SHA, TAG)
+
+    def test_publish_uses_draft_database_id_when_tag_lookup_returns_404(self):
+        """Exercise the workflow shell against gh, whose draft tag endpoint is absent."""
+        release = self.root / "release"
+        nightly.verify(self.source, release, SHA, TAG)
+        assets = [{"name": asset.name, "size": asset.stat().st_size,
+                   "state": "uploaded", "digest": "sha256:" + nightly.digest(asset.read_bytes())}
+                  for asset in release.iterdir()]
+        response = json.dumps({"tag_name": TAG, "target_commitish": SHA, "draft": True,
+                               "prerelease": True, "assets": assets})
+        fake_bin = self.root / "bin"
+        fake_bin.mkdir()
+        calls = self.root / "gh-calls"
+        fake_gh = fake_bin / "gh"
+        fake_gh.write_text(f'''#!/bin/sh
+printf '%s\\n' "$*" >> "$GH_CALLS"
+case "$*" in
+  *"releases/tags/"*) echo 'not found' >&2; exit 1 ;;
+  "release view "*) printf '%s\\n' '123' ;;
+  *"releases/123"*) printf '%s\\n' '{response}' ;;
+esac
+''')
+        fake_gh.chmod(fake_gh.stat().st_mode | stat.S_IXUSR)
+        workflow = (nightly.ROOT / ".github/workflows/nightly-release.yml").read_text()
+        publish = workflow.split("        run: |\n", 1)[1].split("\n      -", 1)[0]
+        scripts = self.root / "scripts"
+        scripts.mkdir()
+        (scripts / "nightly-release.py").symlink_to(nightly.ROOT / "scripts/nightly-release.py")
+        environment = {"PATH": f"{fake_bin}:{os.environ['PATH']}", "GH_CALLS": str(calls),
+                       "GITHUB_REPOSITORY": "mdml/ask", "RELEASE_TAG": TAG, "RELEASE_SHA": SHA}
+        result = subprocess.run(["bash", "-c", publish], cwd=self.root, env=environment,
+                                text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        recorded = calls.read_text()
+        self.assertIn(f"release view {TAG} --repo mdml/ask --json databaseId --jq .databaseId", recorded)
+        self.assertIn("api repos/mdml/ask/releases/123", recorded)
+        self.assertIn("api --method PATCH repos/mdml/ask/releases/123 -F draft=false -F prerelease=true -f make_latest=false", recorded)
+        self.assertNotIn("releases/tags/", recorded)
 
     def test_linkage_requires_defined_symbol_and_no_dynamic_sqlite(self):
         for symbols, libraries in [("U sqlite3_open_v2\n", "libc.so.6"),

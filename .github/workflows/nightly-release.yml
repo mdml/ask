@@ -204,6 +204,12 @@ jobs:
             --draft --prerelease --latest=false --verify-tag \
             --title "Nightly $RELEASE_TAG" \
             --notes "Verified main revision: $RELEASE_SHA. Archives contain ask, LICENSE, and manifest.json; SHA256SUMS and GitHub build attestations identify the assets."
-          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" | \
+          # Draft releases cannot be fetched by tag; retain the exact draft ID instead.
+          RELEASE_ID="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json databaseId --jq .databaseId)"
+          case "$RELEASE_ID" in
+            ''|*[!0-9]*) echo "invalid draft release ID: $RELEASE_ID" >&2; exit 1 ;;
+          esac
+          gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" | \
             python3 scripts/nightly-release.py verify-upload
-          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease --latest=false
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" \
+            -F draft=false -F prerelease=true -f make_latest=false >/dev/null
