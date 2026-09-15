@@ -4,6 +4,10 @@
 
 **Status: pre-alpha.** The query, reply, initialization, and configuration commands are implemented, but interfaces may change before the first `0.1.0` release. The only provider kind currently supported is `openai-compatible`.
 
+## Install a nightly
+
+The [nightly pipeline](docs/guides/nightly-releases.md) publishes checksummed, attested prereleases for macOS and Linux on arm64 and x86-64 after the full gate. Choose a tag from [GitHub Releases](https://github.com/mdml/ask/releases), then install with `mise use -g 'github:mdml/ask[prerelease=true]@TAG'`. These builds contain the implemented pre-alpha command surface described below.
+
 ## Usage
 
 The following forms each start a new query. Prompt words are joined with single spaces.

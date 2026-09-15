@@ -18,7 +18,7 @@ The project applies a higher-than-usual supply-chain bar because model-provider 
 - GitHub Actions workflows pin third-party actions to full commit SHAs.
 - Dependency updates are reviewed and merged by the managing agent under the process below; no unattended automation merges them.
 
-When releases exist, release artifacts will carry checksums and GitHub attestations. That machinery is not in place during the pre-alpha bootstrap phase.
+The [nightly release workflow](.github/workflows/nightly-release.yml) produces checksummed archives with GitHub attestations after verification. Stable release publication is not implemented yet.
 
 ## Dependency update process
 
