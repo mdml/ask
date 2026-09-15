@@ -227,13 +227,7 @@ fn read_request(stream: &mut TcpStream) -> Option<RecordedRequest> {
     let authorization_present = headers
         .lines()
         .any(|line| line.to_ascii_lowercase().starts_with("authorization:"));
-    let fixture = format!(
-        "authorization: bearer {}",
-        super::CREDENTIAL.to_ascii_lowercase()
-    );
-    let authorization_is_fixture = headers
-        .lines()
-        .any(|line| line.trim().to_ascii_lowercase() == fixture);
+    let authorization_is_fixture = headers.lines().any(carries_fixture_credential);
     let value: Value = rig_core::serde_json::from_slice(body).ok()?;
     Some(RecordedRequest {
         path,
@@ -381,4 +375,18 @@ fn fixed(stream: &mut TcpStream, status: u16, content_type: &str, body: &str) {
     );
     let _ = stream.write_all(response.as_bytes());
     let _ = stream.flush();
+}
+
+/// The header name and scheme compare case-insensitively; the token must
+/// match the fixture byte for byte.
+fn carries_fixture_credential(line: &str) -> bool {
+    let Some((name, value)) = line.split_once(':') else {
+        return false;
+    };
+    let Some((scheme, token)) = value.trim().split_once(' ') else {
+        return false;
+    };
+    name.trim().eq_ignore_ascii_case("authorization")
+        && scheme.eq_ignore_ascii_case("bearer")
+        && token.trim() == super::CREDENTIAL
 }
