@@ -68,6 +68,7 @@ require_cmd python3
 python3 - <<'PYTHON'
 import os
 from pathlib import Path
+import re
 import sys
 import tomllib
 
@@ -78,12 +79,16 @@ selection = {
     "LLVM_COV", "LLVM_PROFDATA",
 }
 helper_aliases = {"fmt", "clippy", "llvm-cov", "deny"}
+target_override = re.compile(r"CARGO_TARGET_[A-Z0-9_]+_(?:LINKER|RUSTFLAGS|RUNNER)$")
 def reject(source):
     print(f"verify.sh: toolchain override in {source}; remove it for pinned verification", file=sys.stderr)
     sys.exit(2)
 
 for key in sorted(selection):
     if os.environ.get(key):
+        reject(key)
+for key in sorted(os.environ):
+    if key in {"RUSTFLAGS", "CARGO_ENCODED_RUSTFLAGS"} or target_override.fullmatch(key):
         reject(key)
 for alias in helper_aliases:
     key = f"CARGO_ALIAS_{alias.upper().replace('-', '_')}"
@@ -106,6 +111,13 @@ for directory in locations:
         for key in ("rustc", "rustdoc", "rustc-wrapper", "rustc-workspace-wrapper"):
             if key in config.get("build", {}):
                 reject(f"Cargo config build.{key}")
+        if "rustflags" in config.get("build", {}):
+            reject("Cargo config build.rustflags")
+        for target, values in config.get("target", {}).items():
+            if isinstance(values, dict):
+                for key in ("linker", "rustflags", "runner"):
+                    if key in values:
+                        reject(f"Cargo config target.{target}.{key}")
         for key in config.get("env", {}):
             if key in selection or key == "PATH" or key.startswith(("RUST", "CARGO", "CLIPPY", "LLVM")):
                 reject(f"Cargo config env.{key}")
