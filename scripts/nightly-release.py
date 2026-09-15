@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package and validate nightly archives; never extract or execute downloaded files."""
+"""Package and validate nightly archives, including an offline packaged-binary proof."""
 import argparse
 import datetime
 import hashlib
@@ -22,6 +22,18 @@ TARGETS = (
 )
 MAX_BINARY = 128 * 1024 * 1024
 ACTION_REVIEW_DEADLINE = datetime.date(2026, 9, 29)
+VALID_CONFIG = b'''default_profile = "offline"
+
+[providers.offline]
+kind = "openai-compatible"
+base_url = "http://127.0.0.1:1/v1"
+api_key_env = "OFFLINE_PROVIDER_KEY"
+
+[profiles.offline]
+provider = "offline"
+model = "fixture"
+'''
+INVALID_CONFIG = b"unknown = true\n" + VALID_CONFIG
 
 
 def require(ok, message):
@@ -102,10 +114,10 @@ def package(target, sha, tag, destination):
             archive.addfile(member, io.BytesIO(content))
     checksum = digest((destination / name).read_bytes())
     (destination / f"{name}.sha256").write_text(f"{checksum}  {name}\n")
-    validate_target(destination, target, sha, tag)
+    validate_target(destination, target, sha, tag, prove_executable=True)
 
 
-def validate_target(directory, target, sha, tag):
+def validate_target(directory, target, sha, tag, prove_executable=False):
     name = archive_name(target)
     require(directory.is_dir() and not directory.is_symlink(), "expected target directory")
     require({p.name for p in directory.iterdir()} == {name, name + ".sha256"}, "target inventory mismatch")
@@ -126,7 +138,11 @@ def validate_target(directory, target, sha, tag):
             contents[member.name] = archive.extractfile(member).read(limit + 1)
     require(set(contents) == {"ask", "LICENSE", "manifest.json"}, "missing archive member")
     require(contents["LICENSE"] == (ROOT / "LICENSE").read_bytes(), "license mismatch")
-    info = json.loads(contents["manifest.json"])
+    try:
+        info = json.loads(contents["manifest.json"])
+    except json.JSONDecodeError as error:
+        raise ValueError("invalid manifest JSON") from error
+    require(isinstance(info, dict), "manifest must be a JSON object")
     expected = identity(sha, tag)
     require(set(info) == set(expected) | {"target", "binary_sha256", "linkage"}, "manifest fields mismatch")
     require(all(info.get(k) == v for k, v in expected.items()), "source identity mismatch")
@@ -136,7 +152,31 @@ def validate_target(directory, target, sha, tag):
     require(native["sqlite3_open_v2_defined"] is True and native["dynamic_sqlite"] is False, "invalid SQLite linkage")
     libs = native["libraries"]
     require(isinstance(libs, list) and libs and all(isinstance(lib, str) and re.fullmatch(r"[A-Za-z0-9_.+-]+", lib) and "sqlite" not in lib.lower() for lib in libs), "invalid library inventory")
+    if prove_executable:
+        packaged_binary_proof(contents["ask"])
     return checksum
+
+
+def packaged_binary_proof(binary):
+    """Run only the just-validated archive bytes in an isolated offline home."""
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        executable = root / "ask"
+        executable.write_bytes(binary)
+        executable.chmod(0o700)
+        home = root / "ask-home"
+        environment = {"ASK_HOME": str(home)}
+        for candidate, expected_status, expected_stderr in [
+            (VALID_CONFIG, 0, b"ask: standard input is a valid configuration\n"),
+            (INVALID_CONFIG, 1, b"ask: standard input is not a valid configuration: configuration: unknown field at key index 4\n"),
+        ]:
+            result = subprocess.run([str(executable), "configure", "check", "-"], input=candidate,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=root,
+                                    env=environment, check=False, timeout=10)
+            require(result.returncode == expected_status, "packaged configure check status mismatch")
+            require(result.stdout == b"" and result.stderr == expected_stderr,
+                    "packaged configure check stream mismatch")
+            require(not home.exists(), "packaged configure check wrote state")
 
 
 def verify(source, destination, sha, tag):
@@ -152,12 +192,23 @@ def verify(source, destination, sha, tag):
 
 
 def verify_upload(release, directory, sha, tag):
+    require(isinstance(release, dict), "release response must be an object")
+    required = {"tag_name": str, "target_commitish": str, "draft": bool,
+                "prerelease": bool, "assets": list}
+    for field, kind in required.items():
+        require(field in release and type(release[field]) is kind,
+                f"release response has invalid {field}")
     require(release["tag_name"] == tag and release["target_commitish"] == sha,
             "uploaded release identity mismatch")
     require(release["draft"] is True and release["prerelease"] is True,
             "expected draft prerelease")
     expected = {archive_name(t) for t in TARGETS} | {"SHA256SUMS"}
     assets = release["assets"]
+    for asset in assets:
+        require(isinstance(asset, dict), "release asset must be an object")
+        for field, kind in {"name": str, "size": int, "state": str, "digest": str}.items():
+            require(field in asset and type(asset[field]) is kind,
+                    f"release asset has invalid {field}")
     require(len(assets) == len(expected) and {a["name"] for a in assets} == expected,
             "uploaded asset inventory mismatch")
     for asset in assets:
