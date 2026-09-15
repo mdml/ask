@@ -106,7 +106,7 @@ The multiline prompt prints `ask> ` on stderr before the first line and reads un
 
 Stdin must be valid UTF-8 and is read to EOF. There is no application-imposed size cap for stdin in 0.1.0. Invalid UTF-8 and input read failures exit 1 with one `ask: ...` stderr diagnostic line, empty stdout, and no provider request; invalid bytes are never converted lossily.
 
-The answer is streamed to stdout as unstyled Markdown and ends with exactly one newline. Prompts, statistics, warnings, usage errors, and diagnostics are written to stderr. A successful query exits 0, usage errors exit 2, and provider and configuration failures exit 1. A streaming failure preserves any partial answer and reports the error on stderr. If the stdout reader closes early, `ask` exits 0 without a diagnostic, unless recording the partial turn fails.
+The answer is streamed to stdout as unstyled Markdown and ends with exactly one newline. Prompts, statistics, warnings, usage errors, and diagnostics are written to stderr. A successful query exits 0, usage errors exit 2, and provider and configuration failures exit 1. A streaming failure preserves any partial answer and reports the error on stderr. If the stdout reader closes early, `ask` exits 0 without a diagnostic, unless the provider had already failed or recording the partial turn fails; either of those exits 1 with its diagnostic on stderr.
 
 ### Threads and replies
 
@@ -125,7 +125,7 @@ Each query becomes a turn with the status complete or partial:
 
 - A successful answer, including an empty one, is a complete turn.
 - A provider or streaming failure after some answer text records a partial turn with the failure reason. Stdout keeps the partial answer and `ask` exits 1. On `ask new`, the partial turn still creates the thread and makes it current.
-- If the stdout reader closes after answer text, `ask` records a partial turn with the reason `output closed` and exits 0 without a diagnostic.
+- If the stdout reader closes after answer text, `ask` records a partial turn with the reason `output closed` and exits 0 without a diagnostic. If a provider or streaming failure had already stopped the answer, that failure is the recorded reason, it counts as a provider-health failure, and `ask` exits 1 as above.
 - A failure before any answer text appends no turn, creates no thread, and leaves the current thread unchanged.
 - Ctrl-C during streaming ends the process by the default SIGINT disposition, and nothing is recorded.
 
