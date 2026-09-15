@@ -11,7 +11,7 @@ ROOT="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 FULL=0
-BASE="${ASK_VERIFY_BASE:-origin/staging}"
+BASE="${ASK_VERIFY_BASE:-origin/main}"
 CS_ALL=0
 COVERAGE_MIN="${ASK_COVERAGE_MIN:-90}"
 
@@ -21,7 +21,7 @@ Usage: scripts/verify.sh [--full] [--base REF] [--all]
 
   (default)     Fast gate: fmt, clippy, build, doc, coverage, CodeScene on staged files
   --full        Full gate: fast gate plus cargo deny and CodeScene on files changed from base
-  --base REF    Base ref for --full CodeScene diff (default: origin/staging, or ASK_VERIFY_BASE)
+  --base REF    Base ref for --full CodeScene diff (default: origin/main, or ASK_VERIFY_BASE)
   --all         With --full, run CodeScene on the entire tree instead of diff from base
 EOF
 }

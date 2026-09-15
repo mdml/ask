@@ -3,7 +3,7 @@ name: sqlite-readiness
 on:
   workflow_dispatch:
   pull_request:
-    branches: [staging]
+    branches: [main, "milestone/**"]
     paths:
       - 'probes/sqlite-readiness/**'
       - 'scripts/sqlite-readiness.py'
