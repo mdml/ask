@@ -190,6 +190,23 @@ class PackagingTests(unittest.TestCase):
                 self.fixture(self.target, mutate)
                 self.reject()
 
+    def test_manifest_json_must_be_an_object_with_valid_fields(self):
+        for manifest in [b"not json", b"[]", b"null", b"42"]:
+            with self.subTest(manifest=manifest):
+                self.fixture(self.target, lambda files: files[:2] + [("manifest.json", manifest, tarfile.REGTYPE, 0o644)])
+                self.reject()
+
+    def test_uploaded_release_response_must_have_object_fields(self):
+        destination = self.root / "release"
+        nightly.verify(self.source, destination, SHA, TAG)
+        valid = {"tag_name": TAG, "target_commitish": SHA, "draft": True,
+                 "prerelease": True, "assets": []}
+        for release in [None, [], {"tag_name": TAG},
+                        {**valid, "assets": [{}]}, {**valid, "draft": "true"}]:
+            with self.subTest(release=release):
+                with self.assertRaises(ValueError):
+                    nightly.verify_upload(release, destination, SHA, TAG)
+
     def test_linkage_requires_defined_symbol_and_no_dynamic_sqlite(self):
         for symbols, libraries in [("U sqlite3_open_v2\n", "libc.so.6"),
                                    ("0000 T sqlite3_open_v2\n", "libsqlite3.so.0")]:
@@ -227,11 +244,30 @@ class PackagingTests(unittest.TestCase):
                 Path(args[1]).write_bytes(b"stripped inert binary")
                 return ""
             self.fail("unexpected command")
-        with patch.object(nightly, "ROOT", repo), patch.object(nightly, "run", side_effect=run):
+        with patch.object(nightly, "ROOT", repo), patch.object(nightly, "run", side_effect=run), \
+                patch.object(nightly, "packaged_binary_proof") as proof:
             nightly.package(target, SHA, TAG, self.root / "package")
             nightly.validate_target(self.root / "package", target, SHA, TAG)
         self.assertEqual(calls, ["rustc", "nm", "readelf", "strip"])
+        proof.assert_called_once_with(b"stripped inert binary")
         self.assertEqual(binary.read_bytes(), b"unstripped inert binary")
+
+    def test_packaged_binary_proof_is_offline_and_side_effect_free(self):
+        calls = []
+        def run(args, **kwargs):
+            calls.append((args, kwargs))
+            if kwargs["input"] == nightly.VALID_CONFIG:
+                return subprocess.CompletedProcess(args, 0, b"", b"ask: standard input is a valid configuration\n")
+            return subprocess.CompletedProcess(args, 1, b"", b"ask: standard input is not a valid configuration: configuration: unknown field at key index 4\n")
+        import subprocess
+        with patch.object(nightly.subprocess, "run", side_effect=run):
+            nightly.packaged_binary_proof(b"validated executable bytes")
+        self.assertEqual(len(calls), 2)
+        for args, kwargs in calls:
+            self.assertEqual(args[1:], ["configure", "check", "-"])
+            self.assertEqual(kwargs["stdout"], subprocess.PIPE)
+            self.assertEqual(kwargs["stderr"], subprocess.PIPE)
+            self.assertEqual(set(kwargs["env"]), {"ASK_HOME"})
 
     def test_reject_wrong_native_host_before_packaging(self):
         with patch.object(nightly, "run", return_value="host: wrong\nrelease: 1.97.1\n"):
