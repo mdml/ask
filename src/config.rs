@@ -1,4 +1,8 @@
-use std::{collections::BTreeMap, env, fmt, fs, path::PathBuf};
+use std::{
+    collections::BTreeMap,
+    env, fmt, fs,
+    path::{Path, PathBuf},
+};
 
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
@@ -6,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::validate;
 
 pub(crate) const DEFAULT_TIMEOUT_MS: u64 = 30_000;
+const DATABASE_FILE: &str = "ask.sqlite3";
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -36,8 +41,11 @@ pub(crate) struct ProfileConfig {
     pub(crate) system_prompt: Option<String>,
 }
 
-#[derive(Debug)]
+/// A fully resolved profile. A thread stores this snapshot when it is created.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Target {
+    pub profile: String,
+    pub kind: String,
     pub base_url: String,
     pub api_key_env: String,
     pub timeout_ms: u64,
@@ -64,6 +72,8 @@ impl Config {
             ConfigError(validate::missing_provider(&self.default_profile, profile))
         })?;
         Ok(Target {
+            profile: self.default_profile.clone(),
+            kind: provider.kind.clone(),
             base_url: provider.base_url.clone(),
             api_key_env: provider.api_key_env.clone(),
             timeout_ms: provider.timeout_ms,
@@ -97,12 +107,27 @@ pub fn load() -> Result<Config, ConfigError> {
 }
 
 pub fn config_path() -> Result<PathBuf, ConfigError> {
+    located("", ProjectDirs::config_dir, "config.toml", "configuration")
+}
+
+/// The history and statistics database: `$ASK_HOME/data/ask.sqlite3`, or
+/// `ask.sqlite3` in the platform-standard data directory.
+pub fn data_path() -> Result<PathBuf, ConfigError> {
+    located("data", ProjectDirs::data_dir, DATABASE_FILE, "data")
+}
+
+fn located(
+    home_subdirectory: &str,
+    platform: fn(&ProjectDirs) -> &Path,
+    file: &str,
+    kind: &str,
+) -> Result<PathBuf, ConfigError> {
     if let Some(home) = env::var_os("ASK_HOME") {
-        return Ok(PathBuf::from(home).join("config.toml"));
+        return Ok(PathBuf::from(home).join(home_subdirectory).join(file));
     }
     ProjectDirs::from("", "", "ask")
-        .map(|dirs| dirs.config_dir().join("config.toml"))
-        .ok_or_else(|| ConfigError("platform configuration directory is unavailable".to_string()))
+        .map(|dirs| platform(&dirs).join(file))
+        .ok_or_else(|| ConfigError(format!("platform {kind} directory is unavailable")))
 }
 
 const fn default_timeout_ms() -> u64 {

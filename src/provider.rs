@@ -2,7 +2,9 @@ use std::{future::Future, pin::Pin};
 
 use futures_util::{Stream, StreamExt};
 use rig_core::{
-    client::CompletionClient, completion::CompletionModel, providers::openai,
+    client::CompletionClient,
+    completion::{CompletionModel, Message},
+    providers::openai,
     streaming::StreamedAssistantContent,
 };
 
@@ -12,9 +14,20 @@ pub type EventStream = Pin<Box<dyn Stream<Item = Result<Event, ProviderError>> +
 pub type StartFuture<'a> =
     Pin<Box<dyn Future<Output = Result<EventStream, ProviderError>> + Send + 'a>>;
 
+/// A provider-neutral request: the system prompt, prior exchanges in order,
+/// then the new user prompt.
 pub struct Request<'a> {
     pub prompt: &'a str,
     pub system_prompt: &'a str,
+    pub history: &'a [Exchange],
+}
+
+/// One prior complete turn supplied as context: the user prompt and the raw
+/// answer text as the provider returned it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Exchange {
+    pub prompt: String,
+    pub answer: String,
 }
 
 pub enum Event {
@@ -75,6 +88,7 @@ impl PromptProvider for RigProvider {
             let stream = model
                 .completion_request(request.prompt)
                 .preamble(request.system_prompt.to_string())
+                .messages(history(request.history))
                 .stream()
                 .await
                 .map_err(|error| self.error(error))?;
@@ -84,6 +98,18 @@ impl PromptProvider for RigProvider {
             ) as EventStream)
         })
     }
+}
+
+fn history(exchanges: &[Exchange]) -> Vec<Message> {
+    exchanges
+        .iter()
+        .flat_map(|exchange| {
+            [
+                Message::user(exchange.prompt.clone()),
+                Message::assistant(exchange.answer.clone()),
+            ]
+        })
+        .collect()
 }
 
 fn event(content: StreamedAssistantContent) -> Event {
@@ -128,6 +154,19 @@ mod tests {
     fn empty_credentials_do_not_replace_every_boundary() {
         let error = redact("ordinary error", "");
         assert_eq!(error.to_string(), "ordinary error");
+    }
+
+    #[test]
+    fn history_alternates_user_and_assistant_messages() {
+        let exchange = Exchange {
+            prompt: "question".to_string(),
+            answer: String::new(),
+        };
+        let messages = history(&[exchange.clone(), exchange]);
+        assert_eq!(messages.len(), 4);
+        assert!(matches!(messages[0], Message::User { .. }));
+        assert!(matches!(messages[1], Message::Assistant { .. }));
+        assert!(matches!(messages[2], Message::User { .. }));
     }
 
     #[test]

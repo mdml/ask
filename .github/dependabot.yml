@@ -3,12 +3,14 @@ version: 2
 updates:
   - package-ecosystem: cargo
     directory: /
+    target-branch: staging
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
 
   - package-ecosystem: github-actions
     directory: /
+    target-branch: staging
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
