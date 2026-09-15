@@ -50,4 +50,4 @@ cargo +1.97.1 build --release --locked --bin ask --target "$target"
 python3 scripts/nightly-release.py package --target "$target" --destination package
 ```
 
-Packaging requires a new destination directory, checks a defined SQLite symbol and absence of dynamic SQLite linkage before stripping a copy, validates the resulting archive, and runs its offline packaged-executable configuration proof. Local packaging does not run the full gate or publish anything. Hosted four-target builds, GitHub attestation, and actual post-publication `mise` installation proof remain pending an actual workflow run; this repository does not yet claim successful installs.
+Packaging requires a new destination directory, checks a defined SQLite symbol and absence of dynamic SQLite linkage before stripping a copy, validates the resulting archive, and runs its offline packaged-executable configuration proof. Local packaging does not run the full gate or publish anything. Local packaging and tests do not establish hosted publication or actual installation; verify the release workflow and exact installed artifact separately.
