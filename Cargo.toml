@@ -22,4 +22,4 @@ rig-core = { version = "=0.42.0", default-features = false, features = ["reqwest
 rusqlite = { version = "=0.40.2", default-features = false, features = ["bundled"] }
 serde = { version = "=1.0.229", features = ["derive"] }
 tokio = { version = "=1.53.1", features = ["macros", "rt", "time"] }
-toml = "=1.1.5"
+toml = "=1.1.6"
