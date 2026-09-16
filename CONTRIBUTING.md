@@ -34,7 +34,7 @@ Feature work happens on branches in isolated git worktrees under `<repo-root>/.w
 
 Branch protection lives in GitHub rulesets. The `main` ruleset is active: it blocks direct pushes, force-pushes, and deletion, allows only merge-commit pull requests, requires `verify-full` and the four supported-target checks, and leaves “Require branches to be up to date before merging” disabled so a promotion merge lands without touching the umbrella. The applied umbrella ruleset in `docs/development/rulesets/milestone.json` blocks force-pushes, requires rebase-only pull requests, and requires the same checks on an up-to-date branch. The managing agent reviews and applies rulesets under the owner's standing authorization; `docs/development/rulesets/README.md` distinguishes proposed settings from recorded applied settings.
 
-Promotion to `stable` requires the owner's authorization for each release; the managing agent performs the push once authorized. The `stable` branch is not created until the first authorized release. Its applied deletion-block ruleset is in `docs/development/rulesets/stable.json`, and `SECURITY.md` lists the checks a push to `stable` must pass. The release workflow does not exist yet.
+Promotion to `stable` requires the owner's authorization for each release; the managing agent performs the push once authorized. The `stable` branch is not created until the first authorized release. Its applied deletion-block ruleset is in `docs/development/rulesets/stable.json`, and `SECURITY.md` lists the checks a push to `stable` must pass. The stable release workflow is prepared on the beta umbrella but is not live until that first authorized push; see `docs/guides/stable-releases.md`.
 
 ### Promotion candidate
 

@@ -1,9 +1,8 @@
-//! Offline release archive safety checks run through the normal verification gate.
+//! Offline release archive and stable-release helper checks run through verification.
 
-#[test]
-fn nightly_packaging_safety() {
+fn run_helper(script: &str) {
     let output = std::process::Command::new("python3")
-        .arg("scripts/nightly-release-test.py")
+        .arg(script)
         .current_dir(env!("CARGO_MANIFEST_DIR"))
         .env("PYTHONDONTWRITEBYTECODE", "1")
         .output()
@@ -13,4 +12,19 @@ fn nightly_packaging_safety() {
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
+}
+
+#[test]
+fn nightly_packaging_safety() {
+    run_helper("scripts/nightly-release-test.py");
+}
+
+#[test]
+fn stable_packaging_safety() {
+    run_helper("scripts/stable-release-test.py");
+}
+
+#[test]
+fn homebrew_formula_safety() {
+    run_helper("scripts/homebrew-formula-test.py");
 }

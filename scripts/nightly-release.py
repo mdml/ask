@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package and validate nightly archives, including an offline packaged-binary proof."""
+"""Package and validate release archives, including an offline packaged-binary proof."""
 import argparse
 import datetime
 import hashlib
@@ -61,7 +61,9 @@ def version():
 
 def identity(sha, tag):
     require(re.fullmatch(r"[0-9a-f]{40}", sha), "invalid source SHA")
-    require(re.fullmatch(rf"v{re.escape(version())}-nightly\.[0-9]{{8}}\.[1-9][0-9]*\.[1-9][0-9]*", tag), "invalid nightly tag")
+    nightly = re.fullmatch(rf"v{re.escape(version())}-nightly\.[0-9]{{8}}\.[1-9][0-9]*\.[1-9][0-9]*", tag)
+    stable = tag == f"v{version()}"
+    require(nightly or stable, "invalid release tag")
     return {"source_sha": sha, "tag": tag, "cargo_version": version(),
             "lock_sha256": digest((ROOT / "Cargo.lock").read_bytes()), "rust": "1.97.1"}
 
@@ -194,7 +196,7 @@ def verify(source, destination, sha, tag):
     (destination / "SHA256SUMS").write_text("".join(f"{checksums[t]}  {archive_name(t)}\n" for t in TARGETS))
 
 
-def verify_upload(release, directory, sha, tag):
+def verify_upload(release, directory, sha, tag, prerelease=True):
     require(isinstance(release, dict), "release response must be an object")
     required = {"tag_name": str, "target_commitish": str, "draft": bool,
                 "prerelease": bool, "assets": list}
@@ -203,8 +205,8 @@ def verify_upload(release, directory, sha, tag):
                 f"release response has invalid {field}")
     require(release["tag_name"] == tag and release["target_commitish"] == sha,
             "uploaded release identity mismatch")
-    require(release["draft"] is True and release["prerelease"] is True,
-            "expected draft prerelease")
+    require(release["draft"] is True and release["prerelease"] is prerelease,
+            "expected draft release state")
     expected = {archive_name(t) for t in TARGETS} | {"SHA256SUMS"}
     assets = release["assets"]
     for asset in assets:
