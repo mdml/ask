@@ -256,7 +256,7 @@ Query counts include every recorded query, including those later removed from hi
 
 Configuration problems exit 1; environmental-readiness problems exit 3. Diagnostics go to stdout; summary errors and warnings go to stderr. A missing database file is reported as absent; an existing but unreadable file is reported as inaccessible rather than absent. When deeper storage validation cannot run safely without side effects—WAL-format headers, companion sidecar files, or an older schema that would require migration—`doctor` reports a limited check and exits 3 rather than claiming the store is healthy.
 
-`ask doctor --live` sends one fixed minimal request per selected provider target using the prompt `Reply with exactly: ok`, a fixed one-word system prompt, and a 128-token output cap regardless of profile settings. It may incur provider cost; `ask` warns on stderr before sending. A successful live check records provider health with source `live-check`; live mode may create or migrate the database when recording that observation. `--live --all` checks every distinct provider target across all profiles. `--all` without `--live` is a usage error.
+`ask doctor --live` sends one fixed minimal request per selected provider target using the prompt `Reply with exactly: ok`, a fixed minimal system prompt requesting a one-word answer, and a 128-token output cap regardless of profile settings. It may incur provider cost; `ask` warns on stderr before sending. A successful live check records provider health with source `live-check`; live mode may create or migrate the database when recording that observation. `--live --all` checks every distinct provider target across all profiles. `--all` without `--live` is a usage error.
 
 ## Development
 
