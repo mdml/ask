@@ -32,3 +32,9 @@ jobs:
 
       - name: Dependency freshness (dry run)
         run: cargo update --dry-run
+
+      # Report only: reads public sources, writes the job summary, never fails
+      # on a finding, and runs even when the advisory check fails.
+      - name: Native SQLite monitoring (report only)
+        if: ${{ !cancelled() }}
+        run: python3 scripts/sqlite-monitor.py

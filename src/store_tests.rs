@@ -337,6 +337,40 @@ fn an_injected_failure_rolls_back_every_table() {
     }
 }
 
+/// A held write blocks a second writer for the configured busy timeout while
+/// readers still see the committed state; after rollback the writer succeeds.
+#[test]
+fn a_held_write_delays_a_second_writer_and_hides_nothing_from_readers() {
+    let path = scratch();
+    let snapshot = target("model");
+    let mut holder = Store::open(&path).unwrap();
+    let mut contender = Store::open(&path).unwrap();
+    holder
+        .record(&record(&snapshot, None, complete("q1", "a1")))
+        .unwrap();
+    let thread = current_id(&mut holder);
+    let held = holder
+        .connection
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .unwrap();
+    held.execute("DELETE FROM current_thread", []).unwrap();
+    assert_eq!(current_id(&mut contender), thread);
+    let start = Instant::now();
+    let error = contender
+        .record(&record(&snapshot, thread, complete("q2", "a2")))
+        .unwrap_err();
+    let waited = start.elapsed();
+    assert!(waited >= BUSY_TIMEOUT.mul_f32(0.9), "{waited:?}");
+    assert!(error.to_string().contains("database is locked"), "{error}");
+    held.rollback().unwrap();
+    contender
+        .record(&record(&snapshot, thread, complete("q2", "a2")))
+        .unwrap();
+    assert_eq!(counts(&holder), vec![1, 2, 1, 2, 1, 0]);
+    assert_eq!(current_id(&mut holder), thread);
+    assert_eq!(scalar::<String>(&holder, "PRAGMA integrity_check"), "ok");
+}
+
 #[test]
 fn health_is_kept_per_provider_target() {
     let mut store = Store::open(&scratch()).unwrap();
