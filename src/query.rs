@@ -14,15 +14,16 @@ use crate::{
     output::AnswerWriter,
     provider::{Exchange, Request, RigProvider},
     report,
-    runner::{self, Outcome},
+    runner::{self, Outcome, RunError},
     stats::Statistics,
-    store::{Health, Measurement, Record, Store, StoreError, Turn, TurnStatus},
+    store::{Health, HealthSource, Measurement, Record, Store, StoreError, Turn, TurnStatus},
 };
 
-const NO_CURRENT_THREAD: &str = "no current thread; start one with `ask new`";
+pub const NO_CURRENT_THREAD: &str = "no current thread; start one with `ask new`";
 
 pub struct Query<'a> {
     pub mode: Mode,
+    pub profile: Option<&'a str>,
     pub words: Option<&'a str>,
     pub stdin_is_terminal: bool,
     pub started: Instant,
@@ -35,6 +36,22 @@ struct Session {
     credential: String,
     thread: Option<i64>,
     history: Vec<Exchange>,
+    retention: Retention,
+}
+
+/// The history expiry setting read when the command started.
+enum Retention {
+    Indefinite,
+    Days(u64),
+    /// A reply could not read the installed configuration; the cause is
+    /// reported and history is kept.
+    Unreadable(String),
+}
+
+impl From<&config::Config> for Retention {
+    fn from(config: &config::Config) -> Self {
+        config.history_days().map_or(Self::Indefinite, Self::Days)
+    }
 }
 
 /// One finished or failed query, measured when streaming ended.
@@ -51,7 +68,7 @@ pub async fn run(
     stderr: &mut impl io::Write,
 ) -> ExitCode {
     let started_at = SystemTime::now();
-    let mut session = match prepare(query.mode) {
+    let mut session = match prepare(query.mode, query.profile) {
         Ok(session) => session,
         Err(message) => return report(stderr, &message, ExitCode::FAILURE),
     };
@@ -65,6 +82,9 @@ pub async fn run(
         Ok(prompt) => prompt,
         Err(error) => return report(stderr, &error.to_string(), error.status()),
     };
+    if let Err(message) = session.expire(stderr) {
+        return report(stderr, &message, ExitCode::FAILURE);
+    }
     let outcome = session.ask(&prompt, stdout).await;
     let finished = Finished {
         prompt: &prompt,
@@ -76,17 +96,22 @@ pub async fn run(
     conclude(stderr, &session.target, &finished, saved)
 }
 
-fn prepare(mode: Mode) -> Result<Session, String> {
+fn prepare(mode: Mode, profile: Option<&str>) -> Result<Session, String> {
     match mode {
-        Mode::New => fresh(),
+        Mode::New => fresh(profile),
         Mode::Reply => continued(),
     }
 }
 
-fn fresh() -> Result<Session, String> {
-    let target = config::load()
-        .and_then(config::Config::resolve)
-        .map_err(|error| error.to_string())?;
+fn fresh(profile: Option<&str>) -> Result<Session, String> {
+    let config = config::load().map_err(|error| error.to_string())?;
+    let retention = Retention::from(&config);
+    let target = match profile {
+        Some(name) => config
+            .resolve_named(name)
+            .map_err(|error| error.to_string())?,
+        None => config.resolve().map_err(|error| error.to_string())?,
+    };
     let credential = credential(&target.api_key_env)?;
     Ok(Session {
         store: open()?,
@@ -94,12 +119,19 @@ fn fresh() -> Result<Session, String> {
         credential,
         thread: None,
         history: Vec::new(),
+        retention,
     })
 }
 
-/// A reply needs only the database and the snapshot's credential variable,
-/// never the installed configuration.
+/// A reply needs only the database and the snapshot's credential variable.
+/// It reads the installed configuration only for history expiry: when that
+/// configuration is missing or invalid, history is kept with a warning. The
+/// thread is the one current when the command starts.
 fn continued() -> Result<Session, String> {
+    let retention = config::load().map_or_else(
+        |error| Retention::Unreadable(error.to_string()),
+        |config| Retention::from(&config),
+    );
     let mut store = open()?;
     let thread = store
         .current()
@@ -112,6 +144,7 @@ fn continued() -> Result<Session, String> {
         credential,
         thread: Some(thread.id),
         history: thread.history,
+        retention,
     })
 }
 
@@ -121,6 +154,37 @@ fn open() -> Result<Store, String> {
 }
 
 impl Session {
+    /// Applies history expiry once valid input is submitted, before the
+    /// request. A reply whose thread no longer exists sends nothing.
+    fn expire(&mut self, stderr: &mut impl io::Write) -> Result<(), String> {
+        match &self.retention {
+            Retention::Indefinite => {}
+            Retention::Days(days) => {
+                self.store
+                    .expire(SystemTime::now(), *days)
+                    .map_err(|error| format!("cannot apply history expiry: {error}"))?;
+            }
+            Retention::Unreadable(cause) => {
+                report(
+                    stderr,
+                    &format!("history expiry skipped: {cause}"),
+                    ExitCode::SUCCESS,
+                );
+            }
+        }
+        match self.thread {
+            Some(id)
+                if !self
+                    .store
+                    .has_thread(id)
+                    .map_err(|error| error.to_string())? =>
+            {
+                Err(NO_CURRENT_THREAD.to_string())
+            }
+            _ => Ok(()),
+        }
+    }
+
     async fn ask(&self, prompt: &str, stdout: &mut impl io::Write) -> Outcome {
         let provider = RigProvider::new(&self.target, self.credential.clone());
         let request = Request {
@@ -164,19 +228,28 @@ impl Finished<'_> {
             Some(error) if error.is_broken_pipe() => {
                 Some(TurnStatus::Partial("output closed".to_string()))
             }
-            Some(error) if error.is_output() || !self.outcome.answer.is_empty() => {
+            Some(error) if self.has_partial_turn(error) => {
                 Some(TurnStatus::Partial(error.to_string()))
             }
             Some(_) => None,
         }
     }
 
-    /// Output failures say nothing about the provider target.
+    fn has_partial_turn(&self, error: &RunError) -> bool {
+        error.is_output() || error.is_output_limit() || !self.outcome.answer.is_empty()
+    }
+
+    /// Output failures say nothing about the provider target; an answer cut at
+    /// the output-token limit shows the target responded normally.
     fn health(&self) -> Option<Health> {
         match &self.outcome.error {
-            None => Some(Health::Success),
+            None => Some(Health::Success(HealthSource::Query)),
+            Some(error) if error.is_output_limit() => Some(Health::Success(HealthSource::Query)),
             Some(error) if error.is_output() => None,
-            Some(error) => Some(Health::Failure(error.class())),
+            Some(error) => Some(Health::Failure {
+                class: error.class(),
+                source: HealthSource::Query,
+            }),
         }
     }
 
@@ -216,7 +289,12 @@ fn conclude(
 ) -> ExitCode {
     let error = finished.outcome.error.as_ref();
     if let Some(error) = error.filter(|error| !error.is_broken_pipe()) {
-        report(stderr, &error.to_string(), ExitCode::FAILURE);
+        let message = if error.is_output_limit() {
+            format!("warning: {error}")
+        } else {
+            error.to_string()
+        };
+        report(stderr, &message, ExitCode::FAILURE);
     }
     if let Err(cause) = saved {
         let what = match finished.status() {

@@ -1,12 +1,31 @@
 use std::{fmt, path::PathBuf};
 
-const USAGE: &str = "usage: ask [new|n] <prompt words...> | ask [reply|r] <prompt words...> | ask [init|i] | ask [configure|c] check [FILE|-] | ask [configure|c] apply [FILE|-]";
+const USAGE: &str = "usage: ask [--profile NAME | -p NAME] [new|n] [prompt words...] | ask [reply|r] [prompt words...] | ask [thread|t] | ask [switch|s] [ID] | ask stats | ask [doctor|d] [--live] [--all] | ask [init|i] | ask [configure|c] check [FILE|-] | ask [configure|c] apply [FILE|-] | ask help | ask version | ask [--help | -h] | ask [--version | -V]";
+
+const REPLY_PROFILE: &str = "--profile and -p apply only to new queries; replies use the profile captured when their thread was created";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
-    Query(Mode, Option<String>),
+    Query(Mode, QueryOptions),
+    Thread,
+    /// Select the current thread, interactively when no id is given.
+    Switch(Option<i64>),
+    Stats,
+    Doctor {
+        live: bool,
+        all: bool,
+    },
     Init,
     Configure(Action),
+    Help,
+    Version,
+}
+
+/// Options that apply only to a new query.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct QueryOptions {
+    pub profile: Option<String>,
+    pub words: Option<String>,
 }
 
 /// Whether a query starts a new thread or continues the current one.
@@ -44,22 +63,101 @@ pub fn parse(
     args: impl IntoIterator<Item = String>,
     stdin_is_terminal: bool,
 ) -> Result<Command, String> {
-    let mut words: Vec<String> = args.into_iter().collect();
-    let (mode, named) = match words.first().map(String::as_str) {
-        Some("init" | "i") if words.len() == 1 => return Ok(Command::Init),
-        Some("init" | "i") => return Err(USAGE.to_string()),
-        Some("configure" | "c") => return configure(&words[1..], stdin_is_terminal),
-        Some("new" | "n") => (Mode::New, true),
-        Some("reply" | "r") => (Mode::Reply, true),
-        _ => (Mode::New, false),
-    };
-    if named {
-        words.remove(0);
+    let words: Vec<String> = args.into_iter().collect();
+    match words.first().map(String::as_str) {
+        Some("help" | "--help" | "-h") => alone(&words, Command::Help),
+        Some("version" | "--version" | "-V") => alone(&words, Command::Version),
+        Some("init" | "i") => alone(&words, Command::Init),
+        Some("thread" | "t") => alone(&words, Command::Thread),
+        Some("stats") => alone(&words, Command::Stats),
+        Some("doctor" | "d") => doctor(&words[1..]),
+        Some("switch" | "s") => switch(&words[1..]),
+        Some("configure" | "c") => configure(&words[1..], stdin_is_terminal),
+        _ => parse_query(words),
+    }
+}
+
+fn parse_query(mut words: Vec<String>) -> Result<Command, String> {
+    let profile = leading_profile(&mut words, None)?;
+    let mode = query_mode(&mut words);
+    let profile = leading_profile(&mut words, profile)?;
+    if profile.is_some() && mode == Mode::Reply {
+        return Err(format!("{REPLY_PROFILE}\n{USAGE}"));
     }
     Ok(Command::Query(
         mode,
-        (!words.is_empty()).then(|| words.join(" ")),
+        QueryOptions {
+            profile,
+            words: (!words.is_empty()).then(|| words.join(" ")),
+        },
     ))
+}
+
+fn query_mode(words: &mut Vec<String>) -> Mode {
+    let mode = match words.first().map(String::as_str) {
+        Some("new" | "n") => Mode::New,
+        Some("reply" | "r") => Mode::Reply,
+        _ => return Mode::New,
+    };
+    words.remove(0);
+    mode
+}
+
+fn leading_profile(
+    words: &mut Vec<String>,
+    mut profile: Option<String>,
+) -> Result<Option<String>, String> {
+    while matches!(words.first().map(String::as_str), Some("--profile" | "-p")) {
+        let flag = words.remove(0);
+        profile = Some(flag_value(words, &flag)?);
+    }
+    Ok(profile)
+}
+
+fn flag_value(words: &mut Vec<String>, flag: &str) -> Result<String, String> {
+    words
+        .first()
+        .filter(|value| !value.is_empty())
+        .cloned()
+        .inspect(|_| {
+            words.remove(0);
+        })
+        .ok_or_else(|| format!("{flag} requires a profile name\n{USAGE}"))
+}
+
+/// A command that takes no arguments.
+fn alone(words: &[String], command: Command) -> Result<Command, String> {
+    if words.len() == 1 {
+        return Ok(command);
+    }
+    Err(USAGE.to_string())
+}
+
+fn doctor(rest: &[String]) -> Result<Command, String> {
+    let mut live = false;
+    let mut all = false;
+    for word in rest {
+        match word.as_str() {
+            "--live" => live = true,
+            "--all" => all = true,
+            _ => return Err(USAGE.to_string()),
+        }
+    }
+    if all && !live {
+        return Err(format!("--all requires --live\n{USAGE}"));
+    }
+    Ok(Command::Doctor { live, all })
+}
+
+fn switch(rest: &[String]) -> Result<Command, String> {
+    match rest {
+        [] => Ok(Command::Switch(None)),
+        [id] if id.bytes().all(|byte| byte.is_ascii_digit()) => match id.parse::<i64>() {
+            Ok(id) if id > 0 => Ok(Command::Switch(Some(id))),
+            _ => Err(USAGE.to_string()),
+        },
+        _ => Err(USAGE.to_string()),
+    }
 }
 
 fn configure(rest: &[String], stdin_is_terminal: bool) -> Result<Command, String> {

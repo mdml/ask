@@ -6,6 +6,8 @@ type Field = (&'static str, fn(&Value) -> bool, bool);
 
 const ROOT: &[Field] = &[
     ("default_profile", Value::is_str, true),
+    ("expire_history", Value::is_bool, false),
+    ("history_days", unsigned, false),
     ("providers", Value::is_table, true),
     ("profiles", Value::is_table, true),
 ];
@@ -19,6 +21,7 @@ const PROFILE: &[Field] = &[
     ("provider", Value::is_str, true),
     ("model", Value::is_str, true),
     ("system_prompt", Value::is_str, false),
+    ("max_output_tokens", unsigned, false),
 ];
 
 pub(super) fn check(value: &Value) -> Result<(), String> {

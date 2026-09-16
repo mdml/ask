@@ -21,3 +21,4 @@ fmt:
 nightly-deps:
     cargo deny --locked check advisories
     cargo update --dry-run
+    python3 scripts/sqlite-monitor.py

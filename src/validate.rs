@@ -9,7 +9,10 @@
 
 use std::fmt;
 
-use crate::config::{Config, ProfileConfig, ProviderConfig};
+use crate::{
+    config::{Config, ProfileConfig, ProviderConfig},
+    provider::{KINDS, Kind},
+};
 
 pub(crate) const PROVIDER_KIND: &str = "openai-compatible";
 
@@ -44,6 +47,7 @@ pub(crate) fn document(contents: &str) -> Result<Config, String> {
 }
 
 fn check(config: &Config) -> Result<(), String> {
+    check_history(config)?;
     for (index, (name, provider)) in config.providers.iter().enumerate() {
         check_provider(index + 1, name, provider)?;
     }
@@ -56,13 +60,24 @@ fn check(config: &Config) -> Result<(), String> {
     Err(missing_profile(&config.default_profile))
 }
 
+fn check_history(config: &Config) -> Result<(), String> {
+    match config.history_days {
+        Some(_) if !config.expire_history => {
+            Err("history_days requires expire_history = true".to_string())
+        }
+        Some(days) => positive(days).map_err(|rule| format!("history_days {rule}")),
+        None => Ok(()),
+    }
+}
+
 fn check_provider(index: usize, name: &str, provider: &ProviderConfig) -> Result<(), String> {
     if name.is_empty() {
         return Err(format!("providers[{index}].name {REQUIRED_RULE}"));
     }
-    if provider.kind != PROVIDER_KIND {
+    if Kind::parse(&provider.kind).is_none() {
+        let supported = KINDS.map(|(name, _)| format!("'{name}'")).join(", ");
         return Err(format!(
-            "providers[{index}].kind has an unsupported kind; the only supported kind is '{PROVIDER_KIND}'"
+            "providers[{index}].kind has an unsupported kind; supported kinds are {supported}"
         ));
     }
     field(
@@ -113,7 +128,17 @@ fn check_profile(
         },
         non_empty(Value(&profile.model)),
     )?;
-    Ok(())
+    match profile.max_output_tokens {
+        Some(limit) => field(
+            Key {
+                table: "profiles",
+                entry: index,
+                field: "max_output_tokens",
+            },
+            positive(limit),
+        ),
+        None => Ok(()),
+    }
 }
 
 pub(crate) fn missing_profile(_name: &str) -> String {

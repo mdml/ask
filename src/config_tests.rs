@@ -27,6 +27,20 @@ fn parses_and_resolves_defaults() {
     assert_eq!(target.timeout_ms, 30_000);
     assert_eq!(target.model, "fake-model");
     assert_eq!(target.system_prompt, crate::DEFAULT_SYSTEM_PROMPT);
+    assert_eq!(target.max_output_tokens, None);
+}
+
+#[test]
+fn profile_output_limit_resolves_and_round_trips() {
+    let configured = CONFIG.replace(
+        "model = \"fake-model\"",
+        "model = \"fake-model\"\nmax_output_tokens = 512",
+    );
+    assert_eq!(resolved(&configured).max_output_tokens, Some(512));
+    let rendered = validate::document(&configured).unwrap().to_toml().unwrap();
+    assert!(rendered.contains("max_output_tokens = 512"));
+    let rendered = validate::document(CONFIG).unwrap().to_toml().unwrap();
+    assert!(!rendered.contains("max_output_tokens"));
 }
 
 #[test]
@@ -46,9 +60,25 @@ fn profile_replaces_prompt_and_provider_timeout() {
 }
 
 #[test]
+fn resolve_named_selects_a_non_default_profile() {
+    let configured = CONFIG.replace(
+        "[profiles.default]",
+        "[profiles.terse]\nprovider = \"local\"\nmodel = \"other-model\"\n\n[profiles.default]",
+    );
+    let config = validate::document(&configured).unwrap();
+    assert_eq!(config.resolve_named("terse").unwrap().model, "other-model");
+    assert_eq!(
+        config.resolve_named("missing").unwrap_err().to_string(),
+        "profile 'missing' is not configured"
+    );
+}
+
+#[test]
 fn resolve_reports_a_default_profile_that_is_absent() {
     let config = Config {
         default_profile: "missing".to_string(),
+        expire_history: false,
+        history_days: None,
         providers: BTreeMap::new(),
         profiles: BTreeMap::new(),
     };
@@ -62,6 +92,8 @@ fn resolve_reports_a_default_profile_that_is_absent() {
 fn resolve_reports_a_provider_that_is_absent() {
     let config = Config {
         default_profile: "default".to_string(),
+        expire_history: false,
+        history_days: None,
         providers: BTreeMap::new(),
         profiles: BTreeMap::from([(
             "default".to_string(),
@@ -69,6 +101,7 @@ fn resolve_reports_a_provider_that_is_absent() {
                 provider: "missing".to_string(),
                 model: "m".to_string(),
                 system_prompt: None,
+                max_output_tokens: None,
             },
         )]),
     };
@@ -96,4 +129,28 @@ fn rendered_toml_keeps_a_custom_timeout() {
     config.providers.get_mut("local").unwrap().timeout_ms = 41;
     let rendered = config.to_toml().unwrap();
     assert!(rendered.contains("timeout_ms = 41"));
+}
+
+#[test]
+fn history_is_kept_forever_unless_expiry_is_enabled() {
+    let history = |prefix: &str| {
+        validate::document(&format!("{prefix}\n{CONFIG}"))
+            .unwrap()
+            .history_days()
+    };
+    assert_eq!(history(""), None);
+    assert_eq!(history("expire_history = false"), None);
+    assert_eq!(history("expire_history = true"), Some(90));
+    assert_eq!(history("expire_history = true\nhistory_days = 7"), Some(7));
+}
+
+#[test]
+fn rendered_toml_keeps_enabled_expiry_and_omits_the_default() {
+    let mut config = validate::document(CONFIG).unwrap();
+    assert!(!config.to_toml().unwrap().contains("history"));
+    config.expire_history = true;
+    config.history_days = Some(7);
+    let rendered = config.to_toml().unwrap();
+    let reparsed = validate::document(&rendered).unwrap();
+    assert_eq!(reparsed.history_days(), Some(7));
 }

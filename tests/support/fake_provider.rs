@@ -3,7 +3,7 @@ use std::{
     net::{SocketAddr, TcpListener, TcpStream},
     sync::{
         Arc, Condvar, Mutex, MutexGuard,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     },
     thread::{self, JoinHandle},
     time::{Duration, Instant},
@@ -24,6 +24,18 @@ pub enum Scenario {
     Unauthorized,
     RateLimited,
     PartialFailure,
+    /// Redirects with `status` to `/redirected/chat/completions` on this
+    /// fake's port unless a different loopback port is supplied.
+    Redirect {
+        status: u16,
+        port: Option<u16>,
+    },
+    /// A complete server-sent event body in some provider's wire format.
+    Sse(&'static str),
+    /// A server-sent event body split at exact HTTP chunk boundaries.
+    SseChunks(&'static [&'static str]),
+    /// A JSON error body with the given status.
+    Status(u16, &'static str),
 }
 
 #[derive(Clone, Debug)]
@@ -34,6 +46,18 @@ pub struct RecordedRequest {
     pub authorization_is_fixture: bool,
     pub model: String,
     pub messages: Vec<(String, String)>,
+    /// Every header, names lowercased, in arrival order.
+    pub headers: Vec<(String, String)>,
+    pub body: Value,
+}
+
+impl RecordedRequest {
+    pub fn header(&self, name: &str) -> Option<&str> {
+        self.headers
+            .iter()
+            .find(|(key, _)| key == name)
+            .map(|(_, value)| value.as_str())
+    }
 }
 
 /// Holds each response after its request is recorded until the gate opens.
@@ -69,6 +93,8 @@ struct Shared {
     /// The one request whose response waits for the gate, or `None` when
     /// every response waits for it.
     held: Option<usize>,
+    /// Every accepted connection, including ones whose request did not parse.
+    connections: AtomicUsize,
     stop: AtomicBool,
 }
 
@@ -112,6 +138,7 @@ impl FakeProvider {
             recorded: Mutex::new(Vec::new()),
             gate: Gate::new(open),
             held,
+            connections: AtomicUsize::new(0),
             stop: AtomicBool::new(false),
         });
         let thread_shared = Arc::clone(&shared);
@@ -130,6 +157,11 @@ impl FakeProvider {
 
     pub fn base_url(&self) -> String {
         format!("http://{}/v1", self.address)
+    }
+
+    /// The number of connections accepted so far.
+    pub fn connections(&self) -> usize {
+        self.shared.connections.load(Ordering::SeqCst)
     }
 
     pub fn release(&self) {
@@ -175,6 +207,7 @@ fn serve(listener: &TcpListener, scenarios: &[Scenario], shared: &Arc<Shared>) {
             return;
         }
         let Ok(mut stream) = connection else { continue };
+        shared.connections.fetch_add(1, Ordering::SeqCst);
         let Some(request) = read_request(&mut stream) else {
             continue;
         };
@@ -233,8 +266,15 @@ fn read_request(stream: &mut TcpStream) -> Option<RecordedRequest> {
         path,
         authorization_present,
         authorization_is_fixture,
-        model: value["model"].as_str()?.to_string(),
+        model: value["model"].as_str().unwrap_or_default().to_string(),
         messages: messages(&value),
+        headers: headers
+            .lines()
+            .skip(1)
+            .filter_map(|line| line.split_once(':'))
+            .map(|(name, value)| (name.trim().to_ascii_lowercase(), value.trim().to_string()))
+            .collect(),
+        body: value,
     })
 }
 
@@ -280,7 +320,7 @@ fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 fn messages(value: &Value) -> Vec<(String, String)> {
     value["messages"]
         .as_array()
-        .unwrap()
+        .map_or(&[][..], Vec::as_slice)
         .iter()
         .map(|message| {
             let role = message["role"].as_str().unwrap().to_string();
@@ -312,6 +352,16 @@ fn respond(stream: &mut TcpStream, scenario: Scenario) {
         Scenario::Unauthorized => error(stream, 401, "unauthorized"),
         Scenario::RateLimited => error(stream, 429, "rate limited"),
         Scenario::PartialFailure => partial_failure(stream),
+        Scenario::Redirect { status, port } => redirect(stream, status, port),
+        Scenario::Sse(body) => fixed(stream, 200, "text/event-stream", body),
+        Scenario::SseChunks(parts) => {
+            chunked_headers(stream);
+            for part in parts {
+                chunk(stream, part);
+            }
+            let _ = stream.write_all(b"0\r\n\r\n");
+        }
+        Scenario::Status(status, body) => fixed(stream, status, "application/json", body),
     }
 }
 
@@ -346,6 +396,15 @@ fn partial_failure(stream: &mut TcpStream) {
     chunked_headers(stream);
     chunk(stream, &content_event("partial"));
     let _ = stream.write_all(b"not-a-size\r\n");
+}
+
+fn redirect(stream: &mut TcpStream, status: u16, port: Option<u16>) {
+    let port = port.unwrap_or_else(|| stream.local_addr().unwrap().port());
+    let response = format!(
+        "HTTP/1.1 {status} Redirect\r\nLocation: http://127.0.0.1:{port}/redirected/chat/completions\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+    );
+    let _ = stream.write_all(response.as_bytes());
+    let _ = stream.flush();
 }
 
 fn chunked_headers(stream: &mut TcpStream) {

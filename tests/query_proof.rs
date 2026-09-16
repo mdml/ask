@@ -50,6 +50,25 @@ fn profile_replaces_the_default_system_prompt() {
 }
 
 #[test]
+fn profile_flag_selects_a_non_default_profile_for_a_new_query() {
+    let fake = FakeProvider::start(Scenario::Stream);
+    let home = fresh_home();
+    let config = format!(
+        "default_profile = \"default\"\n\n[providers.local]\nkind = \"openai-compatible\"\nbase_url = \"{}\"\napi_key_env = \"LOCAL_API_KEY\"\n\n[profiles.default]\nprovider = \"local\"\nmodel = \"default-model\"\n\n[profiles.terse]\nprovider = \"local\"\nmodel = \"terse-model\"\nsystem_prompt = \"Use terse tables.\"\n",
+        fake.base_url()
+    );
+    fs::write(home.join("config.toml"), config).unwrap();
+    let output = ask(&home, &["--profile", "terse", "question"], true);
+    assert!(output.status.success(), "{:?}", output);
+    let request = fake.recorded().unwrap();
+    assert_eq!(request.model, "terse-model");
+    assert_eq!(
+        request.messages[0],
+        ("system".into(), "Use terse tables.".into())
+    );
+}
+
+#[test]
 fn all_three_command_forms_join_prompt_words() {
     let forms: [&[&str]; 3] = [
         &["one", "question"],
@@ -120,6 +139,47 @@ fn streaming_failure_preserves_partial_answer() {
     let output = ask(&home, &["question"], true);
     assert_failure(&output, "provider request failed");
     assert_eq!(output.stdout, b"partial\n");
+}
+
+#[test]
+fn provider_redirects_are_refused_without_forwarding_the_request() {
+    for (status, cross_origin) in [(307, true), (308, true), (307, false)] {
+        let destination = TcpListener::bind("127.0.0.1:0").unwrap();
+        destination.set_nonblocking(true).unwrap();
+        let port = cross_origin.then(|| destination.local_addr().unwrap().port());
+        let fake = FakeProvider::start(Scenario::Redirect { status, port });
+        let home = configured_home(&fake.base_url(), None, Some(1000));
+        let output = ask(&home, &["PRIVATE_QUERY"], true);
+        assert_eq!(fake.connections(), 1);
+        assert_eq!(
+            destination.accept().unwrap_err().kind(),
+            std::io::ErrorKind::WouldBlock
+        );
+        assert_redirect_failure(&output, status);
+        assert_eq!(
+            database_row(
+                &home,
+                "SELECT (SELECT count(*) FROM threads) || ':' || (SELECT count(*) FROM turns) || ':' || (SELECT count(*) FROM current_thread) || ':' || (SELECT group_concat(outcome) FROM query_statistics) || ':' || (SELECT (last_success_at_ms IS NULL) || last_failure_class FROM provider_health)"
+            ),
+            "0:0:0:failed:1provider"
+        );
+    }
+}
+
+fn assert_redirect_failure(output: &Output, status: u16) {
+    assert_failure(output, &format!("status {status}"));
+    assert!(output.stdout.is_empty());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    for forbidden in [CREDENTIAL, "PRIVATE_QUERY"] {
+        assert!(!stderr.contains(forbidden), "stderr was: {stderr}");
+    }
+}
+
+fn database_row(home: &Path, query: &str) -> String {
+    rusqlite::Connection::open(home.join("data/ask.sqlite3"))
+        .unwrap()
+        .query_row(query, [], |row| row.get(0))
+        .unwrap()
 }
 
 #[test]
@@ -358,6 +418,15 @@ fn terminal_multiline_submits_on_eof() {
             "first line\nsecond line\n"
         );
     }
+}
+
+#[test]
+fn terminal_partial_line_submits_once_on_second_eof() {
+    let fake = FakeProvider::start(Scenario::Stream);
+    let home = configured_home(&fake.base_url(), None, None);
+    terminal(&home, "partial", &[]);
+    assert_eq!(fake.recorded().unwrap().messages[1].1, "partial question");
+    assert_eq!(fake.connections(), 1);
 }
 
 #[test]

@@ -3,14 +3,19 @@
 mod cli;
 mod config;
 mod configure;
+pub mod doctor;
+mod help;
 mod init;
 mod input;
 mod output;
+mod overview;
 mod provider;
 mod query;
+mod recall;
 mod runner;
 mod stats;
 mod store;
+mod utc;
 mod validate;
 
 use std::{
@@ -35,15 +40,24 @@ async fn execute(
 ) -> ExitCode {
     let wall_start = Instant::now();
     let stdin_is_terminal = io::stdin().is_terminal();
-    let (mode, words) = match cli::parse(args, stdin_is_terminal) {
-        Ok(cli::Command::Query(mode, words)) => (mode, words),
+    let (mode, options) = match cli::parse(args, stdin_is_terminal) {
+        Ok(cli::Command::Query(mode, options)) => (mode, options),
+        Ok(cli::Command::Thread) => return recall::thread(stdout, stderr),
+        Ok(cli::Command::Switch(id)) => return recall::switch(id, &mut io::stdin().lock(), stderr),
+        Ok(cli::Command::Stats) => return overview::run(stdout, stderr),
+        Ok(cli::Command::Doctor { live, all }) => {
+            return doctor::run(doctor::Options { live, all }, stdout, stderr).await;
+        }
         Ok(cli::Command::Init) => return init(stderr),
         Ok(cli::Command::Configure(action)) => return configure(&action, stderr),
+        Ok(cli::Command::Help) => return help::run(stdout, stderr),
+        Ok(cli::Command::Version) => return help::version(stdout, stderr),
         Err(message) => return report(stderr, &message, ExitCode::from(2)),
     };
     let query = query::Query {
         mode,
-        words: words.as_deref(),
+        profile: options.profile.as_deref(),
+        words: options.words.as_deref(),
         stdin_is_terminal,
         started: wall_start,
     };
@@ -83,6 +97,23 @@ fn credential(name: &str) -> Result<String, String> {
             format!("credential environment variable '{name}' is not valid Unicode")
         }
     })
+}
+
+/// Writes an inspection command's output. A reader that closes early ends the
+/// command quietly and successfully.
+fn emit(stdout: &mut impl io::Write, stderr: &mut impl io::Write, text: &str) -> ExitCode {
+    match stdout
+        .write_all(text.as_bytes())
+        .and_then(|()| stdout.flush())
+    {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) if error.kind() == io::ErrorKind::BrokenPipe => ExitCode::SUCCESS,
+        Err(error) => report(
+            stderr,
+            &format!("cannot write output: {error}"),
+            ExitCode::FAILURE,
+        ),
+    }
 }
 
 fn report(stderr: &mut impl io::Write, message: &str, status: ExitCode) -> ExitCode {

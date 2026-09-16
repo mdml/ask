@@ -1,5 +1,5 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     env, fmt, fs,
     path::{Path, PathBuf},
 };
@@ -10,12 +10,17 @@ use serde::{Deserialize, Serialize};
 use crate::validate;
 
 pub(crate) const DEFAULT_TIMEOUT_MS: u64 = 30_000;
+pub(crate) const DEFAULT_HISTORY_DAYS: u64 = 90;
 const DATABASE_FILE: &str = "ask.sqlite3";
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     pub(crate) default_profile: String,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub(crate) expire_history: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) history_days: Option<u64>,
     pub(crate) providers: BTreeMap<String, ProviderConfig>,
     pub(crate) profiles: BTreeMap<String, ProfileConfig>,
 }
@@ -39,6 +44,8 @@ pub(crate) struct ProfileConfig {
     pub(crate) provider: String,
     pub(crate) model: String,
     pub(crate) system_prompt: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) max_output_tokens: Option<u64>,
 }
 
 /// A fully resolved profile. A thread stores this snapshot when it is created.
@@ -51,6 +58,8 @@ pub struct Target {
     pub timeout_ms: u64,
     pub model: String,
     pub system_prompt: String,
+    /// The profile's explicit output-token limit, if it set one.
+    pub max_output_tokens: Option<u64>,
 }
 
 #[derive(Debug)]
@@ -63,16 +72,32 @@ impl Config {
             .map_err(|error| ConfigError(format!("cannot render configuration: {error}")))
     }
 
+    /// The history retention in days, or `None` when history is kept forever.
+    pub fn history_days(&self) -> Option<u64> {
+        self.expire_history
+            .then(|| self.history_days.unwrap_or(DEFAULT_HISTORY_DAYS))
+    }
+
     pub fn resolve(self) -> Result<Target, ConfigError> {
+        if !self.profiles.contains_key(&self.default_profile) {
+            return Err(ConfigError(validate::missing_profile(
+                &self.default_profile,
+            )));
+        }
+        self.resolve_named(&self.default_profile)
+    }
+
+    pub fn resolve_named(&self, profile_name: &str) -> Result<Target, ConfigError> {
         let profile = self
             .profiles
-            .get(&self.default_profile)
-            .ok_or_else(|| ConfigError(validate::missing_profile(&self.default_profile)))?;
-        let provider = self.providers.get(&profile.provider).ok_or_else(|| {
-            ConfigError(validate::missing_provider(&self.default_profile, profile))
-        })?;
+            .get(profile_name)
+            .ok_or_else(|| ConfigError(format!("profile '{profile_name}' is not configured")))?;
+        let provider = self
+            .providers
+            .get(&profile.provider)
+            .ok_or_else(|| ConfigError(validate::missing_provider(profile_name, profile)))?;
         Ok(Target {
-            profile: self.default_profile.clone(),
+            profile: profile_name.to_string(),
             kind: provider.kind.clone(),
             base_url: provider.base_url.clone(),
             api_key_env: provider.api_key_env.clone(),
@@ -82,7 +107,26 @@ impl Config {
                 .system_prompt
                 .clone()
                 .unwrap_or_else(|| crate::DEFAULT_SYSTEM_PROMPT.to_string()),
+            max_output_tokens: profile.max_output_tokens,
         })
+    }
+
+    /// One entry per distinct provider target across every profile.
+    pub fn provider_targets(&self) -> Result<Vec<Target>, ConfigError> {
+        let mut targets = Vec::new();
+        let mut seen = BTreeSet::new();
+        for name in self.profiles.keys() {
+            let target = self.resolve_named(name)?;
+            let identity = (
+                target.kind.clone(),
+                target.base_url.clone(),
+                target.model.clone(),
+            );
+            if seen.insert(identity) {
+                targets.push(target);
+            }
+        }
+        Ok(targets)
     }
 }
 
@@ -116,6 +160,17 @@ pub fn data_path() -> Result<PathBuf, ConfigError> {
     located("data", ProjectDirs::data_dir, DATABASE_FILE, "data")
 }
 
+/// The cache directory: `$ASK_HOME/cache`, or the platform-standard cache
+/// directory for an application named `ask`.
+pub fn cache_path() -> Result<PathBuf, ConfigError> {
+    if let Some(home) = env::var_os("ASK_HOME") {
+        return Ok(PathBuf::from(home).join("cache"));
+    }
+    ProjectDirs::from("", "", "ask")
+        .map(|dirs| dirs.cache_dir().to_path_buf())
+        .ok_or_else(|| ConfigError("platform cache directory is unavailable".into()))
+}
+
 fn located(
     home_subdirectory: &str,
     platform: fn(&ProjectDirs) -> &Path,
@@ -132,6 +187,10 @@ fn located(
 
 const fn default_timeout_ms() -> u64 {
     DEFAULT_TIMEOUT_MS
+}
+
+const fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 const fn is_default_timeout(timeout_ms: &u64) -> bool {

@@ -1,0 +1,174 @@
+# Native SQLite ledger: the current state of the SQLite linked into `ask` and
+# its triage. tests/sqlite_identity.rs and tests/sqlite_damaged_file.rs verify
+# [native] against the linked library in every gate; scripts/sqlite-monitor.py
+# reads the whole file in the nightly check. docs/development/sqlite-monitoring.md
+# explains the fields and the triage procedure. Update this file in the same
+# change as any rusqlite or libsqlite3-sys update.
+
+[locked]
+rusqlite = "0.40.2"
+rusqlite_checksum = "23f2a97da3e3873c73cb2a2e71b35c40ff95e0b1eefa8d72d8499a6928c3b5b3"
+libsqlite3_sys = "0.38.2"
+libsqlite3_sys_checksum = "f1d20bef17f513b9b3004532233187769cd072d790971f4e4da0e346eb6401e8"
+
+[native]
+sqlite_version = "3.53.2"
+sqlite_version_number = 3053002
+source_id = "2026-06-03 19:12:13 d6e03d8c777cfa2d35e3b60d8ec3e0187f3e9f99d8e2ee9cac695fd6fcdf1a24"
+sqlite3_c_sha3_256 = "44fd61b9f93b4155105cb2d80c957ae6c64a8b5bd6ed51a4992f0dbd438e4e11"
+# Whether the linked version contains check-in 6826c17021 (index cells extending
+# past the page end are rejected during an index search). 3.53.2 does not; the
+# damaged-file test asserts the matching behavior. Flip this deliberately when a
+# linked version first contains the fix, and revisit the acceptance below.
+index_bounds_fix_6826c17021_present = false
+# PRAGMA compile_options of the bundled build, identical on all four supported
+# targets except the COMPILER entry, which names the host compiler and is not listed.
+compile_options = [
+    "ATOMIC_INTRINSICS=1",
+    "DEFAULT_AUTOVACUUM",
+    "DEFAULT_CACHE_SIZE=-2000",
+    "DEFAULT_FILE_FORMAT=4",
+    "DEFAULT_FOREIGN_KEYS",
+    "DEFAULT_JOURNAL_SIZE_LIMIT=-1",
+    "DEFAULT_MMAP_SIZE=0",
+    "DEFAULT_PAGE_SIZE=4096",
+    "DEFAULT_PCACHE_INITSZ=20",
+    "DEFAULT_RECURSIVE_TRIGGERS",
+    "DEFAULT_SECTOR_SIZE=4096",
+    "DEFAULT_SYNCHRONOUS=2",
+    "DEFAULT_WAL_AUTOCHECKPOINT=1000",
+    "DEFAULT_WAL_SYNCHRONOUS=2",
+    "DEFAULT_WORKER_THREADS=0",
+    "DIRECT_OVERFLOW_READ",
+    "ENABLE_API_ARMOR",
+    "ENABLE_COLUMN_METADATA",
+    "ENABLE_DBSTAT_VTAB",
+    "ENABLE_FTS3",
+    "ENABLE_FTS3_PARENTHESIS",
+    "ENABLE_FTS5",
+    "ENABLE_LOAD_EXTENSION",
+    "ENABLE_MEMORY_MANAGEMENT",
+    "ENABLE_RTREE",
+    "ENABLE_STAT4",
+    "HAVE_ISNAN",
+    "MALLOC_SOFT_LIMIT=1024",
+    "MAX_ATTACHED=10",
+    "MAX_COLUMN=2000",
+    "MAX_COMPOUND_SELECT=500",
+    "MAX_DEFAULT_PAGE_SIZE=8192",
+    "MAX_EXPR_DEPTH=1000",
+    "MAX_FUNCTION_ARG=1000",
+    "MAX_LENGTH=1000000000",
+    "MAX_LIKE_PATTERN_LENGTH=50000",
+    "MAX_MMAP_SIZE=0x7fff0000",
+    "MAX_PAGE_COUNT=0xfffffffe",
+    "MAX_PAGE_SIZE=65536",
+    "MAX_SQL_LENGTH=1000000000",
+    "MAX_TRIGGER_DEPTH=1000",
+    "MAX_VARIABLE_NUMBER=32766",
+    "MAX_VDBE_OP=250000000",
+    "MAX_WORKER_THREADS=8",
+    "MUTEX_PTHREADS",
+    "SOUNDEX",
+    "SYSTEM_MALLOC",
+    "TEMP_STORE=1",
+    "THREADSAFE=1",
+    "USE_URI",
+]
+
+[triage]
+# The owner accepted the linked version with the residual risk below on
+# 2026-09-10; the record holds the reasoning. The acceptance is revisited when a
+# released rusqlite and libsqlite3-sys pair bundles the revisit version or later.
+record = "docs/reviews/sqlite-adoption-2026-09-10.md"
+accepted_on = "2026-09-10"
+revisit_when_bundled_sqlite_at_least = "3.53.3"
+# Repository choice: the accepted residual risk is re-reviewed by this date even
+# without an upstream trigger. Renew it in the same change as the review.
+review_deadline = "2026-10-10"
+# The newest upstream release and check-in already classified. A newer release
+# on sqlite.org produces a triage item listing the check-ins after this one.
+last_triaged_sqlite_release = "3.53.4"
+last_triaged_sqlite_release_date = "2026-07-24"
+# Release endpoint in the retained 80-entry 3.53.2-to-3.53.4 inventory.
+last_triaged_check_in = "bf7c7f3003"
+
+# One item per upstream fix absent from the linked version. Wording follows the
+# adoption record; it does not extend what that record establishes.
+
+[[triage.items]]
+check_in = "6826c17021"
+concern = "Reject index cells extending past the page end during an index search"
+affected_versions = "absent from 3.53.2; first shipped in 3.53.3; also in 3.53.4"
+trigger = "an indexed read of an already damaged database page; reachable with ordinary SQL once the file on disk is damaged, independent of SQL shape"
+reachability = "core btree code compiled into the bundled build; ask reads its own index-backed tables on every query"
+impact = "a missing rejection on a damaged file (demonstrated by the differential probe: the row is returned instead of SQLITE_CORRUPT); no demonstrated memory disclosure, exploitability, or healthy-write corruption path"
+disposition = "accepted residual risk"
+owner = "repository owner"
+review = "when a released crate pair bundles 3.53.3 or later, or by the review deadline"
+
+[[triage.items]]
+check_in = "1a888ea60b"
+concern = "Detect corrupt freelist chains on btree pages"
+affected_versions = "absent from 3.53.2; first shipped in 3.53.3; also in 3.53.4"
+trigger = "reads of an already damaged freelist; reachable with ordinary SQL once the file on disk is damaged"
+reachability = "core btree code compiled into the bundled build"
+impact = "weaker detection of damage in an already corrupt file; not a healthy-write corruption path"
+disposition = "accepted residual risk"
+owner = "repository owner"
+review = "when a released crate pair bundles 3.53.3 or later, or by the review deadline"
+
+[[triage.items]]
+check_in = "9471fa2c9c"
+concern = "Limit crafted hot-journal arbitrary file deletion during rollback"
+affected_versions = "absent from 3.53.2; first shipped in 3.53.3; also in 3.53.4"
+trigger = "a crafted hot journal in the database directory; requires untrusted files to enter that directory or be restored or imported as database state"
+reachability = "pager rollback code compiled into the bundled build; ask creates its data directory and database with owner-only permissions and offers no import or restore"
+impact = "conditional file-deletion trust boundary; ordinary bound prompt text does not create the required file structure"
+disposition = "accepted residual risk"
+owner = "repository owner"
+review = "when a released crate pair bundles 3.53.3 or later, when import or restore of database state is proposed, or by the review deadline"
+
+[[triage.items]]
+check_in = "9a79ca31ff"
+concern = "Handle a corrupt page size in a read-only WAL"
+affected_versions = "absent from 3.53.2; first shipped in 3.53.3; also in 3.53.4"
+trigger = "a WAL connection whose -shm file can be opened but not written, no other process holding its DMS lock, and a -wal file with an invalid header page size"
+reachability = "WAL code compiled into the bundled build; production storage uses the rollback journal and never opens a WAL connection unless a -wal file is present next to the database"
+impact = "a read-only process crash in the upstream report, not a write primitive; the diagnostic contract lets doctor report that deeper validation could not safely run"
+disposition = "accepted residual risk"
+owner = "repository owner"
+review = "when a released crate pair bundles 3.53.3 or later, when journal mode, open flags, or the diagnostic implementation change, or by the review deadline"
+
+[[triage.items]]
+check_in = "aa756c8038"
+concern = "Prevent a super-journal buffer overrun with a large-mxPathname VFS"
+affected_versions = "absent from 3.53.2; first shipped in 3.53.3; also in 3.53.4"
+trigger = "a custom VFS whose mxPathname exceeds the small-page buffer assumption"
+reachability = "the stock Unix VFS uses mxPathname 512 and is outside the trigger; ask registers no VFS"
+impact = "outside the trigger with the stock VFS"
+disposition = "accepted residual risk"
+owner = "repository owner"
+review = "when a released crate pair bundles 3.53.3 or later, when a VFS is introduced, or by the review deadline"
+
+[[triage.items]]
+check_in = "bf70dadc2d"
+concern = "Roll back a hot journal when a crash zeroes the super-journal name and checksum"
+affected_versions = "regression introduced in 3.53.3 and fixed in 3.53.4; absent from and not applicable to 3.53.2"
+trigger = "the 3.53.3 readSuperJournal() refactor; 3.53.2 pager_playback() tests the first name byte and takes the rollback path"
+reachability = "not present in the linked version"
+impact = "none for 3.53.2"
+disposition = "not applicable; recorded so an upgrade to 3.53.3 alone is recognized as exposing it"
+owner = "repository owner"
+review = "when a released crate pair bundles exactly 3.53.3"
+
+# Dispositions for upstream CVE rows that neither name a fix version at or
+# below the linked version nor state "Not a bug in" SQLite. None is needed on
+# 2026-09-16; add entries here when the monitor reports a CVE triage item.
+#
+# [[cve_triage]]
+# ids = ["CVE-YYYY-NNNNN"]
+# disposition = "..."
+# owner = "..."
+# recorded_on = "YYYY-MM-DD"
+# review_deadline = "YYYY-MM-DD"
