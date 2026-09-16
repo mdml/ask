@@ -1,6 +1,7 @@
 """Query terminal proofs through a PTY, using only the Python standard library."""
 import os
 import pty
+import select
 import signal
 import subprocess
 import sys
@@ -24,6 +25,14 @@ try:
             # so the proof does not depend on controlling-terminal setup.
             os.write(master, b'partial question')
             child.send_signal(signal.SIGINT)
+        elif scenario == 'partial':
+            # The first Ctrl-D delivers the unterminated line without EOF.
+            os.write(master, b'partial question\x04')
+            quiet, _, _ = select.select([child.stdout, child.stderr], [], [], 0.5)
+            assert not quiet and child.poll() is None, (quiet, child.poll())
+            # Line kill erases only uncommitted text, so the question must
+            # already belong to the reader; the second Ctrl-D submits it.
+            os.write(master, b'\x15\x04')
         else:
             payload = {'multiline': b'first line\nsecond line\n',
                        'empty': b'', 'whitespace': b' \t\n'}[scenario]
