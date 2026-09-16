@@ -109,6 +109,7 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
             provider: provider_name.clone(),
             model,
             system_prompt,
+            max_output_tokens: None,
         };
         Ok(Config {
             default_profile: profile_name.clone(),

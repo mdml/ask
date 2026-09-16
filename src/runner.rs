@@ -6,7 +6,7 @@ use tokio::time::{Duration, timeout_at};
 use crate::{
     config::Target,
     output::AnswerWriter,
-    provider::{Event, EventStream, PromptProvider, ProviderError, Request, Usage},
+    provider::{Ending, Event, EventStream, PromptProvider, ProviderError, Request, Usage},
 };
 
 #[derive(Debug)]
@@ -14,6 +14,10 @@ pub enum RunError {
     Provider(String),
     Timeout(u64),
     Output(io::Error),
+    /// The provider reported that the answer reached its output-token limit.
+    OutputLimit,
+    /// The provider explicitly declined to answer.
+    Refusal,
 }
 
 impl RunError {
@@ -25,12 +29,18 @@ impl RunError {
         matches!(self, Self::Output(_))
     }
 
+    pub const fn is_output_limit(&self) -> bool {
+        matches!(self, Self::OutputLimit)
+    }
+
     /// A text-free failure category suitable for statistics.
     pub const fn class(&self) -> &'static str {
         match self {
             Self::Provider(_) => "provider",
             Self::Timeout(_) => "timeout",
             Self::Output(_) => "output",
+            Self::OutputLimit => "output_limit",
+            Self::Refusal => "provider",
         }
     }
 
@@ -50,6 +60,10 @@ impl fmt::Display for RunError {
                 )
             }
             Self::Output(error) => write!(formatter, "cannot write answer: {error}"),
+            Self::OutputLimit => formatter.write_str(
+                "answer stopped at the provider's output-token limit; set a larger max_output_tokens in the profile",
+            ),
+            Self::Refusal => formatter.write_str("provider declined to answer because of content filtering"),
         }
     }
 }
@@ -81,6 +95,7 @@ struct Progress {
     usage: Option<Usage>,
     first_token: Option<Duration>,
     api: Option<Duration>,
+    ending: Option<Ending>,
 }
 
 impl Progress {
@@ -91,6 +106,7 @@ impl Progress {
             usage: None,
             first_token: None,
             api: None,
+            ending: None,
         }
     }
 
@@ -112,7 +128,15 @@ impl Progress {
             self.accept(event, output)?;
         }
         self.api = Some(self.start.elapsed());
-        output.finish(true).map_err(RunError::Output)
+        match self.ending {
+            Some(Ending::Complete) => output.finish(true).map_err(RunError::Output),
+            Some(Ending::OutputLimit) => Err(after_partial(output, RunError::OutputLimit)),
+            Some(Ending::Refusal) => Err(after_partial(output, RunError::Refusal)),
+            None => Err(after_partial(
+                output,
+                RunError::Provider("answer stream ended without a completion marker".to_string()),
+            )),
+        }
     }
 
     fn accept<W: io::Write>(
@@ -127,8 +151,15 @@ impl Progress {
                 self.answer.push_str(&text);
                 output.write_chunk(&text).map_err(RunError::Output)
             }
+            Event::Final(reported, ending) => {
+                if reported.is_some() {
+                    self.usage = reported;
+                }
+                self.ending = Some(ending);
+                Ok(())
+            }
             Event::Usage(reported) => {
-                self.usage = reported;
+                self.usage = Some(reported);
                 Ok(())
             }
             Event::Other => Ok(()),
@@ -174,8 +205,9 @@ impl Limit {
     }
 }
 
-/// Ends a partial answer. The provider or timeout failure that stopped the
-/// stream stays the reported error even if finishing stdout also fails.
+/// Ends a partial answer. The provider, timeout, or output-limit failure that
+/// stopped the stream stays the reported error even if finishing stdout also
+/// fails.
 fn after_partial<W: io::Write>(output: &mut AnswerWriter<'_, W>, original: RunError) -> RunError {
     let _ = output.finish(false);
     original
@@ -236,6 +268,10 @@ mod tests {
         assert_eq!(RunError::Provider("detail".into()).class(), "provider");
         assert_eq!(RunError::Timeout(1).class(), "timeout");
         assert_eq!(output.class(), "output");
+        assert_eq!(RunError::OutputLimit.class(), "output_limit");
+        assert_eq!(RunError::Refusal.class(), "provider");
+        assert!(RunError::OutputLimit.is_output_limit());
+        assert!(!RunError::OutputLimit.is_output());
         assert!(output.is_output());
         assert!(!RunError::Timeout(1).is_output());
     }

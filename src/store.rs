@@ -26,7 +26,7 @@ use crate::{
     provider::{Exchange, Usage},
 };
 
-const SCHEMA_VERSION: i64 = 2;
+const SCHEMA_VERSION: i64 = 3;
 const DAY_MS: i64 = 86_400_000;
 const BUSY_TIMEOUT: Duration = Duration::from_millis(1_000);
 
@@ -42,7 +42,8 @@ CREATE TABLE threads (
     model TEXT NOT NULL,
     system_prompt TEXT NOT NULL,
     timeout_ms INTEGER NOT NULL CHECK (timeout_ms > 0),
-    api_key_env TEXT NOT NULL
+    api_key_env TEXT NOT NULL,
+    max_output_tokens INTEGER CHECK (max_output_tokens > 0)
 );
 CREATE TABLE turns (
     id INTEGER PRIMARY KEY,
@@ -84,28 +85,42 @@ CREATE TABLE provider_health (
     last_failure_class TEXT,
     PRIMARY KEY (provider_kind, base_url, model)
 ) WITHOUT ROWID;
-PRAGMA user_version = 2;
-";
-
-// Version 2 adds the text-free count of threads removed by history expiry and
-// the highest thread id it removed, so a removed id is never assigned again.
-const HISTORY_EXPIRY: &str = "
 CREATE TABLE history_expiry (
     singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
     threads_cleared INTEGER NOT NULL CHECK (threads_cleared >= 0),
     last_cleared_at_ms INTEGER NOT NULL,
     highest_thread_id INTEGER NOT NULL CHECK (highest_thread_id >= 0)
 );
+PRAGMA user_version = 3;
+";
+
+// Version 2 adds the text-free count of threads removed by history expiry and
+// the highest thread id it removed, so a removed id is never assigned again.
+const MIGRATE_1_TO_2: &str = "
+CREATE TABLE history_expiry (
+    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+    threads_cleared INTEGER NOT NULL CHECK (threads_cleared >= 0),
+    last_cleared_at_ms INTEGER NOT NULL,
+    highest_thread_id INTEGER NOT NULL CHECK (highest_thread_id >= 0)
+);
+PRAGMA user_version = 2;
+";
+
+// Version 3 captures the profile's explicit output-token limit. Threads
+// created by earlier versions had none, so their snapshots keep provider defaults.
+const MIGRATE_2_TO_3: &str = "
+ALTER TABLE threads ADD COLUMN max_output_tokens INTEGER CHECK (max_output_tokens > 0);
+PRAGMA user_version = 3;
 ";
 
 const EXPIRE_THREADS: &str = "DELETE FROM threads WHERE coalesce((SELECT max(created_at_ms) FROM turns WHERE turns.thread_id = threads.id), created_at_ms) < ?1";
 const HIGHEST_THREAD_ID: &str = "SELECT coalesce(max(id), 0) FROM threads";
 const COUNT_CLEARED: &str = "INSERT INTO history_expiry (singleton, threads_cleared, last_cleared_at_ms, highest_thread_id) VALUES (1, ?1, ?2, ?3) ON CONFLICT (singleton) DO UPDATE SET threads_cleared = threads_cleared + excluded.threads_cleared, last_cleared_at_ms = excluded.last_cleared_at_ms, highest_thread_id = max(highest_thread_id, excluded.highest_thread_id)";
-const SELECT_THREAD: &str = "SELECT profile, provider_kind, base_url, model, system_prompt, timeout_ms, api_key_env FROM threads WHERE id = ?1";
+const SELECT_THREAD: &str = "SELECT profile, provider_kind, base_url, model, system_prompt, timeout_ms, api_key_env, max_output_tokens FROM threads WHERE id = ?1";
 const SELECT_HISTORY: &str = "SELECT prompt, answer FROM turns WHERE thread_id = ?1 AND status = 'complete' ORDER BY ordinal";
 // Thread ids continue past any id history expiry removed, so a reply or
 // selection that names a removed thread can never reach a newer one.
-const INSERT_THREAD: &str = "INSERT INTO threads (id, created_at_ms, profile, provider_kind, base_url, model, system_prompt, timeout_ms, api_key_env) VALUES (max((SELECT coalesce(max(id), 0) FROM threads), coalesce((SELECT highest_thread_id FROM history_expiry), 0)) + 1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)";
+const INSERT_THREAD: &str = "INSERT INTO threads (id, created_at_ms, profile, provider_kind, base_url, model, system_prompt, timeout_ms, api_key_env, max_output_tokens) VALUES (max((SELECT coalesce(max(id), 0) FROM threads), coalesce((SELECT highest_thread_id FROM history_expiry), 0)) + 1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)";
 const INSERT_TURN: &str = "INSERT INTO turns (thread_id, ordinal, created_at_ms, prompt, answer, status, reason) SELECT ?1, COALESCE(MAX(ordinal), 0) + 1, ?2, ?3, ?4, ?5, ?6 FROM turns WHERE thread_id = ?1";
 const INSERT_STATISTICS: &str = "INSERT INTO query_statistics (started_at_ms, command, profile, provider_kind, base_url, model, outcome, error_class, wall_ms, api_ms, first_token_ms, input_tokens, output_tokens) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)";
 const OBSERVE_SUCCESS: &str = "INSERT INTO provider_health (provider_kind, base_url, model, last_success_at_ms) VALUES (?1, ?2, ?3, ?4) ON CONFLICT (provider_kind, base_url, model) DO UPDATE SET last_success_at_ms = excluded.last_success_at_ms";
@@ -202,7 +217,7 @@ impl Store {
         connection.pragma_update_and_check(None, "journal_mode", "DELETE", |row| {
             row.get::<_, String>(0)
         })?;
-        if version < SCHEMA_VERSION {
+        if version != SCHEMA_VERSION {
             create_schema(&mut connection)?;
         }
         Ok(Self { connection })
@@ -312,7 +327,27 @@ fn supported(version: i64) -> Result<i64, String> {
     }
 }
 
-/// Version 0 is accepted only for an empty database; version 1 is upgraded in
+fn table_exists(transaction: &Transaction<'_>, name: &str) -> rusqlite::Result<bool> {
+    transaction.query_row(
+        "SELECT count(*) FROM sqlite_schema WHERE type = 'table' AND name = ?1",
+        [name],
+        |row| row.get(0),
+    )
+}
+
+fn column_exists(
+    transaction: &Transaction<'_>,
+    table: &str,
+    column: &str,
+) -> rusqlite::Result<bool> {
+    transaction.query_row(
+        "SELECT count(*) FROM pragma_table_info(?1) WHERE name = ?2",
+        params![table, column],
+        |row| row.get(0),
+    )
+}
+
+/// Version 0 is accepted only for an empty database; older versions migrate in
 /// place. The check repeats under the write lock so concurrent first runs
 /// create or upgrade the schema once.
 fn create_schema(connection: &mut Connection) -> Result<(), Box<dyn Error>> {
@@ -326,9 +361,25 @@ fn create_schema(connection: &mut Connection) -> Result<(), Box<dyn Error>> {
                 return Err("the file is not empty and has no ask schema version".into());
             }
             transaction.execute_batch(SCHEMA)?;
-            transaction.execute_batch(HISTORY_EXPIRY)?;
         }
-        1 => transaction.execute_batch(&format!("{HISTORY_EXPIRY} PRAGMA user_version = 2;"))?,
+        1 => {
+            transaction.execute_batch(MIGRATE_1_TO_2)?;
+            transaction.execute_batch(MIGRATE_2_TO_3)?;
+        }
+        2 => {
+            if !table_exists(&transaction, "history_expiry")? {
+                return Err(
+                    "schema version 2 without history expiry is not supported by this ask".into(),
+                );
+            }
+            if column_exists(&transaction, "threads", "max_output_tokens")? {
+                return Err(
+                    "schema version 2 with an output-token snapshot is not supported by this ask"
+                        .into(),
+                );
+            }
+            transaction.execute_batch(MIGRATE_2_TO_3)?;
+        }
         _ => (),
     }
     transaction.commit()?;
@@ -363,6 +414,7 @@ fn snapshot(row: &Row<'_>) -> rusqlite::Result<Target> {
         system_prompt: row.get(4)?,
         timeout_ms: row.get::<_, i64>(5)?.unsigned_abs(),
         api_key_env: row.get(6)?,
+        max_output_tokens: row.get::<_, Option<i64>>(7)?.map(i64::unsigned_abs),
     })
 }
 
@@ -412,7 +464,8 @@ fn insert_thread(transaction: &Transaction<'_>, record: &Record<'_>) -> rusqlite
             target.model,
             target.system_prompt,
             integer(target.timeout_ms),
-            target.api_key_env
+            target.api_key_env,
+            target.max_output_tokens.map(integer)
         ],
     )?;
     Ok(transaction.last_insert_rowid())

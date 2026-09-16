@@ -44,6 +44,8 @@ pub(crate) struct ProfileConfig {
     pub(crate) provider: String,
     pub(crate) model: String,
     pub(crate) system_prompt: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) max_output_tokens: Option<u64>,
 }
 
 /// A fully resolved profile. A thread stores this snapshot when it is created.
@@ -56,6 +58,8 @@ pub struct Target {
     pub timeout_ms: u64,
     pub model: String,
     pub system_prompt: String,
+    /// The profile's explicit output-token limit, if it set one.
+    pub max_output_tokens: Option<u64>,
 }
 
 #[derive(Debug)]
@@ -93,6 +97,7 @@ impl Config {
                 .system_prompt
                 .clone()
                 .unwrap_or_else(|| crate::DEFAULT_SYSTEM_PROMPT.to_string()),
+            max_output_tokens: profile.max_output_tokens,
         })
     }
 }

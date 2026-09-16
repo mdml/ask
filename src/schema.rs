@@ -21,6 +21,7 @@ const PROFILE: &[Field] = &[
     ("provider", Value::is_str, true),
     ("model", Value::is_str, true),
     ("system_prompt", Value::is_str, false),
+    ("max_output_tokens", unsigned, false),
 ];
 
 pub(super) fn check(value: &Value) -> Result<(), String> {

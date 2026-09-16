@@ -244,7 +244,7 @@ fn check_validates_every_entry_not_only_the_selected_one() {
             format!(
                 "{CANDIDATE}\n[providers.unused]\nkind = \"proprietary\"\nbase_url = \"http://x.test/v1\"\napi_key_env = \"K\"\n"
             ),
-            "ask: standard input is not a valid configuration: providers[2].kind has an unsupported kind; the only supported kind is 'openai-compatible'\n",
+            "ask: standard input is not a valid configuration: providers[2].kind has an unsupported kind; supported kinds are 'openai', 'anthropic', 'gemini', 'openrouter', 'openai-compatible'\n",
         ),
         (
             format!("{CANDIDATE}\n[profiles.unused]\nprovider = \"absent\"\nmodel = \"m\"\n"),

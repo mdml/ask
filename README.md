@@ -2,7 +2,7 @@
 
 `ask` is a fast, opinionated terminal lookup tool for asking language models quick questions without starting an agent session.
 
-**Status: pre-alpha.** The query, reply, recall (`thread`, `switch`, `stats`), initialization, and configuration commands are implemented, but interfaces may change before the first `0.1.0` release. The only provider kind currently supported is `openai-compatible`.
+**Status: pre-alpha.** The query, reply, recall (`thread`, `switch`, `stats`), initialization, and configuration commands are implemented, but interfaces may change before the first `0.1.0` release. Supported provider kinds are `openai`, `anthropic`, `gemini`, `openrouter`, and `openai-compatible`; `ask init` still creates only an `openai-compatible` provider, so write other kinds with `ask configure apply`.
 
 ## Install a nightly
 
@@ -53,7 +53,8 @@ Both commands apply the same strict validator that ordinary query loading applie
 - validates every provider and every profile, not only the ones the default profile selects;
 - requires every profile to reference a configured provider, and `default_profile` to name a configured profile;
 - requires each provider's `kind` to be supported, its `base_url` to satisfy the endpoint rule above, its `api_key_env` to be a valid environment variable name, and its `timeout_ms` to be greater than zero;
-- requires a nonempty `model` and nonempty provider and profile names. An omitted `system_prompt` selects the default; an explicit string replaces it, including an empty string.
+- requires a nonempty `model` and nonempty provider and profile names. An omitted `system_prompt` selects the default; an explicit string replaces it, including an empty string;
+- requires a profile's `max_output_tokens`, when present, to be an integer greater than zero.
 
 `ask configure check` writes nothing: it never creates, replaces, or removes a file. Both commands exit 0 on success with a one-line message on stderr and exit 1 with a one-line diagnostic on stderr when the document is invalid or cannot be read; stdout stays empty in every case. Neither command reads a credential value or contacts a provider.
 
@@ -85,6 +86,7 @@ api_key_env = "LOCAL_API_KEY"
 provider = "local"
 model = "fake-model"
 # system_prompt = "..."
+# max_output_tokens = 4096
 ```
 
 History expiry is optional and off by default. To enable it, add top-level keys before the first table:
@@ -94,7 +96,31 @@ expire_history = true
 # history_days = 90
 ```
 
-`api_key_env` names the environment variable that supplies the credential; `ask` does not store credential values. The request timeout defaults to 30 seconds and must be greater than zero. When a profile sets no `system_prompt`, `ask` sends this default system prompt: "Answer briefly in plain Markdown suitable for a terminal." A profile's `system_prompt` replaces it. `expire_history` defaults to `false`, which keeps history indefinitely. `history_days` must be a positive integer, defaults to 90 when `expire_history = true`, and is rejected when expiry is not enabled; see [History expiry](#history-expiry). Display settings are not yet implemented.
+`api_key_env` names the environment variable that supplies the credential; `ask` does not store credential values.
+
+### Provider kinds
+
+Each `kind` uses its provider's own HTTP API with provider-specific streaming normalization over server-sent events. `base_url` is the prefix `ask` appends the API path to; the provider documentation's public endpoint is shown for each kind, and any endpoint serving the same API may be configured instead.
+
+| `kind` | API | Typical `base_url` | Request path | Credential sent as |
+|:--|:--|:--|:--|:--|
+| `openai` | OpenAI Responses, with `store: false` | `https://api.openai.com/v1` | `/responses` | `Authorization: Bearer` header |
+| `anthropic` | Anthropic Messages | `https://api.anthropic.com` | `/v1/messages` | `x-api-key` header |
+| `gemini` | Gemini GenerateContent | `https://generativelanguage.googleapis.com` | `/v1beta/models/{model}:streamGenerateContent?alt=sse&key={credential}` | `key` URL query parameter |
+| `openrouter` | OpenRouter Chat Completions | `https://openrouter.ai/api/v1` | `/chat/completions` | `Authorization: Bearer` header |
+| `openai-compatible` | OpenAI Chat Completions | the server's OpenAI-compatible prefix, for example `http://127.0.0.1:PORT/v1` | `/chat/completions` | `Authorization: Bearer` header |
+
+Model identifiers are free text and are never checked against a catalog. Every kind except `gemini` sends the identifier verbatim in the request body. Gemini carries the model in the URL path, so `ask` percent-encodes every byte outside letters, digits, `-`, `.`, `_`, and `~`; the identifier stays one path segment (a `/`, `?`, `#`, or space cannot change the endpoint) and the provider receives it unchanged after decoding. The Gemini credential is percent-encoded the same way in the query string. Because that credential is part of the request URL, transport diagnostics can quote it; `ask` replaces every occurrence of a credential in a diagnostic with `[redacted]`, whether literal or percent-encoded.
+
+No kind follows HTTP redirects. Rig normalizes streaming responses for every kind except Gemini. Gemini uses a scoped adapter for GenerateContent SSE because Rig 0.42 drops `promptFeedback` and usage metadata from responses without candidates. The adapter handles the first candidate's text parts, excludes `thought: true` parts, retains the latest usage metadata, and maps the terminal reasons needed by the current text-only contract; malformed records and unknown, error, or protocol terminal reasons fail the request.
+
+The provider reporting its output-token limit is handled as described in [Output-token limit](#output-token-limit), and a stream that ends with the in-band `error` finish reason (OpenRouter's mid-stream error chunk) is a provider failure, never a complete answer. A content-filter or refusal ending is also a provider failure. Refusal text already delivered remains on stdout and is recorded only as a partial turn; an empty refusal records no turn. Refused turns are excluded from reply context.
+
+### Output-token limit
+
+A profile may set `max_output_tokens`. An explicit value is sent to every kind in that API's field: `max_output_tokens` (`openai`), `max_tokens` (`anthropic`, `openrouter`, and `openai-compatible`; Rig may respell it `max_completion_tokens` for some OpenAI model identifiers), or `generationConfig.maxOutputTokens` (`gemini`). When the profile omits it, `anthropic` requests, which require a limit, send `4096`; every other kind sends no limit and keeps the provider's default.
+
+When the provider reports that the answer stopped at the output-token limit, stdout keeps the answer received so far, stderr carries the one-line warning `ask: warning: answer stopped at the provider's output-token limit; set a larger max_output_tokens in the profile`, and `ask` exits 1. The turn is recorded as partial, even when no answer text arrived, so replies do not send it as context. Its statistics row has the outcome partial and the error class `output_limit`, and the provider target is recorded as healthy because it answered normally. Changing the profile affects new threads; replies continue using the profile snapshot captured when their thread was created, so start a new thread to use the larger limit. The request timeout defaults to 30 seconds and must be greater than zero. When a profile sets no `system_prompt`, `ask` sends this default system prompt: "Answer briefly in plain Markdown suitable for a terminal." A profile's `system_prompt` replaces it. `expire_history` defaults to `false`, which keeps history indefinitely. `history_days` must be a positive integer, defaults to 90 when `expire_history = true`, and is rejected when expiry is not enabled; see [History expiry](#history-expiry). Display settings are not yet implemented.
 
 ### Query input and output
 
@@ -117,7 +143,7 @@ The multiline prompt prints `ask> ` on stderr before the first line and reads un
 
 Stdin must be valid UTF-8 and is read to EOF. There is no application-imposed size cap for stdin in 0.1.0. Invalid UTF-8 and input read failures exit 1 with one `ask: ...` stderr diagnostic line, empty stdout, and no provider request; invalid bytes are never converted lossily.
 
-The answer is streamed to stdout as unstyled Markdown and ends with exactly one newline. Prompts, statistics, warnings, usage errors, and diagnostics are written to stderr. A successful query exits 0, usage errors exit 2, and provider and configuration failures exit 1. A streaming failure preserves any partial answer and reports the error on stderr. `ask` does not follow HTTP redirects from the provider endpoint, whether they point to another origin or the same one: a redirect response is a provider failure that exits 1 with a diagnostic naming the status, the credential and query are not resent anywhere, no turn is recorded, and the failure is recorded in statistics and provider health. If the stdout reader closes early, `ask` exits 0 without a diagnostic, unless the provider had already failed or recording the partial turn fails; either of those exits 1 with its diagnostic on stderr.
+The answer is streamed to stdout as unstyled Markdown and ends with exactly one newline. Prompts, statistics, warnings, usage errors, and diagnostics are written to stderr. A successful query exits 0, usage errors exit 2, and provider and configuration failures exit 1. A streaming failure or explicit provider refusal preserves any text already delivered on stdout and reports the error on stderr. An ordinary successful answer with no text is still complete. `ask` does not follow HTTP redirects from the provider endpoint, whether they point to another origin or the same one: a redirect response is a provider failure that exits 1 with a diagnostic naming the status, the credential and query are not resent anywhere, no turn is recorded, and the failure is recorded in statistics and provider health. If the stdout reader closes early, `ask` exits 0 without a diagnostic, unless the provider had already failed or recording the partial turn fails; either of those exits 1 with its diagnostic on stderr.
 
 ### Threads and replies
 
@@ -128,13 +154,14 @@ ask "who was u.s. president in 1846"
 ask r "who succeeded him"
 ```
 
-A thread keeps the profile resolved when the thread was created: profile name, provider kind, base URL, model, system prompt, timeout, and the name of the credential environment variable, never its value. Replies use that snapshot even after the configuration's default profile changes, and they work when the installed configuration is missing or invalid; they need only the credential environment variable the snapshot names. When the configuration cannot be read, a reply first reports `ask: history expiry skipped: <cause>` on stderr; see [History expiry](#history-expiry). A reply sends the system prompt, then each earlier complete turn of the thread in order as a user message followed by an assistant message, then the new prompt. The assistant message is the raw answer text the provider returned, without the final-newline normalization `ask` applies on stdout.
+A thread keeps the profile resolved when the thread was created: profile name, provider kind, base URL, model, system prompt, `max_output_tokens` when the profile set one, timeout, and the name of the credential environment variable, never its value. Threads recorded before profiles could set `max_output_tokens` have no limit in their snapshot, so their replies follow the omitted-limit rule above. Replies use that snapshot even after the configuration's default profile changes, and they work when the installed configuration is missing or invalid; they need only the credential environment variable the snapshot names. When the configuration cannot be read, a reply first reports `ask: history expiry skipped: <cause>` on stderr; see [History expiry](#history-expiry). A reply sends the system prompt, then each earlier complete turn of the thread in order as a user message followed by an assistant message, then the new prompt. The assistant message is the raw answer text the provider returned, without the final-newline normalization `ask` applies on stdout.
 
 The current thread is global to the data directory. A thread becomes current when the command that created or continued it records its turn, or when `ask switch` selects it; when commands overlap, the last to finish wins. A reply reads its thread when it starts, before any input prompt, and appends only to that thread, even if `ask switch` selects another thread while the reply waits for input. `ask reply` with no current thread exits 1 with ``ask: no current thread; start one with `ask new` `` on stderr and sends no request.
 
 Each query becomes a turn with the status complete or partial:
 
 - A successful answer, including an empty one, is a complete turn.
+- An explicit content-filter or refusal ending fails the query. Refusal text already written to stdout becomes a partial turn; an empty refusal appends no turn. Reported token usage is retained in either case.
 - A provider or streaming failure after some answer text records a partial turn with the failure reason. Stdout keeps the partial answer and `ask` exits 1. On `ask new`, the partial turn still creates the thread and makes it current.
 - If the stdout reader closes after answer text, `ask` records a partial turn with the reason `output closed` and exits 0 without a diagnostic. If a provider or streaming failure had already stopped the answer, that failure is the recorded reason, it counts as a provider-health failure, and `ask` exits 1 as above.
 - A failure before any answer text appends no turn, creates no thread, and leaves the current thread unchanged.
@@ -150,11 +177,11 @@ The database records:
 
 - threads, each with its profile snapshot;
 - turns: the prompt, the raw answer text, the status, and the reason for a partial turn;
-- one statistics row per query sent to the provider: start time, command, profile name, provider kind, base URL, model, outcome (complete, partial, or failed), error class (provider, timeout, or output), wall, API, and time-to-first-token durations, and token counts when the provider reports them. Statistics rows contain no prompt or answer text;
-- provider health: for each provider target (provider kind, base URL, and model), only the time of the latest success and the time and error class of the latest failure. Output failures are not provider-health observations;
-- the total number of threads removed by history expiry and the time of the latest removal.
+- one statistics row per query sent to the provider: start time, command, profile name, provider kind, base URL, model, outcome (complete, partial, or failed), error class (provider, timeout, output, or output_limit), wall, API, and time-to-first-token durations, and token counts when the provider reports them. Statistics rows contain no prompt or answer text;
+- provider health: for each provider target (provider kind, base URL, and model), only the time of the latest success and the time and error class of the latest failure. Output failures are not provider-health observations, and an answer stopped at the output-token limit counts as a success;
+- the total number of threads removed by history expiry, the time of the latest removal, and the highest thread id observed before expiry, so removed ids are never reused.
 
-Credential values are never stored. The database schema is version 2; a version 1 database from an earlier `ask` is upgraded in place, in one transaction, the first time any command opens it.
+Credential values are never stored. The database schema is version 3; a version 1 database from an earlier `ask` is upgraded in place through version 2 (history expiry) to version 3 (output-token snapshots), in one transaction, the first time any command opens it. A version 2 database with history expiry but no output-token snapshot column is upgraded to version 3 the same way. An unpublished prototype layout that marked version 2 with only an output-token column is refused.
 
 Everything one query records is written after the answer finishes or fails, in one transaction: the thread (for `ask new`), the turn, the statistics row, the provider-health update, and the current-thread change. Nothing is written while the answer streams. If the answer was delivered to stdout but that transaction fails, stdout keeps the answer, `ask` exits 1, and stderr reports `ask: answer was delivered but not recorded: <cause>` without repeating the prompt. If a query failed before any answer text and its statistics cannot be recorded, stderr adds `ask: query statistics were not recorded: <cause>`.
 
