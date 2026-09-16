@@ -21,6 +21,9 @@ TARGETS = (
     "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu",
 )
 MAX_BINARY = 128 * 1024 * 1024
+NIGHTLY_TAG = re.compile(r"v[0-9]+\.[0-9]+\.[0-9]+-nightly\.([0-9]{8})\.([1-9][0-9]*)\.([1-9][0-9]*)")
+RELEASE_PAGE = 100
+MAX_RELEASE_PAGES = 20
 ACTION_REVIEW_DEADLINE = datetime.date(2026, 9, 29)
 VALID_CONFIG = b'''default_profile = "offline"
 
@@ -218,6 +221,88 @@ def verify_upload(release, directory, sha, tag):
                 "uploaded asset digest mismatch")
 
 
+def github_read(repository, path):
+    """Read one GitHub REST resource through gh; this helper never writes."""
+    return json.loads(run(["gh", "api", f"repos/{repository}/{path}"]))
+
+
+def nightly_order(tag):
+    match = NIGHTLY_TAG.fullmatch(tag)
+    return tuple(int(part) for part in match.groups()) if match else None
+
+
+def published_nightlies(repository):
+    """Every non-draft nightly release GitHub lists; drafts and other tags are not evidence."""
+    releases = []
+    for page in range(1, MAX_RELEASE_PAGES + 1):
+        listing = github_read(repository, f"releases?per_page={RELEASE_PAGE}&page={page}")
+        require(isinstance(listing, list) and all(isinstance(r, dict) for r in listing),
+                "release listing must be a list of objects")
+        releases.extend(r for r in listing if r.get("draft") is False
+                        and isinstance(r.get("tag_name"), str) and nightly_order(r["tag_name"]))
+        if len(listing) < RELEASE_PAGE:
+            return releases
+    raise ValueError("too many releases to enumerate publication evidence")
+
+
+def published_source(repository):
+    """Source SHA of the most recent successfully published nightly, or None.
+
+    Evidence is a public prerelease with the complete asset inventory uploaded whose
+    tag ref still resolves to the release's commit; a tag or a draft alone is not enough.
+    """
+    releases = published_nightlies(repository)
+    if not releases:
+        return None
+    release = max(releases, key=publication_order)
+    tag, sha = release["tag_name"], release.get("target_commitish")
+    require(isinstance(sha, str) and re.fullmatch(r"[0-9a-f]{40}", sha),
+            "published nightly must target an exact commit")
+    require(release.get("prerelease") is True and isinstance(release.get("published_at"), str),
+            "published nightly must be a public prerelease")
+    assets = release.get("assets")
+    require(isinstance(assets, list) and all(isinstance(a, dict) for a in assets), "invalid asset listing")
+    expected = {archive_name(t) for t in TARGETS} | {"SHA256SUMS"}
+    require(len(assets) == len(expected) and {a.get("name") for a in assets} == expected
+            and all(a.get("state") == "uploaded" for a in assets),
+            "published nightly asset inventory incomplete")
+    ref = github_read(repository, f"git/ref/tags/{tag}")
+    target = ref.get("object") if isinstance(ref, dict) else None
+    require(isinstance(target, dict) and target.get("type") == "commit" and target.get("sha") == sha,
+            "published nightly tag does not resolve to its release commit")
+    return sha
+
+
+def publication_order(release):
+    published = release.get("published_at")
+    require(isinstance(published, str), "published nightly needs a publication timestamp")
+    timestamp = datetime.datetime.fromisoformat(published.replace("Z", "+00:00"))
+    require(timestamp.tzinfo is not None, "publication timestamp needs a timezone")
+    return timestamp, nightly_order(release["tag_name"])
+
+
+def prepare(sha):
+    require(run(["git", "rev-parse", "HEAD"]).strip() == sha, "checkout SHA mismatch")
+    today = datetime.datetime.now(datetime.timezone.utc).date()
+    require(today <= ACTION_REVIEW_DEADLINE, "action dependency disposition expired; review required")
+    unchanged = published_source(os.environ["GITHUB_REPOSITORY"]) == sha
+    repair = os.environ.get("RELEASE_REPAIR") == "true"
+    lines = []
+    if unchanged and not repair:
+        print(f"::notice::skipping: {sha} is already the most recent published nightly source; "
+              "republishing it requires a workflow_dispatch run with repair enabled")
+    else:
+        if unchanged:
+            print(f"::notice::repair run republishing already published source {sha}")
+        date = today.strftime("%Y%m%d")
+        tag = f"v{version()}-nightly.{date}.{os.environ['GITHUB_RUN_ID']}.{os.environ['GITHUB_RUN_ATTEMPT']}"
+        identity(sha, tag)
+        lines.append(f"tag={tag}\n")
+    lines.append(f"publish={'false' if unchanged and not repair else 'true'}\n")
+    with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+        output.write("".join(lines))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["prepare", "package", "verify", "verify-upload"])
@@ -227,14 +312,7 @@ def main():
     args = parser.parse_args()
     sha = os.environ["RELEASE_SHA"]
     if args.command == "prepare":
-        require(run(["git", "rev-parse", "HEAD"]).strip() == sha, "checkout SHA mismatch")
-        today = datetime.datetime.now(datetime.timezone.utc).date()
-        require(today <= ACTION_REVIEW_DEADLINE, "action dependency disposition expired; review required")
-        date = today.strftime("%Y%m%d")
-        tag = f"v{version()}-nightly.{date}.{os.environ['GITHUB_RUN_ID']}.{os.environ['GITHUB_RUN_ATTEMPT']}"
-        identity(sha, tag)
-        with open(os.environ["GITHUB_OUTPUT"], "a") as output:
-            output.write(f"tag={tag}\n")
+        prepare(sha)
     elif args.command == "package":
         require(args.target in TARGETS, "target required")
         package(args.target, sha, os.environ["RELEASE_TAG"], args.destination)

@@ -64,16 +64,9 @@ class PackagingTests(unittest.TestCase):
         self.assertFalse((self.root / "release").exists())
 
     def test_prepare_uses_cargo_version_run_and_attempt(self):
-        output = self.root / "outputs"
-        date = datetime.datetime(2026, 9, 15, tzinfo=datetime.timezone.utc)
-        with patch.object(nightly.datetime, "datetime") as clock, \
-                patch.object(nightly, "run", return_value=SHA + "\n"), \
-                patch.object(sys, "argv", ["nightly-release.py", "prepare"]), \
-                patch.dict(os.environ, {"RELEASE_SHA": SHA, "GITHUB_RUN_ID": "123",
-                                        "GITHUB_RUN_ATTEMPT": "1", "GITHUB_OUTPUT": str(output)}):
-            clock.now.return_value = date
-            nightly.main()
-        self.assertEqual(output.read_text(), f"tag={TAG}\n")
+        outputs, calls = self.prepare([], {})
+        self.assertEqual(outputs, f"tag={TAG}\npublish=true\n")
+        self.assertEqual(calls[0], ["git", "rev-parse", "HEAD"])
 
     def test_prepare_rejects_expired_disposition_and_wrong_checkout(self):
         output = self.root / "outputs"
@@ -88,6 +81,160 @@ class PackagingTests(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         nightly.main()
                 self.assertFalse(output.exists())
+
+    def published_nightly(self, tag, sha, draft=False, assets=None, **extra):
+        """Release JSON as GitHub returns it; drafts and incomplete uploads are not evidence."""
+        names = [nightly.archive_name(t) for t in nightly.TARGETS] + ["SHA256SUMS"]
+        release = {"tag_name": tag, "target_commitish": sha, "draft": draft, "prerelease": True,
+                   "published_at": None if draft else "2026-09-14T06:40:00Z",
+                   "assets": [{"name": n, "state": "uploaded"} for n in names]
+                   if assets is None else assets}
+        release.update(extra)
+        return release
+
+    def prepare(self, pages, refs, environment=None):
+        """Run prepare against fake GitHub read responses; every gh call is recorded."""
+        output = self.root / "outputs"
+        output.unlink(missing_ok=True)
+        calls = []
+        def run(args):
+            calls.append(args)
+            if args[0] == "git":
+                return SHA + "\n"
+            self.assertEqual(args[:2], ["gh", "api"], args)
+            self.assertNotIn("--method", args)
+            path = args[2]
+            if path.startswith("repos/mdml/ask/releases?per_page=100&page="):
+                page = int(path.rsplit("=", 1)[1])
+                return json.dumps(pages[page - 1] if page <= len(pages) else [])
+            prefix = "repos/mdml/ask/git/ref/tags/"
+            self.assertTrue(path.startswith(prefix), path)
+            return json.dumps(refs[path[len(prefix):]])
+        date = datetime.datetime(2026, 9, 15, tzinfo=datetime.timezone.utc)
+        variables = {"RELEASE_SHA": SHA, "GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "1",
+                     "GITHUB_OUTPUT": str(output), "GITHUB_REPOSITORY": "mdml/ask",
+                     "RELEASE_REPAIR": "false", **(environment or {})}
+        with patch.object(nightly.datetime, "datetime", wraps=datetime.datetime) as clock, \
+                patch.object(nightly, "run", side_effect=run), \
+                patch.object(sys, "argv", ["nightly-release.py", "prepare"]), \
+                patch.dict(os.environ, variables):
+            clock.now.return_value = date
+            nightly.main()
+        return output.read_text(), calls
+
+    def commit_ref(self, sha):
+        return {"ref": "refs/tags/x", "object": {"type": "commit", "sha": sha}}
+
+    def test_prepare_skips_unchanged_source_after_successful_publication(self):
+        previous = f"v{nightly.version()}-nightly.20260914.100.1"
+        pages = [[self.published_nightly(previous, SHA)]]
+        outputs, calls = self.prepare(pages, {previous: self.commit_ref(SHA)})
+        self.assertEqual(outputs, "publish=false\n")
+        self.assertIn(["gh", "api", f"repos/mdml/ask/git/ref/tags/{previous}"], calls)
+
+    def test_prepare_publishes_when_main_moved_or_nothing_published(self):
+        older = "b" * 40
+        previous = f"v{nightly.version()}-nightly.20260914.100.1"
+        for pages in [[[self.published_nightly(previous, older)]], [[]], []]:
+            with self.subTest(pages=pages):
+                outputs, _ = self.prepare(pages, {previous: self.commit_ref(older)})
+                self.assertEqual(outputs, f"tag={TAG}\npublish=true\n")
+
+    def test_prepare_retries_after_failed_unpublished_attempt(self):
+        """A leftover draft or tag for main is not successful publication evidence."""
+        older = "b" * 40
+        previous = f"v{nightly.version()}-nightly.20260914.100.1"
+        failed = f"v{nightly.version()}-nightly.20260915.120.1"
+        pages = [[self.published_nightly(failed, SHA, draft=True),
+                  self.published_nightly(previous, older)]]
+        refs = {previous: self.commit_ref(older), failed: self.commit_ref(SHA)}
+        outputs, calls = self.prepare(pages, refs)
+        self.assertEqual(outputs, f"tag={TAG}\npublish=true\n")
+        self.assertNotIn(["gh", "api", f"repos/mdml/ask/git/ref/tags/{failed}"], calls)
+
+    def test_prepare_repair_input_republishes_unchanged_source(self):
+        previous = f"v{nightly.version()}-nightly.20260914.100.1"
+        pages = [[self.published_nightly(previous, SHA)]]
+        outputs, _ = self.prepare(pages, {previous: self.commit_ref(SHA)},
+                                  {"RELEASE_REPAIR": "true"})
+        self.assertEqual(outputs, f"tag={TAG}\npublish=true\n")
+        for value in ["", "1", "yes", "True"]:
+            with self.subTest(value=value):
+                outputs, _ = self.prepare(pages, {previous: self.commit_ref(SHA)},
+                                          {"RELEASE_REPAIR": value})
+                self.assertEqual(outputs, "publish=false\n")
+
+    def test_prepare_compares_the_most_recent_publication_across_pages_and_versions(self):
+        older = "b" * 40
+        newest = "v0.0.1-nightly.20260914.900.2"
+        stale = f"v{nightly.version()}-nightly.20260913.100.1"
+        drafts = [self.published_nightly(f"v9.9.9-nightly.2026091{i % 10}.{1000 + i}.1", SHA, draft=True)
+                  for i in range(100)]
+        pages = [drafts, [self.published_nightly(stale, SHA), self.published_nightly(newest, older),
+                          self.published_nightly("v0.1.0", SHA, prerelease=False)]]
+        refs = {newest: self.commit_ref(older), stale: self.commit_ref(SHA)}
+        outputs, _ = self.prepare(pages, refs)
+        self.assertEqual(outputs, f"tag={TAG}\npublish=true\n")
+        pages[1][1] = self.published_nightly(newest, SHA)
+        refs[newest] = self.commit_ref(SHA)
+        outputs, _ = self.prepare(pages, refs)
+        self.assertEqual(outputs, "publish=false\n")
+
+    def test_prepare_rejects_inconsistent_publication_evidence(self):
+        previous = f"v{nightly.version()}-nightly.20260914.100.1"
+        complete = self.published_nightly(previous, SHA)
+        cases = [
+            ("tag ref moved", [complete], {previous: self.commit_ref("c" * 40)}),
+            ("annotated tag object", [complete],
+             {previous: {"object": {"type": "tag", "sha": SHA}}}),
+            ("missing asset", [self.published_nightly(previous, SHA, assets=complete["assets"][:-1])],
+             {previous: self.commit_ref(SHA)}),
+            ("asset not uploaded", [self.published_nightly(
+                previous, SHA, assets=complete["assets"][:-1] + [{"name": "SHA256SUMS", "state": "new"}])],
+             {previous: self.commit_ref(SHA)}),
+            ("branch target", [self.published_nightly(previous, "main")], {previous: self.commit_ref(SHA)}),
+            ("unpublished timestamp", [self.published_nightly(previous, SHA, published_at=None)],
+             {previous: self.commit_ref(SHA)}),
+            ("non-prerelease nightly", [self.published_nightly(previous, SHA, prerelease=False)],
+             {previous: self.commit_ref(SHA)}),
+            ("release list not a list", {"tag_name": previous}, {}),
+        ]
+        for name, page, refs in cases:
+            with self.subTest(case=name):
+                with self.assertRaises((ValueError, TypeError)):
+                    self.prepare([page], refs)
+                self.assertFalse((self.root / "outputs").exists())
+
+    def test_prepare_requires_complete_enumeration_within_twenty_pages(self):
+        drafts = [self.published_nightly(TAG, SHA, draft=True)] * 100
+        outputs, calls = self.prepare([drafts] * 19 + [drafts[:99]], {})
+        self.assertEqual(outputs, f"tag={TAG}\npublish=true\n")
+        self.assertEqual(len(calls), 21)
+        with self.assertRaisesRegex(ValueError, "too many releases"):
+            self.prepare([drafts] * 20, {})
+        self.assertFalse((self.root / "outputs").exists())
+
+    def test_prepare_orders_by_publication_time_not_tag_creation_order(self):
+        early_tag = "v0.1.0-nightly.20260912.100.1"
+        late_tag = "v0.1.0-nightly.20260914.200.1"
+        pages = [[
+            self.published_nightly(early_tag, SHA, published_at="2026-09-15T01:00:00Z"),
+            self.published_nightly(late_tag, "b" * 40, published_at="2026-09-14T01:00:00Z"),
+        ]]
+        refs = {early_tag: self.commit_ref(SHA), late_tag: self.commit_ref("b" * 40)}
+        outputs, _ = self.prepare(pages, refs)
+        self.assertEqual(outputs, "publish=false\n")
+
+    def test_workflow_gates_publication_on_prepare_and_repair_input(self):
+        workflow = (nightly.ROOT / ".github/workflows/nightly-release.yml").read_text()
+        self.assertIn("      repair:\n        type: boolean\n        default: false\n", workflow)
+        self.assertIn("RELEASE_REPAIR: ${{ github.event_name == 'workflow_dispatch' && inputs.repair == true }}",
+                      workflow)
+        self.assertIn("publish: ${{ steps.release.outputs.publish }}", workflow)
+        self.assertEqual(workflow.count("if: needs.prepare.outputs.publish == 'true'"), 4)
+        prepare = workflow.split("  verify-full:", 1)[0]
+        self.assertIn("GH_TOKEN: ${{ github.token }}", prepare)
+        self.assertNotIn("contents: write", prepare)
 
     def test_complete_inventory_and_checksums(self):
         destination = self.root / "release"

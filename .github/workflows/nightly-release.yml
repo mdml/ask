@@ -4,6 +4,13 @@ on:
   schedule:
     - cron: "37 6 * * *"
   workflow_dispatch:
+    inputs:
+      repair:
+        type: boolean
+        default: false
+        description: >-
+          Republish even when main is already the most recent successfully
+          published nightly source. Ordinary runs skip an unchanged source.
 
 permissions:
   contents: read
@@ -26,16 +33,23 @@ jobs:
     timeout-minutes: 5
     outputs:
       tag: ${{ steps.release.outputs.tag }}
+      publish: ${{ steps.release.outputs.publish }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
       - id: release
+        # Reads published-release evidence only; skips an unchanged source unless repairing.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_HOST: github.com
+          RELEASE_REPAIR: ${{ github.event_name == 'workflow_dispatch' && inputs.repair == true }}
         run: python3 scripts/nightly-release.py prepare
 
   verify-full:
     needs: prepare
+    if: needs.prepare.outputs.publish == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -48,7 +62,7 @@ jobs:
         with:
           toolchain: 1.97.1
           components: rustfmt, clippy, llvm-tools
-      - uses: taiki-e/install-action@d438492cf8a250514fa2d34b30bc3c0dc37c65ff # v2.87.8
+      - uses: taiki-e/install-action@3f74d7c16a4242f1c95561e98edc25d36adb4375 # v2.87.12
         with:
           tool: cargo-llvm-cov@0.8.7,cargo-deny@0.20.2
       - name: Full gate for the immutable main revision
@@ -58,6 +72,7 @@ jobs:
 
   build:
     needs: [prepare, verify-full]
+    if: needs.prepare.outputs.publish == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
@@ -103,6 +118,7 @@ jobs:
 
   attest:
     needs: [prepare, verify-full, build]
+    if: needs.prepare.outputs.publish == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -150,6 +166,7 @@ jobs:
 
   publish:
     needs: [prepare, verify-full, build, attest]
+    if: needs.prepare.outputs.publish == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
