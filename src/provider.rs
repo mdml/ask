@@ -79,6 +79,7 @@ impl PromptProvider for RigProvider {
     fn start<'a>(&'a self, request: Request<'a>) -> StartFuture<'a> {
         Box::pin(async move {
             let client = openai::Client::builder()
+                .http_client(http_client().map_err(|error| self.error(error))?)
                 .api_key(&self.credential)
                 .base_url(&self.base_url)
                 .build()
@@ -98,6 +99,14 @@ impl PromptProvider for RigProvider {
             ) as EventStream)
         })
     }
+}
+
+/// Refuses redirects so the credential and query content reach only the
+/// configured endpoint; a redirect response surfaces as a provider failure.
+fn http_client() -> reqwest::Result<reqwest::Client> {
+    reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
 }
 
 fn history(exchanges: &[Exchange]) -> Vec<Message> {

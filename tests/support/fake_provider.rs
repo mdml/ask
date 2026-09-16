@@ -3,7 +3,7 @@ use std::{
     net::{SocketAddr, TcpListener, TcpStream},
     sync::{
         Arc, Condvar, Mutex, MutexGuard,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     },
     thread::{self, JoinHandle},
     time::{Duration, Instant},
@@ -24,6 +24,12 @@ pub enum Scenario {
     Unauthorized,
     RateLimited,
     PartialFailure,
+    /// Redirects with `status` to `/redirected/chat/completions` on this
+    /// fake's port unless a different loopback port is supplied.
+    Redirect {
+        status: u16,
+        port: Option<u16>,
+    },
 }
 
 #[derive(Clone, Debug)]
@@ -69,6 +75,8 @@ struct Shared {
     /// The one request whose response waits for the gate, or `None` when
     /// every response waits for it.
     held: Option<usize>,
+    /// Every accepted connection, including ones whose request did not parse.
+    connections: AtomicUsize,
     stop: AtomicBool,
 }
 
@@ -112,6 +120,7 @@ impl FakeProvider {
             recorded: Mutex::new(Vec::new()),
             gate: Gate::new(open),
             held,
+            connections: AtomicUsize::new(0),
             stop: AtomicBool::new(false),
         });
         let thread_shared = Arc::clone(&shared);
@@ -130,6 +139,11 @@ impl FakeProvider {
 
     pub fn base_url(&self) -> String {
         format!("http://{}/v1", self.address)
+    }
+
+    /// The number of connections accepted so far.
+    pub fn connections(&self) -> usize {
+        self.shared.connections.load(Ordering::SeqCst)
     }
 
     pub fn release(&self) {
@@ -175,6 +189,7 @@ fn serve(listener: &TcpListener, scenarios: &[Scenario], shared: &Arc<Shared>) {
             return;
         }
         let Ok(mut stream) = connection else { continue };
+        shared.connections.fetch_add(1, Ordering::SeqCst);
         let Some(request) = read_request(&mut stream) else {
             continue;
         };
@@ -312,6 +327,7 @@ fn respond(stream: &mut TcpStream, scenario: Scenario) {
         Scenario::Unauthorized => error(stream, 401, "unauthorized"),
         Scenario::RateLimited => error(stream, 429, "rate limited"),
         Scenario::PartialFailure => partial_failure(stream),
+        Scenario::Redirect { status, port } => redirect(stream, status, port),
     }
 }
 
@@ -346,6 +362,15 @@ fn partial_failure(stream: &mut TcpStream) {
     chunked_headers(stream);
     chunk(stream, &content_event("partial"));
     let _ = stream.write_all(b"not-a-size\r\n");
+}
+
+fn redirect(stream: &mut TcpStream, status: u16, port: Option<u16>) {
+    let port = port.unwrap_or_else(|| stream.local_addr().unwrap().port());
+    let response = format!(
+        "HTTP/1.1 {status} Redirect\r\nLocation: http://127.0.0.1:{port}/redirected/chat/completions\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+    );
+    let _ = stream.write_all(response.as_bytes());
+    let _ = stream.flush();
 }
 
 fn chunked_headers(stream: &mut TcpStream) {
