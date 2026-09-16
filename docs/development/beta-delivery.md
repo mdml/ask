@@ -34,6 +34,7 @@ Order: P1 → P2 → P3. P4–P7 run in parallel wherever they do not touch the 
 | P5 | Live-provider checks: opt-in credentialed query/reply checks for the four named providers; reports only, never merges. | P1; owner notice that live credentials are ready. |
 | P6 | Native SQLite monitoring in the existing nightly check, then migration of readiness probes into the gate and retirement of the separate workflow per the adoption record's criteria. | None. |
 | P7 | Nightly action disposition renewal before it expires after 2026-09-29 UTC. | None; nightly release preparation fails without it. |
+| P8 | Nightly unchanged-source skipping: scheduled and ordinary manual runs skip tagging, building, and publishing when `main` equals the most recent successfully published nightly source, judged from published-release evidence rather than a tag or draft; a failed unpublished attempt retries; a same-source republish needs the `repair` dispatch input. Implemented in `nightly-release.yml`, `scripts/nightly-release.py`, and the [nightly guide](../guides/nightly-releases.md). | None. |
 
 ## Proof and evidence matrix
 
@@ -73,4 +74,4 @@ Proposed implementation route reusing pinned actions and packaging code where su
 - The seven proofs plus live checks have evidence, including a fresh-user walkthrough showing setup and first query succeed using only shipped instructions.
 - A nightly containing P1–P3 installed and evaluated by the owner.
 - P4 workflow merged and formula prepared; security checks recorded against the exact candidate; owner authorizes the stable push. After publication, update the formula in the tap and verify stable installation through mise and Homebrew.
-- P6 native monitoring running; P7 disposition current.
+- P6 native monitoring running; P7 disposition current; P8 skip behavior observed on a scheduled run against an unchanged `main`.
