@@ -44,6 +44,7 @@ pub(crate) fn document(contents: &str) -> Result<Config, String> {
 }
 
 fn check(config: &Config) -> Result<(), String> {
+    check_history(config)?;
     for (index, (name, provider)) in config.providers.iter().enumerate() {
         check_provider(index + 1, name, provider)?;
     }
@@ -54,6 +55,16 @@ fn check(config: &Config) -> Result<(), String> {
         return Ok(());
     }
     Err(missing_profile(&config.default_profile))
+}
+
+fn check_history(config: &Config) -> Result<(), String> {
+    match config.history_days {
+        Some(_) if !config.expire_history => {
+            Err("history_days requires expire_history = true".to_string())
+        }
+        Some(days) => positive(days).map_err(|rule| format!("history_days {rule}")),
+        None => Ok(()),
+    }
 }
 
 fn check_provider(index: usize, name: &str, provider: &ProviderConfig) -> Result<(), String> {

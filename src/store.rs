@@ -1,9 +1,12 @@
 //! Local history, query statistics, and provider health in one SQLite file.
 //!
-//! Only `ask new` and `ask reply` open the database, once per process. A reply
-//! reads its thread in one short transaction before the request; every write
-//! for a query happens in one immediate transaction after the answer finishes
-//! or fails, never while it streams. The rollback journal keeps each write
+//! `ask new` and `ask reply` open the database once per process, creating it
+//! when absent; `ask thread`, `ask switch`, and `ask stats` open only an
+//! existing database. A reply reads its thread in one short transaction when
+//! it starts; once input is submitted, a query applies any configured history
+//! expiry in its own short transaction before the request; every write for a
+//! query happens in one immediate transaction after the answer finishes or
+//! fails, never while it streams. The rollback journal keeps each write
 //! short and leaves no WAL side files next to the database.
 
 use std::{
@@ -14,14 +17,17 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use rusqlite::{Connection, OptionalExtension, Row, Transaction, TransactionBehavior, params};
+use rusqlite::{
+    Connection, OpenFlags, OptionalExtension, Row, Transaction, TransactionBehavior, params,
+};
 
 use crate::{
     config::Target,
     provider::{Exchange, Usage},
 };
 
-const SCHEMA_VERSION: i64 = 1;
+const SCHEMA_VERSION: i64 = 2;
+const DAY_MS: i64 = 86_400_000;
 const BUSY_TIMEOUT: Duration = Duration::from_millis(1_000);
 
 // Statistics rows carry no prompt or answer text and no thread reference, so
@@ -78,12 +84,28 @@ CREATE TABLE provider_health (
     last_failure_class TEXT,
     PRIMARY KEY (provider_kind, base_url, model)
 ) WITHOUT ROWID;
-PRAGMA user_version = 1;
+PRAGMA user_version = 2;
 ";
 
+// Version 2 adds the text-free count of threads removed by history expiry and
+// the highest thread id it removed, so a removed id is never assigned again.
+const HISTORY_EXPIRY: &str = "
+CREATE TABLE history_expiry (
+    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+    threads_cleared INTEGER NOT NULL CHECK (threads_cleared >= 0),
+    last_cleared_at_ms INTEGER NOT NULL,
+    highest_thread_id INTEGER NOT NULL CHECK (highest_thread_id >= 0)
+);
+";
+
+const EXPIRE_THREADS: &str = "DELETE FROM threads WHERE coalesce((SELECT max(created_at_ms) FROM turns WHERE turns.thread_id = threads.id), created_at_ms) < ?1";
+const HIGHEST_THREAD_ID: &str = "SELECT coalesce(max(id), 0) FROM threads";
+const COUNT_CLEARED: &str = "INSERT INTO history_expiry (singleton, threads_cleared, last_cleared_at_ms, highest_thread_id) VALUES (1, ?1, ?2, ?3) ON CONFLICT (singleton) DO UPDATE SET threads_cleared = threads_cleared + excluded.threads_cleared, last_cleared_at_ms = excluded.last_cleared_at_ms, highest_thread_id = max(highest_thread_id, excluded.highest_thread_id)";
 const SELECT_THREAD: &str = "SELECT profile, provider_kind, base_url, model, system_prompt, timeout_ms, api_key_env FROM threads WHERE id = ?1";
 const SELECT_HISTORY: &str = "SELECT prompt, answer FROM turns WHERE thread_id = ?1 AND status = 'complete' ORDER BY ordinal";
-const INSERT_THREAD: &str = "INSERT INTO threads (created_at_ms, profile, provider_kind, base_url, model, system_prompt, timeout_ms, api_key_env) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)";
+// Thread ids continue past any id history expiry removed, so a reply or
+// selection that names a removed thread can never reach a newer one.
+const INSERT_THREAD: &str = "INSERT INTO threads (id, created_at_ms, profile, provider_kind, base_url, model, system_prompt, timeout_ms, api_key_env) VALUES (max((SELECT coalesce(max(id), 0) FROM threads), coalesce((SELECT highest_thread_id FROM history_expiry), 0)) + 1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)";
 const INSERT_TURN: &str = "INSERT INTO turns (thread_id, ordinal, created_at_ms, prompt, answer, status, reason) SELECT ?1, COALESCE(MAX(ordinal), 0) + 1, ?2, ?3, ?4, ?5, ?6 FROM turns WHERE thread_id = ?1";
 const INSERT_STATISTICS: &str = "INSERT INTO query_statistics (started_at_ms, command, profile, provider_kind, base_url, model, outcome, error_class, wall_ms, api_ms, first_token_ms, input_tokens, output_tokens) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)";
 const OBSERVE_SUCCESS: &str = "INSERT INTO provider_health (provider_kind, base_url, model, last_success_at_ms) VALUES (?1, ?2, ?3, ?4) ON CONFLICT (provider_kind, base_url, model) DO UPDATE SET last_success_at_ms = excluded.last_success_at_ms";
@@ -169,7 +191,10 @@ impl Store {
 
     fn connect(path: &Path) -> Result<Self, Box<dyn Error>> {
         prepare_file(path)?;
-        let mut connection = Connection::open(path)?;
+        Self::configure(Connection::open(path)?)
+    }
+
+    fn configure(mut connection: Connection) -> Result<Self, Box<dyn Error>> {
         connection.busy_timeout(BUSY_TIMEOUT)?;
         let version = supported(user_version(&connection)?)?;
         connection.pragma_update(None, "foreign_keys", true)?;
@@ -177,10 +202,49 @@ impl Store {
         connection.pragma_update_and_check(None, "journal_mode", "DELETE", |row| {
             row.get::<_, String>(0)
         })?;
-        if version == 0 {
+        if version < SCHEMA_VERSION {
             create_schema(&mut connection)?;
         }
         Ok(Self { connection })
+    }
+
+    /// Opens the database only when its file already exists, so inspection
+    /// commands never create one.
+    /// SQLite opens without its create flag, so a file removed after any
+    /// earlier check is reported missing rather than recreated.
+    pub fn open_existing(path: &Path) -> Result<Option<Self>, StoreError> {
+        let flags = OpenFlags::default().difference(OpenFlags::SQLITE_OPEN_CREATE);
+        let opened = Connection::open_with_flags(path, flags)
+            .map_err(Box::<dyn Error>::from)
+            .and_then(Self::configure);
+        match opened {
+            Ok(store) => Ok(Some(store)),
+            Err(_) if !path.exists() => Ok(None),
+            Err(error) => Err(StoreError(format!(
+                "cannot open history database '{}': {error}",
+                path.display()
+            ))),
+        }
+    }
+
+    /// Removes whole threads whose newest turn is older than `days` before
+    /// `now`, and adds the number removed to the cleared-thread count.
+    pub fn expire(&mut self, now: SystemTime, days: u64) -> Result<usize, StoreError> {
+        let now = epoch_ms(now);
+        let cutoff = now.saturating_sub(integer(days).saturating_mul(DAY_MS));
+        let transaction = self
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let highest: i64 = transaction.query_row(HIGHEST_THREAD_ID, [], |row| row.get(0))?;
+        let cleared = transaction.execute(EXPIRE_THREADS, [cutoff])?;
+        if cleared > 0 {
+            transaction.execute(
+                COUNT_CLEARED,
+                params![i64::try_from(cleared).unwrap_or(i64::MAX), now, highest],
+            )?;
+        }
+        transaction.commit()?;
+        Ok(cleared)
     }
 
     /// Reads the current thread, its snapshot, and its complete turns in one
@@ -240,7 +304,7 @@ fn user_version(connection: &Connection) -> rusqlite::Result<i64> {
 
 fn supported(version: i64) -> Result<i64, String> {
     match version {
-        0 | SCHEMA_VERSION => Ok(version),
+        0..=SCHEMA_VERSION => Ok(version),
         newer if newer > SCHEMA_VERSION => Err(format!(
             "schema version {newer} is newer than this ask supports ({SCHEMA_VERSION})"
         )),
@@ -248,17 +312,24 @@ fn supported(version: i64) -> Result<i64, String> {
     }
 }
 
-/// Version 0 is accepted only for an empty database. The check repeats under
-/// the write lock so concurrent first runs create the schema once.
+/// Version 0 is accepted only for an empty database; version 1 is upgraded in
+/// place. The check repeats under the write lock so concurrent first runs
+/// create or upgrade the schema once.
 fn create_schema(connection: &mut Connection) -> Result<(), Box<dyn Error>> {
     let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-    if supported(user_version(&transaction)?)? == 0 {
-        let objects: i64 =
-            transaction.query_row("SELECT count(*) FROM sqlite_schema", [], |row| row.get(0))?;
-        if objects != 0 {
-            return Err("the file is not empty and has no ask schema version".into());
+    match supported(user_version(&transaction)?)? {
+        0 => {
+            let objects: i64 =
+                transaction
+                    .query_row("SELECT count(*) FROM sqlite_schema", [], |row| row.get(0))?;
+            if objects != 0 {
+                return Err("the file is not empty and has no ask schema version".into());
+            }
+            transaction.execute_batch(SCHEMA)?;
+            transaction.execute_batch(HISTORY_EXPIRY)?;
         }
-        transaction.execute_batch(SCHEMA)?;
+        1 => transaction.execute_batch(&format!("{HISTORY_EXPIRY} PRAGMA user_version = 2;"))?,
+        _ => (),
     }
     transaction.commit()?;
     Ok(())
@@ -403,6 +474,13 @@ fn millis(duration: Duration) -> i64 {
 fn integer(value: u64) -> i64 {
     i64::try_from(value).unwrap_or(i64::MAX)
 }
+
+#[path = "store_recall.rs"]
+mod recall;
+
+#[cfg(test)]
+pub use recall::StoredTurn;
+pub use recall::{Summary, TargetHealth, ThreadSummary, ThreadView};
 
 #[cfg(test)]
 #[path = "store_tests.rs"]

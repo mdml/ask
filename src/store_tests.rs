@@ -13,12 +13,13 @@ use rusqlite::types::Value;
 
 use super::*;
 
-const TABLES: [&str; 5] = [
+const TABLES: [&str; 6] = [
     "threads",
     "turns",
     "current_thread",
     "query_statistics",
     "provider_health",
+    "history_expiry",
 ];
 
 static NEXT: AtomicUsize = AtomicUsize::new(0);
@@ -114,18 +115,30 @@ fn mode(path: &Path) -> u32 {
     fs::metadata(path).unwrap().permissions().mode() & 0o777
 }
 
+/// The permission bits of the database file and its directory.
+fn modes(path: &Path) -> (u32, u32) {
+    (mode(path), mode(path.parent().unwrap()))
+}
+
+/// The connection settings `Store::open` applies: user_version, journal_mode,
+/// synchronous, foreign_keys, and busy_timeout.
+fn pragmas(store: &Store) -> (i64, String, i64, i64, i64) {
+    (
+        scalar(store, "PRAGMA user_version"),
+        scalar(store, "PRAGMA journal_mode"),
+        scalar(store, "PRAGMA synchronous"),
+        scalar(store, "PRAGMA foreign_keys"),
+        scalar(store, "PRAGMA busy_timeout"),
+    )
+}
+
 #[test]
 fn creates_the_schema_with_owner_only_permissions() {
     let path = scratch();
     let store = Store::open(&path).unwrap();
-    assert_eq!(scalar::<i64>(&store, "PRAGMA user_version"), 1);
-    assert_eq!(counts(&store), vec![0; 5]);
-    assert_eq!(scalar::<String>(&store, "PRAGMA journal_mode"), "delete");
-    assert_eq!(scalar::<i64>(&store, "PRAGMA synchronous"), 2);
-    assert_eq!(scalar::<i64>(&store, "PRAGMA foreign_keys"), 1);
-    assert_eq!(scalar::<i64>(&store, "PRAGMA busy_timeout"), 1_000);
-    assert_eq!(mode(&path), 0o600);
-    assert_eq!(mode(path.parent().unwrap()), 0o700);
+    assert_eq!(pragmas(&store), (2, "delete".to_string(), 2, 1, 1_000));
+    assert_eq!(counts(&store), vec![0; 6]);
+    assert_eq!(modes(&path), (0o600, 0o700));
 }
 
 #[test]
@@ -137,14 +150,13 @@ fn existing_permissions_are_left_alone() {
     fs::write(&path, b"").unwrap();
     fs::set_permissions(&path, fs::Permissions::from_mode(0o640)).unwrap();
     Store::open(&path).unwrap();
-    assert_eq!(mode(&path), 0o640);
-    assert_eq!(mode(directory), 0o750);
+    assert_eq!(modes(&path), (0o640, 0o750));
 }
 
 #[test]
 fn newer_and_foreign_databases_are_refused_without_writing() {
     for (setup, expected) in [
-        ("PRAGMA user_version = 2;", "schema version 2 is newer"),
+        ("PRAGMA user_version = 3;", "schema version 3 is newer"),
         (
             "PRAGMA user_version = -1;",
             "unrecognized schema version -1",
@@ -183,8 +195,8 @@ fn simultaneous_first_runs_create_the_schema_once() {
             opener.join().unwrap().unwrap();
         }
         let store = Store::open(&path).unwrap();
-        assert_eq!(scalar::<i64>(&store, "PRAGMA user_version"), 1);
-        assert_eq!(counts(&store), vec![0; 5]);
+        assert_eq!(scalar::<i64>(&store, "PRAGMA user_version"), 2);
+        assert_eq!(counts(&store), vec![0; 6]);
     }
 }
 
@@ -200,7 +212,7 @@ fn a_first_run_that_loses_the_race_keeps_the_winners_schema() {
         .record(&record(&snapshot, None, complete("q", "a")))
         .unwrap();
     create_schema(&mut loser).unwrap();
-    assert_eq!(counts(&winner), vec![1, 1, 1, 1, 1]);
+    assert_eq!(counts(&winner), vec![1, 1, 1, 1, 1, 0]);
 }
 
 #[test]
@@ -261,7 +273,7 @@ fn failure_before_text_records_statistics_but_no_thread() {
     let mut store = Store::open(&scratch()).unwrap();
     let snapshot = target("model");
     store.record(&record(&snapshot, None, None)).unwrap();
-    assert_eq!(counts(&store), vec![0, 0, 0, 1, 1]);
+    assert_eq!(counts(&store), vec![0, 0, 0, 1, 1, 0]);
     assert_eq!(
         scalar::<String>(
             &store,
@@ -380,6 +392,347 @@ fn statistics_and_health_carry_no_query_text() {
         let text = format!("{values:?}");
         assert!(!text.contains("SENTINEL"), "{text}");
     }
+}
+
+const DAY: i64 = 86_400_000;
+
+/// Sets every turn of `thread` to `ms` since the epoch.
+fn age(store: &Store, thread: i64, ms: i64) {
+    store
+        .connection
+        .execute(
+            "UPDATE turns SET created_at_ms = ?1 WHERE thread_id = ?2",
+            [ms, thread],
+        )
+        .unwrap();
+}
+
+fn at(ms: i64) -> SystemTime {
+    UNIX_EPOCH + Duration::from_millis(ms.unsigned_abs())
+}
+
+fn thread_ids(store: &Store) -> String {
+    scalar(
+        store,
+        "SELECT coalesce(group_concat(id, ','), '') FROM (SELECT id FROM threads ORDER BY id)",
+    )
+}
+
+#[test]
+fn a_version_one_database_is_upgraded_in_place() {
+    let path = scratch();
+    let mut store = Store::open(&path).unwrap();
+    let snapshot = target("model");
+    store
+        .record(&record(&snapshot, None, complete("q", "a")))
+        .unwrap();
+    store
+        .connection
+        .execute_batch("DROP TABLE history_expiry; PRAGMA user_version = 1;")
+        .unwrap();
+    drop(store);
+    let mut store = Store::open(&path).unwrap();
+    assert_eq!(scalar::<i64>(&store, "PRAGMA user_version"), 2);
+    assert_eq!(counts(&store), vec![1, 1, 1, 1, 1, 0]);
+    assert_eq!(store.current().unwrap().unwrap().history.len(), 1);
+}
+
+#[test]
+fn open_existing_never_creates_a_database() {
+    let path = scratch();
+    assert!(Store::open_existing(&path).unwrap().is_none());
+    assert!(!path.exists() && !path.parent().unwrap().exists());
+    drop(Store::open(&path).unwrap());
+    assert!(Store::open_existing(&path).unwrap().is_some());
+}
+
+/// The present used by the expiry fixtures, in milliseconds since the epoch.
+const NOW: i64 = 1_000 * DAY;
+
+/// Three threads against a 90-day period ending at `NOW`: thread 1 is one
+/// millisecond past the boundary, thread 2 is exactly on it, and thread 3 has
+/// an ancient first turn but a partial second turn from yesterday.
+fn aged_threads() -> Store {
+    let mut store = Store::open(&scratch()).unwrap();
+    let snapshot = target("model");
+    for prompt in ["old", "boundary", "mixed"] {
+        store
+            .record(&record(&snapshot, None, complete(prompt, "a")))
+            .unwrap();
+    }
+    store
+        .record(&record(&snapshot, Some(3), partial("recent", "cut")))
+        .unwrap();
+    age(&store, 1, NOW - 90 * DAY - 1);
+    age(&store, 2, NOW - 90 * DAY);
+    age(&store, 3, NOW - 400 * DAY);
+    store
+        .connection
+        .execute(
+            "UPDATE turns SET created_at_ms = ?1 WHERE ordinal = 2",
+            [NOW - DAY],
+        )
+        .unwrap();
+    store
+}
+
+#[test]
+fn expiry_removes_whole_threads_by_their_newest_turn() {
+    let mut store = aged_threads();
+    assert_eq!(store.expire(at(NOW), 90).unwrap(), 1);
+    assert_eq!(
+        (thread_ids(&store), counts(&store)),
+        ("2,3".to_string(), vec![2, 3, 1, 4, 1, 1])
+    );
+}
+
+#[test]
+fn repeated_expiry_accumulates_the_cleared_count_and_last_time() {
+    let mut store = aged_threads();
+    let cleared: Vec<usize> = [NOW, NOW + 1, NOW + 1]
+        .into_iter()
+        .map(|present| store.expire(at(present), 90).unwrap())
+        .collect();
+    assert_eq!(cleared, [1, 1, 0]);
+    let row: String = scalar(
+        &store,
+        "SELECT threads_cleared || ':' || last_cleared_at_ms FROM history_expiry",
+    );
+    assert_eq!(
+        (row, thread_ids(&store)),
+        (format!("2:{}", NOW + 1), "3".to_string())
+    );
+}
+
+#[test]
+fn an_expired_current_thread_leaves_no_current_thread() {
+    let mut store = Store::open(&scratch()).unwrap();
+    let snapshot = target("model");
+    store
+        .record(&record(&snapshot, None, complete("q", "a")))
+        .unwrap();
+    age(&store, 1, 0);
+    assert_eq!(store.expire(at(2 * DAY), 1).unwrap(), 1);
+    assert!(store.current().unwrap().is_none());
+    assert_eq!(counts(&store), vec![0, 0, 0, 1, 1, 1]);
+}
+
+#[test]
+fn an_enormous_retention_expires_nothing() {
+    let mut store = Store::open(&scratch()).unwrap();
+    let snapshot = target("model");
+    store
+        .record(&record(&snapshot, None, complete("q", "a")))
+        .unwrap();
+    age(&store, 1, 0);
+    assert_eq!(store.expire(SystemTime::now(), u64::MAX).unwrap(), 0);
+}
+
+#[test]
+fn expired_thread_ids_are_never_reused() {
+    let mut store = Store::open(&scratch()).unwrap();
+    let snapshot = target("model");
+    for prompt in ["first", "second"] {
+        store
+            .record(&record(&snapshot, None, complete(prompt, "a")))
+            .unwrap();
+    }
+    age(&store, 1, 0);
+    age(&store, 2, 0);
+    assert_eq!(store.expire(at(2 * DAY), 1).unwrap(), 2);
+    store
+        .record(&record(&snapshot, None, complete("third", "a")))
+        .unwrap();
+    assert_eq!(thread_ids(&store), "3");
+    assert!(
+        store
+            .record(&record(&snapshot, Some(2), complete("late", "a")))
+            .is_err()
+    );
+    assert_eq!(thread_ids(&store), "3");
+}
+
+#[test]
+fn open_existing_never_creates_a_file_in_an_existing_directory() {
+    let path = scratch();
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    assert!(Store::open_existing(&path).unwrap().is_none());
+    assert!(!path.exists());
+}
+
+#[test]
+fn the_current_view_includes_partial_turns_with_reasons() {
+    let mut store = Store::open(&scratch()).unwrap();
+    assert!(store.current_view().unwrap().is_none());
+    let snapshot = target("model");
+    store
+        .record(&record(&snapshot, None, complete("q1", "a1")))
+        .unwrap();
+    store
+        .record(&record(&snapshot, Some(1), partial("q2", "cut")))
+        .unwrap();
+    let view = store.current_view().unwrap().unwrap();
+    assert_eq!(
+        (view.id, view.profile.as_str(), view.model.as_str()),
+        (1, "default", "model")
+    );
+    let turns: Vec<_> = view
+        .turns
+        .iter()
+        .map(|turn| {
+            (
+                turn.prompt.as_str(),
+                turn.answer.as_str(),
+                turn.reason.as_deref(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        turns,
+        [
+            ("q1", "a1", None),
+            ("q2", "cut", Some("provider request failed: cut"))
+        ]
+    );
+}
+
+/// Threads 1 to 3, where thread 1 (current) was continued most recently and
+/// thread 2 least recently.
+fn three_threads() -> Store {
+    let mut store = Store::open(&scratch()).unwrap();
+    let snapshot = target("model");
+    for prompt in ["first", "second", "third"] {
+        store
+            .record(&record(&snapshot, None, complete(prompt, "a")))
+            .unwrap();
+    }
+    store
+        .record(&record(&snapshot, Some(1), complete("again", "a")))
+        .unwrap();
+    for (thread, ms) in [(1, 5_000), (2, 3_000), (3, 4_000)] {
+        age(&store, thread, ms);
+    }
+    store
+}
+
+/// Whether `select` found thread `id`, and the current thread afterwards.
+fn select_then_current(store: &mut Store, id: i64) -> (bool, Option<i64>) {
+    let found = store.select(id).unwrap();
+    (found, current_id(store))
+}
+
+#[test]
+fn recent_threads_are_newest_first_with_turn_counts_and_openings() {
+    let store = three_threads();
+    let recent = store.recent(2).unwrap();
+    let rows: Vec<_> = recent
+        .iter()
+        .map(|thread| {
+            (
+                thread.id,
+                thread.updated_at_ms,
+                thread.turns,
+                thread.opening.as_str(),
+                thread.current,
+            )
+        })
+        .collect();
+    assert_eq!(
+        rows,
+        [(1, 5_000, 2, "first", true), (3, 4_000, 1, "third", false)]
+    );
+}
+
+#[test]
+fn selection_changes_current_only_for_an_existing_thread() {
+    let mut store = three_threads();
+    assert_eq!(select_then_current(&mut store, 2), (true, Some(2)));
+    assert_eq!(select_then_current(&mut store, 9), (false, Some(2)));
+}
+
+#[test]
+fn an_empty_store_summarizes_to_nothing() {
+    let mut store = Store::open(&scratch()).unwrap();
+    let empty = store.summary().unwrap();
+    assert_eq!(
+        (empty.queries, empty.median_wall_ms, empty.targets.len()),
+        (0, None, 0)
+    );
+}
+
+/// Four queries: a complete one and a partial reply on thread 1 (recorded
+/// with usage), a failure against another model, and a usage-free complete
+/// query with a 70 ms wall time inserted directly. The partial reply's wall
+/// time is raised to 900 ms so the medians have a clear middle.
+fn summarized_store() -> Summary {
+    let mut store = Store::open(&scratch()).unwrap();
+    let snapshot = target("model");
+    store
+        .record(&record(&snapshot, None, complete("q", "a")))
+        .unwrap();
+    store
+        .record(&record(&snapshot, Some(1), partial("q", "a")))
+        .unwrap();
+    store.record(&record(&target("other"), None, None)).unwrap();
+    store
+        .connection
+        .execute_batch("UPDATE query_statistics SET wall_ms = 900 WHERE id = 2; INSERT INTO query_statistics (started_at_ms, command, profile, provider_kind, base_url, model, outcome, wall_ms, api_ms) VALUES (0, 'new', 'default', 'openai-compatible', 'http://127.0.0.1:1/v1', 'model', 'complete', 70, 60);")
+        .unwrap();
+    store.summary().unwrap()
+}
+
+#[test]
+fn the_summary_counts_outcomes_tokens_and_medians() {
+    let summary = summarized_store();
+    assert_eq!(
+        (
+            summary.queries,
+            summary.complete,
+            summary.partial,
+            summary.failed
+        ),
+        (4, 2, 1, 1)
+    );
+    assert_eq!(
+        (
+            summary.input_tokens,
+            summary.output_tokens,
+            summary.with_usage
+        ),
+        (36, 9, 3)
+    );
+    assert_eq!(
+        (summary.median_wall_ms, summary.median_first_token_ms),
+        (Some(30), Some(10))
+    );
+}
+
+#[test]
+fn the_summary_counts_history_and_lists_targets_with_latest_health() {
+    let summary = summarized_store();
+    assert_eq!(
+        (summary.threads, summary.turns, summary.threads_cleared),
+        (1, 2, 0)
+    );
+    let targets: Vec<_> = summary
+        .targets
+        .iter()
+        .map(|health| {
+            (
+                health.model.as_str(),
+                health.queries,
+                health.last_success_at_ms.is_some(),
+                health.last_failure_class.as_deref(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        targets,
+        [
+            ("model", 3, true, Some("provider")),
+            ("other", 1, false, Some("provider"))
+        ]
+    );
 }
 
 #[test]

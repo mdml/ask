@@ -66,9 +66,9 @@ fn reply_keeps_the_snapshot_when_configuration_changes_or_disappears() {
     fs::write(&installed, changed).unwrap();
     answered(&ask(&home, &["r", "after", "change"]), b"**4**\n");
     fs::write(&installed, "not = [valid").unwrap();
-    answered(&ask(&home, &["r", "after", "invalid"]), b"**4**\n");
+    answered_with_skipped_expiry(&ask(&home, &["r", "after", "invalid"]));
     fs::remove_file(&installed).unwrap();
-    answered(&ask(&home, &["r", "after", "removal"]), b"**4**\n");
+    answered_with_skipped_expiry(&ask(&home, &["r", "after", "removal"]));
     assert_snapshot(&fake.requests(4));
     assert_rows(
         &home,
@@ -480,6 +480,20 @@ fn answered(output: &Output, stdout: &[u8]) {
     assert!(output.status.success(), "{stderr}");
     assert_eq!(output.stdout, stdout);
     assert!(stderr.starts_with("ask: fake-model · "), "{stderr}");
+}
+
+/// A reply that cannot read the installed configuration warns that history
+/// expiry was skipped, then answers normally.
+fn answered_with_skipped_expiry(output: &Output) {
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let (warning, statistics) = stderr.split_once('\n').unwrap_or_default();
+    assert!(
+        output.status.success()
+            && warning.starts_with("ask: history expiry skipped: ")
+            && statistics.starts_with("ask: fake-model · "),
+        "{stderr}"
+    );
+    assert_eq!(output.stdout, b"**4**\n");
 }
 
 /// Asserts exit status 1 with `stdout`, and returns stderr.
