@@ -17,6 +17,10 @@ Internal delivery plan for the approved tool-less beta. Product scope, exclusion
 
 The owner's own nightly install integration and credential isolation live outside this repository; their absence here is not a gap.
 
+## Delivery progress
+
+On 2026-09-16 the beta umbrella gained durable concurrent-writer proofs through PR #35. The partial-line double Ctrl-D proof is implemented in `query_proof`; the P2 list below describes packet scope, and these two items are complete. The implemented-baseline table above remains a snapshot of `ba658d4`.
+
 ## Work packets
 
 Order: P1 → P2 → P3. P4–P7 run in parallel wherever they do not touch the same files.
@@ -39,9 +43,9 @@ Acceptance proofs run in this order through the real product boundary. Ordinary 
 |:--|:--|:--|
 | Install | Nightly packaging tests; offline packaged `configure check` | Repeat published-archive installation for the final candidate; stable and Homebrew installs |
 | Configure | `configure_proof` | Provider menu/defaults per supported provider; retention fields |
-| Query | `query_proof` | Per-provider wire formats (streaming, usage, errors, rate limits, auth) |
-| Continue | `continue_proof` | Per-provider reply history encoding |
-| Recall | None | `thread`, `switch`, `stats`, expiry, concurrent writers, double Ctrl-D |
+| Query | `query_proof`, including the partial-line double Ctrl-D PTY proof | Per-provider wire formats (streaming, usage, errors, rate limits, auth) |
+| Continue | `continue_proof`, including concurrent writers | Per-provider reply history encoding |
+| Recall | None | `thread`, `switch`, `stats`, expiry |
 | Diagnose | None | `doctor` offline/side-effect-free, `--live`, `--live --all` against fake provider |
 | Compose | Covered inside `query_proof`/`continue_proof` | Confirm coverage for new inspection commands' stdout/stderr |
 | Live | None | P5 run records for OpenAI, Anthropic, Gemini, OpenRouter |

@@ -402,6 +402,15 @@ fn terminal_multiline_submits_on_eof() {
 }
 
 #[test]
+fn terminal_partial_line_submits_once_on_second_eof() {
+    let fake = FakeProvider::start(Scenario::Stream);
+    let home = configured_home(&fake.base_url(), None, None);
+    terminal(&home, "partial", &[]);
+    assert_eq!(fake.recorded().unwrap().messages[1].1, "partial question");
+    assert_eq!(fake.connections(), 1);
+}
+
+#[test]
 fn terminal_ctrl_c_cancels_without_a_request() {
     let fake = FakeProvider::start(Scenario::Stream);
     let home = configured_home(&fake.base_url(), None, None);
