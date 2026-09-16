@@ -6,10 +6,11 @@ use std::{
 };
 
 use super::*;
+use crate::config::Target;
 
 static CASE_ID: AtomicUsize = AtomicUsize::new(0);
 
-const COMPLETE: &str = "local\nhttp://127.0.0.1:1/v1\nfake-model\nLOCAL_API_KEY\n\n\ny\n";
+const COMPLETE: &str = "5\nlocal\nhttp://127.0.0.1:1/v1\nLOCAL_API_KEY\nfake-model\n\n\ny\n";
 
 fn fresh_path() -> PathBuf {
     let id = CASE_ID.fetch_add(1, Ordering::SeqCst);
@@ -26,6 +27,84 @@ fn drive(path: &Path, answers: &str) -> (Result<(), InitError>, String) {
     (result, String::from_utf8(output).unwrap())
 }
 
+fn assert_local_openai_compatible_target(target: &Target) {
+    assert_eq!(
+        (
+            target.base_url.as_str(),
+            target.model.as_str(),
+            target.api_key_env.as_str(),
+            target.kind.as_str(),
+            target.system_prompt.as_str()
+        ),
+        (
+            "http://127.0.0.1:1/v1",
+            "fake-model",
+            "LOCAL_API_KEY",
+            "openai-compatible",
+            crate::DEFAULT_SYSTEM_PROMPT
+        )
+    );
+}
+
+fn assert_complete_dialogue_transcript(transcript: &str) {
+    for expected in [
+        crate::DEFAULT_SYSTEM_PROMPT,
+        "read -rs LOCAL_API_KEY",
+        "docs/guides/credentials.md",
+        "Write this configuration? [y/N]: Wrote '",
+    ] {
+        assert!(
+            transcript.contains(expected),
+            "missing dialogue text: {expected}"
+        );
+    }
+}
+
+fn assert_openai_preset_contents(contents: &str) {
+    for expected in [
+        "kind = \"openai\"",
+        "base_url = \"https://api.openai.com/v1\"",
+        "api_key_env = \"OPENAI_API_KEY\"",
+        "model = \"gpt-5.6-luna\"",
+    ] {
+        assert!(
+            contents.contains(expected),
+            "missing preset field: {expected}"
+        );
+    }
+}
+
+fn assert_invalid_answer_explanations(transcript: &str) {
+    for (message, count) in [
+        ("Enter a number from 1 to 5.", 1),
+        ("That value must not be empty.", 1),
+        (
+            "That value must be an http:// or https:// URL with a host, no embedded credentials, and no query or fragment component.",
+            3,
+        ),
+        ("That value must be an environment variable name", 2),
+    ] {
+        assert_eq!(transcript.matches(message).count(), count, "{message}");
+    }
+}
+
+fn assert_stable_init_error_messages() {
+    let io_error: InitError = io::Error::other("boom").into();
+    for (error, expected) in [
+        (
+            InitError::Cancelled,
+            "configuration cancelled; nothing was written",
+        ),
+        (
+            InitError::Exists("p".to_string()),
+            "configuration already exists at 'p'; 'ask configure apply' replaces regular files only",
+        ),
+        (io_error, "cannot continue configuration: boom"),
+    ] {
+        assert_eq!(error.to_string(), expected);
+    }
+}
+
 #[test]
 fn complete_dialogue_writes_a_loadable_default_profile() {
     let path = fresh_path();
@@ -35,18 +114,22 @@ fn complete_dialogue_writes_a_loadable_default_profile() {
         .unwrap()
         .resolve()
         .unwrap();
-    assert_eq!(target.base_url, "http://127.0.0.1:1/v1");
-    assert_eq!(target.model, "fake-model");
-    assert_eq!(target.api_key_env, "LOCAL_API_KEY");
-    assert_eq!(target.system_prompt, crate::DEFAULT_SYSTEM_PROMPT);
-    assert!(transcript.contains(crate::DEFAULT_SYSTEM_PROMPT));
-    assert!(transcript.contains("Write this configuration? [y/N]: Wrote '"));
+    assert_local_openai_compatible_target(&target);
+    assert_complete_dialogue_transcript(&transcript);
+}
+
+#[test]
+fn openai_preset_supplies_endpoint_and_credential_defaults() {
+    let path = fresh_path();
+    let answers = "1\ngpt-5.6-luna\n\n\ny\n";
+    drive(&path, answers).0.unwrap();
+    assert_openai_preset_contents(&fs::read_to_string(&path).unwrap());
 }
 
 #[test]
 fn replacement_prompt_and_profile_name_are_recorded() {
     let path = fresh_path();
-    let answers = "local\nhttps://example.test/v1\nm\nKEY\nBe terse.\nterse\nyes\n";
+    let answers = "5\nlocal\nhttps://example.test/v1\nKEY\nm\nBe terse.\nterse\nyes\n";
     drive(&path, answers).0.unwrap();
     let contents = fs::read_to_string(&path).unwrap();
     assert!(contents.contains("default_profile = \"terse\""));
@@ -82,27 +165,13 @@ fn declining_confirmation_cancels_without_writing() {
 fn invalid_answers_are_explained_and_asked_again() {
     let path = fresh_path();
     let answers = COMPLETE
+        .replacen("5\n", "0\n5\n", 1)
         .replacen("local\n", "\nlocal\n", 1)
         .replacen("http://", "ftp://x\nhttp:// spaced\nhttp://\nhttp://", 1)
         .replacen("LOCAL_API_KEY\n", "1KEY\nBAD-NAME\nLOCAL_API_KEY\n", 1);
     let (result, transcript) = drive(&path, &answers);
     result.unwrap();
-    assert_eq!(
-        transcript.matches("That value must not be empty.").count(),
-        1
-    );
-    assert_eq!(
-        transcript
-            .matches("That value must be an http:// or https:// URL with a host, no embedded credentials, and no query or fragment component.")
-            .count(),
-        3
-    );
-    assert_eq!(
-        transcript
-            .matches("That value must be an environment variable name")
-            .count(),
-        2
-    );
+    assert_invalid_answer_explanations(&transcript);
 }
 
 #[test]
@@ -139,14 +208,5 @@ fn unwritable_location_is_reported() {
 
 #[test]
 fn errors_have_stable_messages() {
-    assert_eq!(
-        InitError::Cancelled.to_string(),
-        "configuration cancelled; nothing was written"
-    );
-    assert_eq!(
-        InitError::Exists("p".to_string()).to_string(),
-        "configuration already exists at 'p'; 'ask configure apply' replaces regular files only"
-    );
-    let io_error: InitError = io::Error::other("boom").into();
-    assert_eq!(io_error.to_string(), "cannot continue configuration: boom");
+    assert_stable_init_error_messages();
 }

@@ -45,7 +45,7 @@ fn init_then_query_answers_through_the_fake_provider() {
     let fake = FakeProvider::start(Scenario::Stream);
     let home = fresh_home();
     let answers = format!(
-        "local\n{}\nfake-model\nLOCAL_API_KEY\nUse terse tables.\n\ny\n",
+        "5\nlocal\n{}\nLOCAL_API_KEY\nfake-model\nUse terse tables.\n\ny\n",
         fake.base_url()
     );
     let transcript = succeeded(&interactive(&home, "init", &answers));
@@ -73,7 +73,7 @@ fn init_then_query_answers_through_the_fake_provider() {
 #[test]
 fn init_alias_i_creates_the_same_file() {
     let home = fresh_home();
-    let answers = "local\nhttp://127.0.0.1:1/v1\nfake-model\nLOCAL_API_KEY\n\n\ny\n";
+    let answers = "5\nlocal\nhttp://127.0.0.1:1/v1\nLOCAL_API_KEY\nfake-model\n\n\ny\n";
     succeeded(&interactive(&home, "i", answers));
     let written = fs::read_to_string(home.join("config.toml")).unwrap();
     assert!(written.contains("default_profile = \"default\""));
@@ -83,7 +83,7 @@ fn init_alias_i_creates_the_same_file() {
 #[test]
 fn init_keeps_the_default_system_prompt_when_the_answer_is_empty() {
     let home = fresh_home();
-    let answers = "local\nhttp://127.0.0.1:1/v1\nfake-model\nLOCAL_API_KEY\n\n\ny\n";
+    let answers = "5\nlocal\nhttp://127.0.0.1:1/v1\nLOCAL_API_KEY\nfake-model\n\n\ny\n";
     assert!(interactive(&home, "init", answers).status.success());
     let written = fs::read_to_string(home.join("config.toml")).unwrap();
     assert!(!written.contains("system_prompt"), "{written}");
@@ -100,7 +100,7 @@ fn init_has_no_all_default_mode() {
 #[test]
 fn init_end_of_input_cancels_with_nothing_written() {
     let home = fresh_home();
-    let answers = "local\nhttp://127.0.0.1:1/v1\n";
+    let answers = "5\nlocal\nhttp://127.0.0.1:1/v1\n";
     let transcript = failed(&interactive(&home, "init", answers));
     assert!(transcript.ends_with(CANCELLED), "{transcript}");
     assert!(!home.join("config.toml").exists());
@@ -110,13 +110,42 @@ fn init_end_of_input_cancels_with_nothing_written() {
 fn init_asks_again_after_an_invalid_answer() {
     let home = fresh_home();
     let answers =
-        "local\nnot-a-url\nhttp://127.0.0.1:1/v1\nfake-model\n9KEY\nLOCAL_API_KEY\n\n\ny\n";
+        "5\nlocal\nnot-a-url\nhttp://127.0.0.1:1/v1\n9KEY\nLOCAL_API_KEY\nfake-model\n\n\ny\n";
     let transcript = succeeded(&interactive(&home, "init", answers));
     assert!(transcript.contains(
         "That value must be an http:// or https:// URL with a host, no embedded credentials, and no query or fragment component."
     ));
     assert!(transcript.contains("That value must be an environment variable name"));
     assert!(home.join("config.toml").exists());
+}
+
+#[test]
+fn init_openai_preset_writes_supported_kind_and_defaults() {
+    let home = fresh_home();
+    let answers = "1\ngpt-5.6-luna\n\n\ny\n";
+    succeeded(&interactive(&home, "init", answers));
+    let written = fs::read_to_string(home.join("config.toml")).unwrap();
+    assert!(written.contains("kind = \"openai\""));
+    assert!(written.contains("base_url = \"https://api.openai.com/v1\""));
+    assert!(written.contains("api_key_env = \"OPENAI_API_KEY\""));
+}
+
+#[test]
+fn help_and_version_run_without_configuration() {
+    let home = fresh_home();
+    let help = command(&home, false).arg("help").output().unwrap();
+    assert!(help.status.success(), "{}", stderr(&help));
+    assert!(
+        String::from_utf8(help.stdout)
+            .unwrap()
+            .contains("ask init creates the first configuration")
+    );
+    assert!(String::from_utf8_lossy(&help.stderr).is_empty());
+
+    let version = command(&home, false).args(["--version"]).output().unwrap();
+    assert!(version.status.success(), "{}", stderr(&version));
+    assert_eq!(String::from_utf8(version.stdout).unwrap(), "ask 0.1.0\n");
+    assert!(String::from_utf8_lossy(&version.stderr).is_empty());
 }
 
 #[test]
@@ -164,7 +193,7 @@ fn symlink_destinations_are_refused_before_initialization_prompts() {
 fn init_failed_disk_write_leaves_no_config_and_allows_retry() {
     let home = fresh_home();
     let answers = format!(
-        "local\nhttp://127.0.0.1:1/v1\nfake-model\nLOCAL_API_KEY\n{}\n\ny\n",
+        "5\nlocal\nhttp://127.0.0.1:1/v1\nLOCAL_API_KEY\nfake-model\n{}\n\ny\n",
         "x".repeat(4096)
     );
     let transcript = failed(&drive(&mut write_limited(&home, &["init"]), &answers));

@@ -79,15 +79,25 @@ impl Config {
     }
 
     pub fn resolve(self) -> Result<Target, ConfigError> {
+        if !self.profiles.contains_key(&self.default_profile) {
+            return Err(ConfigError(validate::missing_profile(
+                &self.default_profile,
+            )));
+        }
+        self.resolve_named(&self.default_profile)
+    }
+
+    pub fn resolve_named(&self, profile_name: &str) -> Result<Target, ConfigError> {
         let profile = self
             .profiles
-            .get(&self.default_profile)
-            .ok_or_else(|| ConfigError(validate::missing_profile(&self.default_profile)))?;
-        let provider = self.providers.get(&profile.provider).ok_or_else(|| {
-            ConfigError(validate::missing_provider(&self.default_profile, profile))
-        })?;
+            .get(profile_name)
+            .ok_or_else(|| ConfigError(format!("profile '{profile_name}' is not configured")))?;
+        let provider = self
+            .providers
+            .get(&profile.provider)
+            .ok_or_else(|| ConfigError(validate::missing_provider(profile_name, profile)))?;
         Ok(Target {
-            profile: self.default_profile.clone(),
+            profile: profile_name.to_string(),
             kind: provider.kind.clone(),
             base_url: provider.base_url.clone(),
             api_key_env: provider.api_key_env.clone(),

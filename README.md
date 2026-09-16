@@ -2,7 +2,7 @@
 
 `ask` is a fast, opinionated terminal lookup tool for asking language models quick questions without starting an agent session.
 
-**Status: pre-alpha.** The query, reply, recall (`thread`, `switch`, `stats`), initialization, and configuration commands are implemented, but interfaces may change before the first `0.1.0` release. Supported provider kinds are `openai`, `anthropic`, `gemini`, `openrouter`, and `openai-compatible`; `ask init` still creates only an `openai-compatible` provider, so write other kinds with `ask configure apply`.
+**Status: pre-alpha.** The query, reply, recall (`thread`, `switch`, `stats`), initialization, configuration, help, and version commands are implemented, but interfaces may change before the first `0.1.0` release. Supported provider kinds are `openai`, `anthropic`, `gemini`, `openrouter`, and `openai-compatible`.
 
 ## Install a nightly
 
@@ -10,28 +10,48 @@ The [nightly pipeline](docs/guides/nightly-releases.md) publishes checksummed, a
 
 ## Usage
 
-The following forms each start a new query. Prompt words are joined with single spaces.
+Bare `ask` (no subcommand) is the same as `ask new`: both start a new thread. The following forms are equivalent. Prompt words are joined with single spaces.
 
 ```sh
 ask "what is 2+2"
 ask new "what is 2+2"
 ask n "what is 2+2"
+ask --profile terse "what is 2+2"
 ```
 
-`ask reply` and `ask r` continue the current thread; see [Threads and replies](#threads-and-replies). `ask thread`, `ask switch`, and `ask stats` inspect and select history; see [Recall](#recall).
+Use `--profile NAME` or `-p NAME` on a new query to override the configured default profile. Replies always use the profile captured when their thread was created.
+
+`ask reply` and `ask r` continue the current thread; see [Threads and replies](#threads-and-replies). `ask thread`, `ask switch`, and `ask stats` inspect and select history; see [Recall](#recall). `ask help` and `ask version` (also `ask --help`, `-h`, `--version`, and `-V`) print offline command reference and version information without reading configuration or contacting a provider.
 
 `ask` reads `$ASK_HOME/config.toml` when `ASK_HOME` is set. Otherwise, it reads `config.toml` from the platform-standard configuration directory for an application named `ask`.
 
 ### Creating a first configuration interactively
 
-`ask init` and `ask i` create that file through a line-oriented dialogue. Every prompt and diagnostic is written to stderr, and stdout stays empty. The answers may come from a terminal or from redirected stdin, one answer per line. The dialogue asks for:
+`ask init` and `ask i` create that file through a line-oriented dialogue. Every prompt and diagnostic is written to stderr, and stdout stays empty. The answers may come from a terminal or from redirected stdin, one answer per line.
 
-1. A provider name, for example `openrouter`.
-2. The endpoint base URL, which must use `http://` or `https://`, include a host, contain no embedded username/password credentials, and have no query or fragment component (including an empty trailing `?` or `#`).
-3. A model identifier, sent to the provider after trimming surrounding whitespace.
-4. The name of the environment variable that will hold the credential. `ask` validates the name only; it never reads or stores the value, and initialization makes no network request.
-5. An optional replacement system prompt. The current default system prompt is shown first, and an empty answer keeps it.
-6. A profile name, which defaults to `default`. The profile created becomes the default profile.
+`ask` reads credentials from environment variables and never stores their values. After initialization, use the variable name shown for your provider. For a one-off query in bash or zsh, this hidden prompt keeps the key out of shell history and the parent shell:
+
+```sh
+( printf 'API key: ' >&2; IFS= read -rs OPENAI_API_KEY </dev/tty || exit; printf '\n' >&2; export OPENAI_API_KEY; exec ask "what is 2+2" )
+```
+
+Replace `OPENAI_API_KEY` with your provider's variable name. Paste the key only when the hidden prompt appears. For repeated use, an external credential manager can inject it when launching `ask`; see the optional [credential injection recipe](docs/guides/credentials.md).
+
+Next, choose a supported provider from a numbered menu:
+
+1. OpenAI (`openai`) — endpoint `https://api.openai.com/v1`, credential variable `OPENAI_API_KEY`
+2. Anthropic (`anthropic`) — endpoint `https://api.anthropic.com`, credential variable `ANTHROPIC_API_KEY`
+3. Gemini (`gemini`) — endpoint `https://generativelanguage.googleapis.com`, credential variable `GEMINI_API_KEY`
+4. OpenRouter (`openrouter`) — endpoint `https://openrouter.ai/api/v1`, credential variable `OPENROUTER_API_KEY`
+5. Custom OpenAI-compatible endpoint (`openai-compatible`) — you supply the provider name, endpoint base URL, and credential variable name
+
+For options 1–4, `ask init` writes the listed endpoint and credential variable; you enter only a model identifier (free text sent to the provider). For option 5, the endpoint must use `http://` or `https://`, include a host, contain no embedded username/password credentials, and have no query or fragment component (including an empty trailing `?` or `#`); the credential variable name is validated but never read.
+
+The dialogue then asks for:
+
+1. A model identifier when you chose a supported provider, or the custom fields above followed by a model identifier.
+2. An optional replacement system prompt. The current default system prompt is shown first, and an empty answer keeps it.
+3. A profile name, which defaults to `default`. The profile created becomes the default profile.
 
 Answers are trimmed and limited to one line. For a multiline system prompt, an explicitly empty system prompt, or significant surrounding whitespace, prepare the complete TOML document and use `ask configure check/apply`.
 
