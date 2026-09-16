@@ -27,6 +27,20 @@ fn parses_and_resolves_defaults() {
     assert_eq!(target.timeout_ms, 30_000);
     assert_eq!(target.model, "fake-model");
     assert_eq!(target.system_prompt, crate::DEFAULT_SYSTEM_PROMPT);
+    assert_eq!(target.max_output_tokens, None);
+}
+
+#[test]
+fn profile_output_limit_resolves_and_round_trips() {
+    let configured = CONFIG.replace(
+        "model = \"fake-model\"",
+        "model = \"fake-model\"\nmax_output_tokens = 512",
+    );
+    assert_eq!(resolved(&configured).max_output_tokens, Some(512));
+    let rendered = validate::document(&configured).unwrap().to_toml().unwrap();
+    assert!(rendered.contains("max_output_tokens = 512"));
+    let rendered = validate::document(CONFIG).unwrap().to_toml().unwrap();
+    assert!(!rendered.contains("max_output_tokens"));
 }
 
 #[test]
@@ -73,6 +87,7 @@ fn resolve_reports_a_provider_that_is_absent() {
                 provider: "missing".to_string(),
                 model: "m".to_string(),
                 system_prompt: None,
+                max_output_tokens: None,
             },
         )]),
     };

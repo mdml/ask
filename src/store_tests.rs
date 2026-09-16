@@ -44,6 +44,7 @@ fn target(model: &str) -> Target {
         timeout_ms: 41,
         model: model.to_string(),
         system_prompt: "Be brief.".to_string(),
+        max_output_tokens: None,
     }
 }
 
@@ -136,7 +137,7 @@ fn pragmas(store: &Store) -> (i64, String, i64, i64, i64) {
 fn creates_the_schema_with_owner_only_permissions() {
     let path = scratch();
     let store = Store::open(&path).unwrap();
-    assert_eq!(pragmas(&store), (2, "delete".to_string(), 2, 1, 1_000));
+    assert_eq!(pragmas(&store), (3, "delete".to_string(), 2, 1, 1_000));
     assert_eq!(counts(&store), vec![0; 6]);
     assert_eq!(modes(&path), (0o600, 0o700));
 }
@@ -156,7 +157,7 @@ fn existing_permissions_are_left_alone() {
 #[test]
 fn newer_and_foreign_databases_are_refused_without_writing() {
     for (setup, expected) in [
-        ("PRAGMA user_version = 3;", "schema version 3 is newer"),
+        ("PRAGMA user_version = 4;", "schema version 4 is newer"),
         (
             "PRAGMA user_version = -1;",
             "unrecognized schema version -1",
@@ -195,7 +196,7 @@ fn simultaneous_first_runs_create_the_schema_once() {
             opener.join().unwrap().unwrap();
         }
         let store = Store::open(&path).unwrap();
-        assert_eq!(scalar::<i64>(&store, "PRAGMA user_version"), 2);
+        assert_eq!(scalar::<i64>(&store, "PRAGMA user_version"), 3);
         assert_eq!(counts(&store), vec![0; 6]);
     }
 }
@@ -213,6 +214,75 @@ fn a_first_run_that_loses_the_race_keeps_the_winners_schema() {
         .unwrap();
     create_schema(&mut loser).unwrap();
     assert_eq!(counts(&winner), vec![1, 1, 1, 1, 1, 0]);
+}
+
+/// The version 1 schema and one thread with a complete and a partial turn,
+/// as `ask` wrote them before profiles could set `max_output_tokens`.
+const VERSION_1: &str = "
+CREATE TABLE threads (id INTEGER PRIMARY KEY, created_at_ms INTEGER NOT NULL, profile TEXT NOT NULL, provider_kind TEXT NOT NULL, base_url TEXT NOT NULL, model TEXT NOT NULL, system_prompt TEXT NOT NULL, timeout_ms INTEGER NOT NULL CHECK (timeout_ms > 0), api_key_env TEXT NOT NULL);
+CREATE TABLE turns (id INTEGER PRIMARY KEY, thread_id INTEGER NOT NULL REFERENCES threads (id) ON DELETE CASCADE, ordinal INTEGER NOT NULL CHECK (ordinal > 0), created_at_ms INTEGER NOT NULL, prompt TEXT NOT NULL, answer TEXT NOT NULL, status TEXT NOT NULL CHECK (status IN ('complete', 'partial')), reason TEXT CHECK ((status = 'complete') = (reason IS NULL)), UNIQUE (thread_id, ordinal));
+CREATE TABLE current_thread (singleton INTEGER PRIMARY KEY CHECK (singleton = 1), thread_id INTEGER NOT NULL REFERENCES threads (id) ON DELETE CASCADE);
+CREATE TABLE query_statistics (id INTEGER PRIMARY KEY, started_at_ms INTEGER NOT NULL, command TEXT NOT NULL CHECK (command IN ('new', 'reply')), profile TEXT NOT NULL, provider_kind TEXT NOT NULL, base_url TEXT NOT NULL, model TEXT NOT NULL, outcome TEXT NOT NULL CHECK (outcome IN ('complete', 'partial', 'failed')), error_class TEXT, wall_ms INTEGER NOT NULL, api_ms INTEGER NOT NULL, first_token_ms INTEGER, input_tokens INTEGER, output_tokens INTEGER);
+CREATE TABLE provider_health (provider_kind TEXT NOT NULL, base_url TEXT NOT NULL, model TEXT NOT NULL, last_success_at_ms INTEGER, last_failure_at_ms INTEGER, last_failure_class TEXT, PRIMARY KEY (provider_kind, base_url, model)) WITHOUT ROWID;
+INSERT INTO threads VALUES (7, 1, 'default', 'openai-compatible', 'http://127.0.0.1:1/v1', 'old-model', 'Be brief.', 41, 'LOCAL_API_KEY');
+INSERT INTO turns VALUES (1, 7, 1, 1, 'q1', 'a1', 'complete', NULL);
+INSERT INTO turns VALUES (2, 7, 2, 1, 'q2', 'cut', 'partial', 'provider request failed: cut');
+INSERT INTO current_thread VALUES (1, 7);
+PRAGMA user_version = 1;
+";
+
+#[test]
+fn version_1_snapshots_migrate_without_an_output_limit() {
+    let path = scratch();
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    Connection::open(&path)
+        .unwrap()
+        .execute_batch(VERSION_1)
+        .unwrap();
+    let barrier = Arc::new(Barrier::new(4));
+    let openers: Vec<_> = (0..4)
+        .map(|_| {
+            let (path, barrier) = (path.clone(), Arc::clone(&barrier));
+            thread::spawn(move || {
+                barrier.wait();
+                Store::open(&path).map(|_| ())
+            })
+        })
+        .collect();
+    for opener in openers {
+        opener.join().unwrap().unwrap();
+    }
+    let mut store = Store::open(&path).unwrap();
+    assert_eq!(scalar::<i64>(&store, "PRAGMA user_version"), 3);
+    let thread = store.current().unwrap().unwrap();
+    assert_eq!(thread.id, 7);
+    assert_eq!(thread.target, target("old-model"));
+    assert_eq!(
+        thread.history,
+        vec![Exchange {
+            prompt: "q1".to_string(),
+            answer: "a1".to_string()
+        }]
+    );
+    store
+        .record(&record(&thread.target, Some(7), complete("q3", "a3")))
+        .unwrap();
+    assert_eq!(counts(&store), vec![1, 3, 1, 1, 1, 0]);
+}
+
+#[test]
+fn an_explicit_output_limit_is_part_of_the_snapshot() {
+    let path = scratch();
+    let mut store = Store::open(&path).unwrap();
+    let snapshot = Target {
+        max_output_tokens: Some(512),
+        ..target("model")
+    };
+    store
+        .record(&record(&snapshot, None, complete("q", "a")))
+        .unwrap();
+    let mut reopened = Store::open(&path).unwrap();
+    assert_eq!(reopened.current().unwrap().unwrap().target, snapshot);
 }
 
 #[test]
@@ -462,13 +532,83 @@ fn a_version_one_database_is_upgraded_in_place() {
         .unwrap();
     store
         .connection
-        .execute_batch("DROP TABLE history_expiry; PRAGMA user_version = 1;")
+        .execute_batch(
+            "DROP TABLE history_expiry; ALTER TABLE threads DROP COLUMN max_output_tokens; PRAGMA user_version = 1;",
+        )
         .unwrap();
     drop(store);
     let mut store = Store::open(&path).unwrap();
-    assert_eq!(scalar::<i64>(&store, "PRAGMA user_version"), 2);
+    assert_eq!(scalar::<i64>(&store, "PRAGMA user_version"), 3);
     assert_eq!(counts(&store), vec![1, 1, 1, 1, 1, 0]);
     assert_eq!(store.current().unwrap().unwrap().history.len(), 1);
+    assert_eq!(
+        store.current().unwrap().unwrap().target.max_output_tokens,
+        None
+    );
+}
+
+/// Recall schema version 2 with expiry highwater preserved through the upgrade.
+const VERSION_2: &str = "
+CREATE TABLE threads (id INTEGER PRIMARY KEY, created_at_ms INTEGER NOT NULL, profile TEXT NOT NULL, provider_kind TEXT NOT NULL, base_url TEXT NOT NULL, model TEXT NOT NULL, system_prompt TEXT NOT NULL, timeout_ms INTEGER NOT NULL CHECK (timeout_ms > 0), api_key_env TEXT NOT NULL);
+CREATE TABLE turns (id INTEGER PRIMARY KEY, thread_id INTEGER NOT NULL REFERENCES threads (id) ON DELETE CASCADE, ordinal INTEGER NOT NULL CHECK (ordinal > 0), created_at_ms INTEGER NOT NULL, prompt TEXT NOT NULL, answer TEXT NOT NULL, status TEXT NOT NULL CHECK (status IN ('complete', 'partial')), reason TEXT CHECK ((status = 'complete') = (reason IS NULL)), UNIQUE (thread_id, ordinal));
+CREATE TABLE current_thread (singleton INTEGER PRIMARY KEY CHECK (singleton = 1), thread_id INTEGER NOT NULL REFERENCES threads (id) ON DELETE CASCADE);
+CREATE TABLE query_statistics (id INTEGER PRIMARY KEY, started_at_ms INTEGER NOT NULL, command TEXT NOT NULL CHECK (command IN ('new', 'reply')), profile TEXT NOT NULL, provider_kind TEXT NOT NULL, base_url TEXT NOT NULL, model TEXT NOT NULL, outcome TEXT NOT NULL CHECK (outcome IN ('complete', 'partial', 'failed')), error_class TEXT, wall_ms INTEGER NOT NULL, api_ms INTEGER NOT NULL, first_token_ms INTEGER, input_tokens INTEGER, output_tokens INTEGER);
+CREATE TABLE provider_health (provider_kind TEXT NOT NULL, base_url TEXT NOT NULL, model TEXT NOT NULL, last_success_at_ms INTEGER, last_failure_at_ms INTEGER, last_failure_class TEXT, PRIMARY KEY (provider_kind, base_url, model)) WITHOUT ROWID;
+CREATE TABLE history_expiry (singleton INTEGER PRIMARY KEY CHECK (singleton = 1), threads_cleared INTEGER NOT NULL CHECK (threads_cleared >= 0), last_cleared_at_ms INTEGER NOT NULL, highest_thread_id INTEGER NOT NULL CHECK (highest_thread_id >= 0));
+INSERT INTO threads VALUES (9, 1, 'default', 'openai-compatible', 'http://127.0.0.1:1/v1', 'kept-model', 'Be brief.', 41, 'LOCAL_API_KEY');
+INSERT INTO turns VALUES (1, 9, 1, 1, 'kept', 'answer', 'complete', NULL);
+INSERT INTO current_thread VALUES (1, 9);
+INSERT INTO history_expiry VALUES (1, 2, 500, 8);
+PRAGMA user_version = 2;
+";
+
+#[test]
+fn recall_version_two_preserves_highwater_and_migrates() {
+    let path = scratch();
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    Connection::open(&path)
+        .unwrap()
+        .execute_batch(VERSION_2)
+        .unwrap();
+    let mut store = Store::open(&path).unwrap();
+    assert_eq!(scalar::<i64>(&store, "PRAGMA user_version"), 3);
+    let thread = store.current().unwrap().unwrap();
+    assert_eq!(thread.id, 9);
+    assert_eq!(thread.target.model, "kept-model");
+    assert_eq!(thread.target.max_output_tokens, None);
+    assert_eq!(
+        scalar::<i64>(&store, "SELECT highest_thread_id FROM history_expiry"),
+        8
+    );
+    store
+        .record(&record(&thread.target, None, complete("after", "a")))
+        .unwrap();
+    assert_eq!(thread_ids(&store), "9,10");
+}
+
+#[test]
+fn prototype_version_two_layouts_are_refused() {
+    for (batch, expected) in [
+        (
+            "ALTER TABLE threads ADD COLUMN max_output_tokens INTEGER CHECK (max_output_tokens > 0); PRAGMA user_version = 2;",
+            "schema version 2 without history expiry is not supported",
+        ),
+        (
+            "CREATE TABLE history_expiry (singleton INTEGER PRIMARY KEY CHECK (singleton = 1), threads_cleared INTEGER NOT NULL CHECK (threads_cleared >= 0), last_cleared_at_ms INTEGER NOT NULL, highest_thread_id INTEGER NOT NULL CHECK (highest_thread_id >= 0)); ALTER TABLE threads ADD COLUMN max_output_tokens INTEGER CHECK (max_output_tokens > 0); PRAGMA user_version = 2;",
+            "schema version 2 with an output-token snapshot is not supported",
+        ),
+    ] {
+        let path = scratch();
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        Connection::open(&path)
+            .unwrap()
+            .execute_batch(&format!("{VERSION_1}{batch}"))
+            .unwrap();
+        let before = fs::read(&path).unwrap();
+        let message = Store::open(&path).err().unwrap().to_string();
+        assert!(message.contains(expected), "{message}");
+        assert_eq!(fs::read(&path).unwrap(), before);
+    }
 }
 
 #[test]

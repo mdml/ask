@@ -80,8 +80,23 @@ fn every_provider_is_validated_not_only_the_selected_one() {
     );
     assert_eq!(
         problem(&unused),
-        "providers[2].kind has an unsupported kind; the only supported kind is 'openai-compatible'"
+        "providers[2].kind has an unsupported kind; supported kinds are 'openai', 'anthropic', 'gemini', 'openrouter', 'openai-compatible'"
     );
+}
+
+#[test]
+fn every_supported_kind_is_accepted() {
+    for kind in [
+        "openai",
+        "anthropic",
+        "gemini",
+        "openrouter",
+        "openai-compatible",
+    ] {
+        let candidate = CONFIG.replace("openai-compatible", kind);
+        assert!(document(&candidate).is_ok(), "{kind}");
+    }
+    assert!(document(&CONFIG.replace("openai-compatible", "OpenAI")).is_err());
 }
 
 #[test]
@@ -129,11 +144,28 @@ fn provider_values_are_validated() {
 
 #[test]
 fn profile_values_are_validated() {
-    let cases = [(
-        "model = \"fake-model\"",
-        "model = \"\"",
-        format!("profiles[1].model {REQUIRED_RULE}"),
-    )];
+    let cases = [
+        (
+            "model = \"fake-model\"",
+            "model = \"\"",
+            format!("profiles[1].model {REQUIRED_RULE}"),
+        ),
+        (
+            "model = \"fake-model\"",
+            "model = \"fake-model\"\nmax_output_tokens = 0",
+            "profiles[1].max_output_tokens must be greater than zero".to_string(),
+        ),
+        (
+            "model = \"fake-model\"",
+            "model = \"fake-model\"\nmax_output_tokens = -1",
+            "profiles[1].max_output_tokens: invalid type or range".to_string(),
+        ),
+        (
+            "model = \"fake-model\"",
+            "model = \"fake-model\"\nmax_output_tokens = \"many\"",
+            "profiles[1].max_output_tokens: invalid type or range".to_string(),
+        ),
+    ];
     for (from, to, expected) in cases {
         assert_eq!(problem(&CONFIG.replace(from, to)), expected);
     }

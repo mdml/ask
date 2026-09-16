@@ -30,6 +30,12 @@ pub enum Scenario {
         status: u16,
         port: Option<u16>,
     },
+    /// A complete server-sent event body in some provider's wire format.
+    Sse(&'static str),
+    /// A server-sent event body split at exact HTTP chunk boundaries.
+    SseChunks(&'static [&'static str]),
+    /// A JSON error body with the given status.
+    Status(u16, &'static str),
 }
 
 #[derive(Clone, Debug)]
@@ -40,6 +46,18 @@ pub struct RecordedRequest {
     pub authorization_is_fixture: bool,
     pub model: String,
     pub messages: Vec<(String, String)>,
+    /// Every header, names lowercased, in arrival order.
+    pub headers: Vec<(String, String)>,
+    pub body: Value,
+}
+
+impl RecordedRequest {
+    pub fn header(&self, name: &str) -> Option<&str> {
+        self.headers
+            .iter()
+            .find(|(key, _)| key == name)
+            .map(|(_, value)| value.as_str())
+    }
 }
 
 /// Holds each response after its request is recorded until the gate opens.
@@ -248,8 +266,15 @@ fn read_request(stream: &mut TcpStream) -> Option<RecordedRequest> {
         path,
         authorization_present,
         authorization_is_fixture,
-        model: value["model"].as_str()?.to_string(),
+        model: value["model"].as_str().unwrap_or_default().to_string(),
         messages: messages(&value),
+        headers: headers
+            .lines()
+            .skip(1)
+            .filter_map(|line| line.split_once(':'))
+            .map(|(name, value)| (name.trim().to_ascii_lowercase(), value.trim().to_string()))
+            .collect(),
+        body: value,
     })
 }
 
@@ -295,7 +320,7 @@ fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 fn messages(value: &Value) -> Vec<(String, String)> {
     value["messages"]
         .as_array()
-        .unwrap()
+        .map_or(&[][..], Vec::as_slice)
         .iter()
         .map(|message| {
             let role = message["role"].as_str().unwrap().to_string();
@@ -328,6 +353,15 @@ fn respond(stream: &mut TcpStream, scenario: Scenario) {
         Scenario::RateLimited => error(stream, 429, "rate limited"),
         Scenario::PartialFailure => partial_failure(stream),
         Scenario::Redirect { status, port } => redirect(stream, status, port),
+        Scenario::Sse(body) => fixed(stream, 200, "text/event-stream", body),
+        Scenario::SseChunks(parts) => {
+            chunked_headers(stream);
+            for part in parts {
+                chunk(stream, part);
+            }
+            let _ = stream.write_all(b"0\r\n\r\n");
+        }
+        Scenario::Status(status, body) => fixed(stream, status, "application/json", body),
     }
 }
 

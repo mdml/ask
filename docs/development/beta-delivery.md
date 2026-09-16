@@ -17,9 +17,14 @@ Internal delivery plan for the approved tool-less beta. Product scope, exclusion
 
 The owner's own nightly install integration and credential isolation live outside this repository; their absence here is not a gap.
 
-## Delivery progress
+## Packet progress
 
-On 2026-09-16 the beta umbrella gained durable concurrent-writer proofs through PR #35. The partial-line double Ctrl-D proof is implemented in `query_proof`. P2 now also implements thread inspection, interactive and explicit thread switching, statistics, and configurable whole-thread expiry, with schema v1-to-v2 migration and `recall_proof` coverage. The P2 list below describes the completed packet scope; integration with the provider snapshot migration still needs verification. The implemented-baseline table above remains a snapshot of `ba658d4`.
+| Packet | Landed on this branch | Still open |
+|:--|:--|:--|
+| P1 | Provider kinds `openai` (Responses), `anthropic`, `openrouter`, and `openai-compatible` through Rig provider modules, plus a scoped direct Gemini GenerateContent streaming adapter because Rig 0.42 drops candidate-free prompt feedback and usage; redirects disabled; `configure` validation of the kinds; profile `max_output_tokens` with the output-limit truncation policy; schema version 3 output-token snapshot column with version 1 and recall version 2 migration; percent-encoded Gemini model path and credential, and encoded-credential redaction; OpenRouter in-band stream errors as partial turns; `provider_proof` wire-format fixtures. | `init` provider menu and defaults, credential-supply instructions and injection recipe, explicit profile selection, offline help/version inspection. |
+| P2 | `thread`/`t`, `switch`/`s`, `stats`; configurable whole-thread expiry with highwater thread ids; schema version 2 history expiry with version 1 migration; `recall_proof` coverage including expiry, captured-thread races, and invalid-configuration fallback; durable concurrent-writer proof; partial-line double Ctrl-D PTY proof in `query_proof`. | None for the packet scope; integration with P1 is verified through schema version 3. |
+
+On 2026-09-16 the beta umbrella gained durable concurrent-writer proofs through PR #35. The implemented-baseline table above remains a snapshot of `ba658d4`.
 
 ## Work packets
 
@@ -46,10 +51,10 @@ Acceptance proofs run in this order through the real product boundary. Ordinary 
 | Configure | `configure_proof`; retention validation in unit tests and `recall_proof` | Provider menu/defaults per supported provider |
 | Query | `query_proof`, including the partial-line double Ctrl-D PTY proof | Per-provider wire formats (streaming, usage, errors, rate limits, auth) |
 | Continue | `continue_proof`, including concurrent writers | Per-provider reply history encoding |
-| Recall | `recall_proof`: thread output, switching, statistics, expiry, cancellation, captured-thread races, invalid-configuration fallback, and schema migration | Recheck with provider snapshot changes |
+| Recall | `recall_proof`: thread output, switching, statistics, expiry, cancellation, captured-thread races, invalid-configuration fallback, and schema migration | None after schema version 3 integration |
 | Diagnose | None | `doctor` offline/side-effect-free, `--live`, `--live --all` against fake provider |
 | Compose | `query_proof`/`continue_proof`; inspection stdout/stderr assertions in `recall_proof` | Recheck with diagnostics |
-| Live | None | P5 run records for OpenAI, Anthropic, Gemini, OpenRouter |
+| Live | [2026-09-16 query/reply checks](../reviews/live-provider-checks-2026-09-16.md) passed for OpenAI, Anthropic, Gemini, and OpenRouter | Scheduled change-aware checks and complete installed-workflow evidence |
 
 Record personally run results in PRs; this table lists proof targets, not results.
 

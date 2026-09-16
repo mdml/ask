@@ -14,7 +14,7 @@ use crate::{
     output::AnswerWriter,
     provider::{Exchange, Request, RigProvider},
     report,
-    runner::{self, Outcome},
+    runner::{self, Outcome, RunError},
     stats::Statistics,
     store::{Health, Measurement, Record, Store, StoreError, Turn, TurnStatus},
 };
@@ -222,17 +222,23 @@ impl Finished<'_> {
             Some(error) if error.is_broken_pipe() => {
                 Some(TurnStatus::Partial("output closed".to_string()))
             }
-            Some(error) if error.is_output() || !self.outcome.answer.is_empty() => {
+            Some(error) if self.has_partial_turn(error) => {
                 Some(TurnStatus::Partial(error.to_string()))
             }
             Some(_) => None,
         }
     }
 
-    /// Output failures say nothing about the provider target.
+    fn has_partial_turn(&self, error: &RunError) -> bool {
+        error.is_output() || error.is_output_limit() || !self.outcome.answer.is_empty()
+    }
+
+    /// Output failures say nothing about the provider target; an answer cut at
+    /// the output-token limit shows the target responded normally.
     fn health(&self) -> Option<Health> {
         match &self.outcome.error {
             None => Some(Health::Success),
+            Some(error) if error.is_output_limit() => Some(Health::Success),
             Some(error) if error.is_output() => None,
             Some(error) => Some(Health::Failure(error.class())),
         }
@@ -274,7 +280,12 @@ fn conclude(
 ) -> ExitCode {
     let error = finished.outcome.error.as_ref();
     if let Some(error) = error.filter(|error| !error.is_broken_pipe()) {
-        report(stderr, &error.to_string(), ExitCode::FAILURE);
+        let message = if error.is_output_limit() {
+            format!("warning: {error}")
+        } else {
+            error.to_string()
+        };
+        report(stderr, &message, ExitCode::FAILURE);
     }
     if let Err(cause) = saved {
         let what = match finished.status() {
