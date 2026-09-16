@@ -11,7 +11,7 @@ Internal delivery plan for the approved tool-less beta. Product scope, exclusion
 | Query input/output | Stdin composition, multiline prompt, stdout/stderr contract, partial turns, early pipe closure, and record-failure exit implemented and proven. The PTY proof submits with a single EOF after complete lines; the partial-line double Ctrl-D path is documented but not proven. |
 | Storage | SQLite schema v1: threads with profile snapshots, turns, text-free statistics, provider health, current thread; one transaction per query; rollback journal, `synchronous = FULL`, 1000 ms busy timeout. No retention settings or expiry. No proof of many concurrent writers beyond one held reply racing one `new`. |
 | Paths | `ASK_HOME` selects configuration and data; no cache directory is resolved. |
-| Release | Nightly prereleases from `main`: four native archives, `SHA256SUMS`, attestations, mise GitHub-backend install. No stable workflow, `stable` branch, Homebrew formula, or stable security-check automation. `stable` deletion ruleset applied. |
+| Release | Nightly prereleases from `main`: four native archives, `SHA256SUMS`, attestations, mise GitHub-backend install. Stable workflow, branch, releases, and Homebrew formula are prepared in P4 but not live until owner authorization; see [stable releases](../guides/stable-releases.md). `stable` deletion ruleset applied. |
 | Live checks | None in the repository. Nightly workflow runs advisories and dependency freshness only. |
 | Monitoring | SQLite native monitoring was approved at beta kickoff; not implemented. The `sqlite-readiness` workflow and probes remain. |
 
@@ -66,7 +66,7 @@ Proposed implementation route reusing pinned actions and packaging code where su
 2. Before pushing `stable`, the managing agent runs the full gate, advisory check, and supervised attack search required by `SECURITY.md`, recording their results, owner authorization, and exact candidate. After the push, the workflow repeats the full gate and advisory check on that revision before publication; it cannot substitute for the pre-push checks.
 3. Keep enforcement in the workflow: publication runs only after the full gate and advisory job pass. The `stable` deletion ruleset is already applied; any further ruleset change is reviewed separately.
 4. Homebrew: use the existing public `mdml/homebrew-tap` repository (confirmed empty on 2026-09-16). Prepare a reviewed formula update as part of each authorized stable release, without adding a cross-repository automation credential. The formula selects the four stable archives by URL and SHA-256 from `SHA256SUMS`, updated after publication; no new build path.
-5. mise stable install: the existing GitHub backend without `prerelease=true`; document it when the first stable exists.
+5. mise stable install: the existing GitHub backend without `prerelease=true`; see [stable releases](../guides/stable-releases.md).
 
 ## External prerequisites
 

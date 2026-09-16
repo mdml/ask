@@ -18,7 +18,7 @@ The project applies a higher-than-usual supply-chain bar because model-provider 
 - GitHub Actions workflows pin third-party actions to full commit SHAs.
 - Dependency updates are reviewed and merged by the managing agent under the process below; no unattended automation merges them.
 
-The [nightly release workflow](.github/workflows/nightly-release.yml) produces checksummed archives with GitHub attestations after verification. Stable release publication is not implemented yet.
+The [nightly release workflow](.github/workflows/nightly-release.yml) produces checksummed archives with GitHub attestations after verification. A [stable release workflow](.github/workflows/stable-release.yml) is prepared on the beta umbrella but is not live until the owner authorizes the first `stable` push; see [docs/guides/stable-releases.md](docs/guides/stable-releases.md).
 
 ## Dependency update process
 
