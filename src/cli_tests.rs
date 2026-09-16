@@ -211,6 +211,34 @@ fn recall_commands_and_aliases_take_no_arguments() {
 }
 
 #[test]
+fn doctor_accepts_live_and_all_flags() {
+    assert_eq!(
+        terminal(&["doctor"]),
+        Ok(Command::Doctor {
+            live: false,
+            all: false
+        })
+    );
+    assert_eq!(
+        terminal(&["d", "--live"]),
+        Ok(Command::Doctor {
+            live: true,
+            all: false
+        })
+    );
+    assert_eq!(
+        terminal(&["doctor", "--live", "--all"]),
+        Ok(Command::Doctor {
+            live: true,
+            all: true
+        })
+    );
+    let message = terminal(&["doctor", "--all"]).unwrap_err();
+    assert!(message.contains("--all requires --live"), "{message}");
+    assert_eq!(terminal(&["doctor", "--live", "x"]), usage());
+}
+
+#[test]
 fn switch_takes_an_optional_positive_thread_id() {
     for name in ["switch", "s"] {
         assert_eq!(terminal(&[name]), Ok(Command::Switch(None)));

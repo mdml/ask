@@ -30,7 +30,8 @@ const SELECT_TARGETS: &str = "
 SELECT targets.provider_kind, targets.base_url, targets.model,
        (SELECT count(*) FROM query_statistics AS s WHERE s.provider_kind = targets.provider_kind
             AND s.base_url = targets.base_url AND s.model = targets.model),
-       health.last_success_at_ms, health.last_failure_at_ms, health.last_failure_class
+       health.last_success_at_ms, health.last_success_source,
+       health.last_failure_at_ms, health.last_failure_class, health.last_failure_source
 FROM (SELECT provider_kind, base_url, model FROM query_statistics
       UNION SELECT provider_kind, base_url, model FROM provider_health) AS targets
 LEFT JOIN provider_health AS health USING (provider_kind, base_url, model)
@@ -81,14 +82,29 @@ pub struct Summary {
 }
 
 /// Query count and the latest health observations for one provider target.
+#[derive(Clone)]
 pub struct TargetHealth {
     pub kind: String,
     pub base_url: String,
     pub model: String,
     pub queries: i64,
     pub last_success_at_ms: Option<i64>,
+    pub last_success_source: Option<String>,
     pub last_failure_at_ms: Option<i64>,
     pub last_failure_class: Option<String>,
+    pub last_failure_source: Option<String>,
+}
+
+pub(crate) fn read_target_health(
+    transaction: &Transaction<'_>,
+) -> Result<Vec<TargetHealth>, String> {
+    transaction
+        .prepare(SELECT_TARGETS)
+        .map_err(|error| error.to_string())?
+        .query_map([], target_health)
+        .map_err(|error| error.to_string())?
+        .collect::<rusqlite::Result<_>>()
+        .map_err(|error| error.to_string())
 }
 
 impl Store {
@@ -143,10 +159,7 @@ impl Store {
             transaction.query_row(SELECT_HISTORY_COUNTS, [], |row| {
                 Ok((row.get(0)?, row.get(1)?, row.get(2)?))
             })?;
-        summary.targets = transaction
-            .prepare(SELECT_TARGETS)?
-            .query_map([], target_health)?
-            .collect::<rusqlite::Result<_>>()?;
+        summary.targets = read_target_health(&transaction).map_err(StoreError)?;
         transaction.commit()?;
         Ok(summary)
     }
@@ -214,7 +227,9 @@ fn target_health(row: &Row<'_>) -> rusqlite::Result<TargetHealth> {
         model: row.get(2)?,
         queries: row.get(3)?,
         last_success_at_ms: row.get(4)?,
-        last_failure_at_ms: row.get(5)?,
-        last_failure_class: row.get(6)?,
+        last_success_source: row.get(5)?,
+        last_failure_at_ms: row.get(6)?,
+        last_failure_class: row.get(7)?,
+        last_failure_source: row.get(8)?,
     })
 }

@@ -15,6 +15,7 @@ Usage:
   ask [thread|t]
   ask [switch|s] [ID]
   ask stats
+  ask [doctor|d] [--live] [--all]
   ask [init|i]
   ask [configure|c] check [FILE|-]
   ask [configure|c] apply [FILE|-]
@@ -39,6 +40,12 @@ Initialization:
 Configuration:
   ask configure check validates a complete TOML document without writing.
   ask configure apply installs a validated document atomically.
+
+Diagnostics:
+  ask doctor validates the installed system offline: configuration, resolved
+  paths, read-only storage inspection, credential-variable presence, and
+  historical provider health. ask doctor --live sends one minimal request to
+  the default provider target; --live --all checks every configured target.
 
 Supported provider kinds: openai, anthropic, gemini, openrouter, openai-compatible.
 

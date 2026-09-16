@@ -231,7 +231,7 @@ fn stats_reports_queries_history_and_historical_health_from_fixtures() {
          \n\
          provider targets (historical observations, not a current check):\n\
          openai-compatible · {} · fake-model\n  \
-         3 queries · last observed healthy 1970-01-01 00:02 UTC · last failure 1970-01-01 00:01 UTC (provider)\n",
+         3 queries · last observed healthy 1970-01-01 00:02 UTC (from query) · last failure 1970-01-01 00:01 UTC (provider) (from query)\n",
         fake.base_url()
     );
     assert_eq!(String::from_utf8(output.stdout).unwrap(), expected);

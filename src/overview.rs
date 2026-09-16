@@ -61,11 +61,25 @@ pub fn render(summary: &Summary) -> String {
 fn target(health: &TargetHealth) -> String {
     let healthy = health.last_success_at_ms.map_or_else(
         || "never observed healthy".to_string(),
-        |at| format!("last observed healthy {}", utc::format(at)),
+        |at| {
+            format!(
+                "last observed healthy {} {}",
+                utc::format(at),
+                source_phrase(health.last_success_source.as_deref())
+            )
+        },
     );
     let failure = match (health.last_failure_at_ms, &health.last_failure_class) {
-        (Some(at), Some(class)) => format!("last failure {} ({class})", utc::format(at)),
-        (Some(at), None) => format!("last failure {}", utc::format(at)),
+        (Some(at), Some(class)) => format!(
+            "last failure {} ({class}) {}",
+            utc::format(at),
+            source_phrase(health.last_failure_source.as_deref())
+        ),
+        (Some(at), None) => format!(
+            "last failure {} {}",
+            utc::format(at),
+            source_phrase(health.last_failure_source.as_deref())
+        ),
         (None, _) => "no failures observed".to_string(),
     };
     format!(
@@ -79,6 +93,15 @@ fn target(health: &TargetHealth) -> String {
 
 fn counted(count: i64, one: &str, many: &str) -> String {
     format!("{count} {}", if count == 1 { one } else { many })
+}
+
+fn source_phrase(source: Option<&str>) -> String {
+    match source {
+        Some("query") => "(from query)".to_string(),
+        Some("live-check") => "(from live check)".to_string(),
+        Some(other) => format!("(from {other})"),
+        None => String::new(),
+    }
 }
 
 fn seconds(milliseconds: Option<i64>) -> String {

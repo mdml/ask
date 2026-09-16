@@ -2,7 +2,7 @@
 
 `ask` is a fast, opinionated terminal lookup tool for asking language models quick questions without starting an agent session.
 
-**Status: pre-alpha.** The query, reply, recall (`thread`, `switch`, `stats`), initialization, configuration, help, and version commands are implemented, but interfaces may change before the first `0.1.0` release. Supported provider kinds are `openai`, `anthropic`, `gemini`, `openrouter`, and `openai-compatible`.
+**Status: pre-alpha.** The query, reply, recall (`thread`, `switch`, `stats`), diagnostics (`doctor`), initialization, configuration, help, and version commands are implemented, but interfaces may change before the first `0.1.0` release. Supported provider kinds are `openai`, `anthropic`, `gemini`, `openrouter`, and `openai-compatible`.
 
 ## Install a nightly
 
@@ -21,7 +21,7 @@ ask --profile terse "what is 2+2"
 
 Use `--profile NAME` or `-p NAME` on a new query to override the configured default profile. Replies always use the profile captured when their thread was created.
 
-`ask reply` and `ask r` continue the current thread; see [Threads and replies](#threads-and-replies). `ask thread`, `ask switch`, and `ask stats` inspect and select history; see [Recall](#recall). `ask help` and `ask version` (also `ask --help`, `-h`, `--version`, and `-V`) print offline command reference and version information without reading configuration or contacting a provider.
+`ask reply` and `ask r` continue the current thread; see [Threads and replies](#threads-and-replies). `ask thread`, `ask switch`, and `ask stats` inspect and select history; see [Recall](#recall). `ask doctor` and `ask d` validate the installed system offline; see [Diagnostics](#diagnostics). `ask help` and `ask version` (also `ask --help`, `-h`, `--version`, and `-V`) print offline command reference and version information without reading configuration or contacting a provider.
 
 `ask` reads `$ASK_HOME/config.toml` when `ASK_HOME` is set. Otherwise, it reads `config.toml` from the platform-standard configuration directory for an application named `ask`.
 
@@ -198,10 +198,10 @@ The database records:
 - threads, each with its profile snapshot;
 - turns: the prompt, the raw answer text, the status, and the reason for a partial turn;
 - one statistics row per query sent to the provider: start time, command, profile name, provider kind, base URL, model, outcome (complete, partial, or failed), error class (provider, timeout, output, or output_limit), wall, API, and time-to-first-token durations, and token counts when the provider reports them. Statistics rows contain no prompt or answer text;
-- provider health: for each provider target (provider kind, base URL, and model), only the time of the latest success and the time and error class of the latest failure. Output failures are not provider-health observations, and an answer stopped at the output-token limit counts as a success;
+- provider health: for each provider target (provider kind, base URL, and model), the time and source of the latest success and the time, source, and error class of the latest failure. Output failures are not provider-health observations, and an answer stopped at the output-token limit counts as a success;
 - the total number of threads removed by history expiry, the time of the latest removal, and the highest thread id observed before expiry, so removed ids are never reused.
 
-Credential values are never stored. The database schema is version 3; a version 1 database from an earlier `ask` is upgraded in place through version 2 (history expiry) to version 3 (output-token snapshots), in one transaction, the first time any command opens it. A version 2 database with history expiry but no output-token snapshot column is upgraded to version 3 the same way. An unpublished prototype layout that marked version 2 with only an output-token column is refused.
+Credential values are never stored. The database schema is version 4; a version 1 database from an earlier `ask` is upgraded in place through version 2 (history expiry), version 3 (output-token snapshots), and version 4 (health-observation sources), in one transaction, when normal storage access opens it. Offline `doctor` never migrates storage. A version 2 database with history expiry but no output-token snapshot column is upgraded through version 3 to version 4 the same way. A version 3 database gains nullable `last_success_source` and `last_failure_source` columns on upgrade. An unpublished prototype layout that marked version 2 with only an output-token column is refused. Provider-health sources are `query` for ordinary queries and `live-check` for explicit `ask doctor --live` checks.
 
 Everything one query records is written after the answer finishes or fails, in one transaction: the thread (for `ask new`), the turn, the statistics row, the provider-health update, and the current-thread change. Nothing is written while the answer streams. If the answer was delivered to stdout but that transaction fails, stdout keeps the answer, `ask` exits 1, and stderr reports `ask: answer was delivered but not recorded: <cause>` without repeating the prompt. If a query failed before any answer text and its statistics cannot be recorded, stderr adds `ask: query statistics were not recorded: <cause>`.
 
@@ -243,12 +243,20 @@ history: 4 threads · 9 turns · 3 threads cleared by expiry
 
 provider targets (historical observations, not a current check):
 openai-compatible · https://openrouter.ai/api/v1 · openai/gpt-5.6-luna
-  12 queries · last observed healthy 2026-09-16 14:02 UTC · last failure 2026-09-12 08:11 UTC (timeout)
+  12 queries · last observed healthy 2026-09-16 14:02 UTC (from query) · last failure 2026-09-12 08:11 UTC (timeout) (from live check)
 ```
 
 Query counts include every recorded query, including those later removed from history. Token totals sum the counts providers reported, and `reported by` counts the queries that reported them. Medians are lower medians over complete queries, truncated to tenths of a second, and `-` when there is none. Each provider target line shows its recorded queries, its latest success as `last observed healthy` (or `never observed healthy`), and its latest failure with its error class (or `no failures observed`). These are historical observations, not a health check. Without a database, `ask stats` prints zero counts and creates nothing.
 
 `ask thread` and `ask stats` take no arguments; extra arguments are a usage error. If a reader closes their stdout early, they exit 0 without a diagnostic.
+
+## Diagnostics
+
+`ask doctor` and `ask d` validate the installed system without contacting a provider. Offline, it applies the same strict configuration validator as `ask configure check`, resolves and displays every path (`ASK_HOME` when set, otherwise the platform-standard configuration, data, and cache locations), inspects the history database read-only without creating or migrating it, checks credential environment-variable presence only (never values), and reports historical provider health as last observed healthy, including whether each observation came from an ordinary query or a prior live check. It never claims historical evidence establishes current health.
+
+Configuration problems exit 1; environmental-readiness problems exit 3. Diagnostics go to stdout; summary errors and warnings go to stderr. A missing database file is reported as absent; an existing but unreadable file is reported as inaccessible rather than absent. When deeper storage validation cannot run safely without side effects—WAL-format headers, companion sidecar files, or an older schema that would require migration—`doctor` reports a limited check and exits 3 rather than claiming the store is healthy.
+
+`ask doctor --live` sends one fixed minimal request per selected provider target using the prompt `Reply with exactly: ok`, a fixed one-word system prompt, and a 128-token output cap regardless of profile settings. It may incur provider cost; `ask` warns on stderr before sending. A successful live check records provider health with source `live-check`; live mode may create or migrate the database when recording that observation. `--live --all` checks every distinct provider target across all profiles. `--all` without `--live` is a usage error.
 
 ## Development
 

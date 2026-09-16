@@ -3,6 +3,7 @@
 mod cli;
 mod config;
 mod configure;
+pub mod doctor;
 mod help;
 mod init;
 mod input;
@@ -44,6 +45,9 @@ async fn execute(
         Ok(cli::Command::Thread) => return recall::thread(stdout, stderr),
         Ok(cli::Command::Switch(id)) => return recall::switch(id, &mut io::stdin().lock(), stderr),
         Ok(cli::Command::Stats) => return overview::run(stdout, stderr),
+        Ok(cli::Command::Doctor { live, all }) => {
+            return doctor::run(doctor::Options { live, all }, stdout, stderr).await;
+        }
         Ok(cli::Command::Init) => return init(stderr),
         Ok(cli::Command::Configure(action)) => return configure(&action, stderr),
         Ok(cli::Command::Help) => return help::run(stdout, stderr),
