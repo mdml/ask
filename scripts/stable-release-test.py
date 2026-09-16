@@ -84,7 +84,7 @@ class StableReleaseTests(unittest.TestCase):
         with patch.object(release.datetime, "datetime", wraps=datetime.datetime) as clock, \
                 patch.object(release, "run", side_effect=run), \
                 patch.object(sys, "argv", ["stable-release.py", "prepare"]), \
-                patch.dict(os.environ, variables, clear=False):
+                patch.dict(os.environ, variables, clear=True):
             clock.now.return_value = date
             stable.main()
         return output.read_text(), calls
@@ -93,6 +93,13 @@ class StableReleaseTests(unittest.TestCase):
         outputs, calls = self.prepare({TAG: []})
         self.assertEqual(outputs, f"tag={TAG}\n")
         self.assertEqual(calls[0], ["git", "rev-parse", "HEAD"])
+        self.assertIn(["gh", "api", f"repos/mdml/ask/git/matching-refs/tags/{TAG}"], calls)
+
+    def test_prepare_ignores_unrelated_ambient_release_tag(self):
+        nightly_tag = f"v{release.version()}-nightly.20260916.35143951562.1"
+        with patch.dict(os.environ, {"RELEASE_TAG": nightly_tag}, clear=False):
+            outputs, calls = self.prepare({TAG: []})
+        self.assertEqual(outputs, f"tag={TAG}\n")
         self.assertIn(["gh", "api", f"repos/mdml/ask/git/matching-refs/tags/{TAG}"], calls)
 
     def test_prepare_refuses_existing_tag(self):
@@ -113,9 +120,9 @@ class StableReleaseTests(unittest.TestCase):
 
     def test_prepare_rejects_expired_disposition_and_wrong_checkout(self):
         output = self.root / "outputs"
-        for sha, date in [
-            (SHA, datetime.datetime(2026, 9, 30, tzinfo=datetime.timezone.utc)),
-            ("b" * 40, datetime.datetime(2026, 9, 15, tzinfo=datetime.timezone.utc)),
+        for sha, date, message in [
+            (SHA, datetime.datetime(2026, 9, 30, tzinfo=datetime.timezone.utc), "disposition expired"),
+            ("b" * 40, datetime.datetime(2026, 9, 15, tzinfo=datetime.timezone.utc), "checkout SHA mismatch"),
         ]:
             with self.subTest(sha=sha, date=date):
                 with patch.object(release.datetime, "datetime") as clock, \
@@ -128,9 +135,9 @@ class StableReleaseTests(unittest.TestCase):
                             "GITHUB_REF": "refs/heads/stable",
                             "GITHUB_REF_PROTECTED": "true",
                             "GITHUB_EVENT_NAME": "push",
-                        }):
+                        }, clear=True):
                     clock.now.return_value = date
-                    with self.assertRaises(ValueError):
+                    with self.assertRaisesRegex(ValueError, message):
                         stable.main()
                 self.assertFalse(output.exists())
 
