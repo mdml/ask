@@ -16,7 +16,7 @@ use crate::{
     report,
     runner::{self, Outcome, RunError},
     stats::Statistics,
-    store::{Health, Measurement, Record, Store, StoreError, Turn, TurnStatus},
+    store::{Health, HealthSource, Measurement, Record, Store, StoreError, Turn, TurnStatus},
 };
 
 pub const NO_CURRENT_THREAD: &str = "no current thread; start one with `ask new`";
@@ -243,10 +243,13 @@ impl Finished<'_> {
     /// the output-token limit shows the target responded normally.
     fn health(&self) -> Option<Health> {
         match &self.outcome.error {
-            None => Some(Health::Success),
-            Some(error) if error.is_output_limit() => Some(Health::Success),
+            None => Some(Health::Success(HealthSource::Query)),
+            Some(error) if error.is_output_limit() => Some(Health::Success(HealthSource::Query)),
             Some(error) if error.is_output() => None,
-            Some(error) => Some(Health::Failure(error.class())),
+            Some(error) => Some(Health::Failure {
+                class: error.class(),
+                source: HealthSource::Query,
+            }),
         }
     }
 

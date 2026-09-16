@@ -69,9 +69,21 @@ fn record<'a>(target: &'a Target, thread: Option<i64>, turn: Option<Turn<'a>>) -
         Some(Turn {
             status: TurnStatus::Complete,
             ..
-        }) => ("complete", Health::Success),
-        Some(_) => ("partial", Health::Failure("provider")),
-        None => ("failed", Health::Failure("provider")),
+        }) => ("complete", Health::Success(HealthSource::Query)),
+        Some(_) => (
+            "partial",
+            Health::Failure {
+                class: "provider",
+                source: HealthSource::Query,
+            },
+        ),
+        None => (
+            "failed",
+            Health::Failure {
+                class: "provider",
+                source: HealthSource::Query,
+            },
+        ),
     };
     Record {
         started_at: SystemTime::now(),
@@ -137,9 +149,14 @@ fn pragmas(store: &Store) -> (i64, String, i64, i64, i64) {
 fn creates_the_schema_with_owner_only_permissions() {
     let path = scratch();
     let store = Store::open(&path).unwrap();
-    assert_eq!(pragmas(&store), (3, "delete".to_string(), 2, 1, 1_000));
-    assert_eq!(counts(&store), vec![0; 6]);
-    assert_eq!(modes(&path), (0o600, 0o700));
+    assert_eq!(
+        (pragmas(&store), counts(&store), modes(&path)),
+        (
+            (4, "delete".to_string(), 2, 1, 1_000),
+            vec![0; 6],
+            (0o600, 0o700)
+        )
+    );
 }
 
 #[test]
@@ -157,7 +174,7 @@ fn existing_permissions_are_left_alone() {
 #[test]
 fn newer_and_foreign_databases_are_refused_without_writing() {
     for (setup, expected) in [
-        ("PRAGMA user_version = 4;", "schema version 4 is newer"),
+        ("PRAGMA user_version = 5;", "schema version 5 is newer"),
         (
             "PRAGMA user_version = -1;",
             "unrecognized schema version -1",
@@ -196,7 +213,7 @@ fn simultaneous_first_runs_create_the_schema_once() {
             opener.join().unwrap().unwrap();
         }
         let store = Store::open(&path).unwrap();
-        assert_eq!(scalar::<i64>(&store, "PRAGMA user_version"), 3);
+        assert_eq!(scalar::<i64>(&store, "PRAGMA user_version"), 4);
         assert_eq!(counts(&store), vec![0; 6]);
     }
 }
@@ -253,7 +270,7 @@ fn version_1_snapshots_migrate_without_an_output_limit() {
         opener.join().unwrap().unwrap();
     }
     let mut store = Store::open(&path).unwrap();
-    assert_eq!(scalar::<i64>(&store, "PRAGMA user_version"), 3);
+    assert_eq!(scalar::<i64>(&store, "PRAGMA user_version"), 4);
     let thread = store.current().unwrap().unwrap();
     assert_eq!(thread.id, 7);
     assert_eq!(thread.target, target("old-model"));
@@ -533,17 +550,20 @@ fn a_version_one_database_is_upgraded_in_place() {
     store
         .connection
         .execute_batch(
-            "DROP TABLE history_expiry; ALTER TABLE threads DROP COLUMN max_output_tokens; PRAGMA user_version = 1;",
+            "DROP TABLE history_expiry; ALTER TABLE threads DROP COLUMN max_output_tokens; ALTER TABLE provider_health DROP COLUMN last_success_source; ALTER TABLE provider_health DROP COLUMN last_failure_source; PRAGMA user_version = 1;",
         )
         .unwrap();
     drop(store);
     let mut store = Store::open(&path).unwrap();
-    assert_eq!(scalar::<i64>(&store, "PRAGMA user_version"), 3);
-    assert_eq!(counts(&store), vec![1, 1, 1, 1, 1, 0]);
-    assert_eq!(store.current().unwrap().unwrap().history.len(), 1);
+    let current = store.current().unwrap().unwrap();
     assert_eq!(
-        store.current().unwrap().unwrap().target.max_output_tokens,
-        None
+        (
+            scalar::<i64>(&store, "PRAGMA user_version"),
+            counts(&store),
+            current.history.len(),
+            current.target.max_output_tokens
+        ),
+        (4, vec![1, 1, 1, 1, 1, 0], 1, None)
     );
 }
 
@@ -571,14 +591,16 @@ fn recall_version_two_preserves_highwater_and_migrates() {
         .execute_batch(VERSION_2)
         .unwrap();
     let mut store = Store::open(&path).unwrap();
-    assert_eq!(scalar::<i64>(&store, "PRAGMA user_version"), 3);
     let thread = store.current().unwrap().unwrap();
-    assert_eq!(thread.id, 9);
-    assert_eq!(thread.target.model, "kept-model");
-    assert_eq!(thread.target.max_output_tokens, None);
     assert_eq!(
-        scalar::<i64>(&store, "SELECT highest_thread_id FROM history_expiry"),
-        8
+        (
+            scalar::<i64>(&store, "PRAGMA user_version"),
+            thread.id,
+            thread.target.model.as_str(),
+            thread.target.max_output_tokens,
+            scalar::<i64>(&store, "SELECT highest_thread_id FROM history_expiry")
+        ),
+        (4, 9, "kept-model", None, 8)
     );
     store
         .record(&record(&thread.target, None, complete("after", "a")))
@@ -940,4 +962,146 @@ fn summary(samples: Vec<Duration>) -> String {
     let median = samples[samples.len() / 2];
     let p95 = samples[samples.len() * 95 / 100];
     format!("median {median:?}, p95 {p95:?}, n {}", samples.len())
+}
+
+#[test]
+fn inspect_database_reports_absent_missing_and_current_without_creating() {
+    let missing = scratch();
+    assert!(matches!(
+        Store::inspect_database(&missing),
+        DatabaseState::Absent
+    ));
+    assert!(!missing.exists());
+
+    let path = scratch();
+    drop(Store::open(&path).unwrap());
+    assert!(matches!(
+        Store::inspect_database(&path),
+        DatabaseState::Current
+    ));
+}
+
+#[test]
+fn inspect_database_reports_limited_when_a_wal_sidecar_is_present() {
+    let path = scratch();
+    drop(Store::open(&path).unwrap());
+    fs::write(
+        path.with_file_name(format!(
+            "{}-wal",
+            path.file_name().unwrap().to_str().unwrap()
+        )),
+        b"x",
+    )
+    .unwrap();
+    assert!(matches!(
+        Store::inspect_database(&path),
+        DatabaseState::Limited(_)
+    ));
+}
+
+#[test]
+fn inspect_database_rejects_wal_header_before_sqlite_opens_the_file() {
+    let path = scratch();
+    drop(Store::open(&path).unwrap());
+    for wal_byte in [18, 19] {
+        let mut bytes = fs::read(&path).unwrap();
+        bytes[wal_byte] = 2;
+        if wal_byte == 18 {
+            bytes[19] = 1;
+        } else {
+            bytes[18] = 1;
+        }
+        fs::write(&path, &bytes).unwrap();
+        assert!(
+            matches!(Store::inspect_database(&path), DatabaseState::Limited(_)),
+            "byte {wal_byte} WAL signal should be rejected"
+        );
+        assert!(!sidecar_present(&path, "-wal"));
+        assert!(!sidecar_present(&path, "-shm"));
+    }
+}
+
+#[test]
+fn inspect_database_leaves_older_schemas_and_damaged_files_unchanged() {
+    let path = scratch();
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    Connection::open(&path)
+        .unwrap()
+        .execute_batch(VERSION_1)
+        .unwrap();
+    let before = fs::read(&path).unwrap();
+    assert_inspect_leaves_file_unchanged(&path, &before, "schema version 1 is older", true);
+
+    let damaged = scratch();
+    fs::create_dir_all(damaged.parent().unwrap()).unwrap();
+    fs::write(&damaged, b"not a sqlite database").unwrap();
+    let before = fs::read(&damaged).unwrap();
+    assert_inspect_leaves_file_unchanged(&damaged, &before, "not a SQLite database", false);
+}
+
+fn assert_inspect_leaves_file_unchanged(
+    path: &Path,
+    before: &[u8],
+    expected: &str,
+    check_no_wal: bool,
+) {
+    let state = Store::inspect_database(path);
+    assert!(matches!(state, DatabaseState::Limited(_)));
+    assert!(state.to_string().contains(expected));
+    assert_eq!(fs::read(path).unwrap(), before);
+    if check_no_wal {
+        assert!(!sidecar_present(path, "-wal"));
+    }
+}
+
+#[test]
+fn health_observations_record_source() {
+    let path = scratch();
+    let mut store = Store::open(&path).unwrap();
+    let snapshot = target("model");
+    store
+        .record(&record(&snapshot, None, complete("q", "a")))
+        .unwrap();
+    let source: String = scalar(
+        &store,
+        "SELECT last_success_source FROM provider_health WHERE model = 'model'",
+    );
+    assert_eq!(source, "query");
+}
+
+#[test]
+fn version_three_databases_migrate_to_four() {
+    let path = scratch();
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    Connection::open(&path)
+        .unwrap()
+        .execute_batch(
+            "CREATE TABLE threads (id INTEGER PRIMARY KEY, created_at_ms INTEGER NOT NULL, profile TEXT NOT NULL, provider_kind TEXT NOT NULL, base_url TEXT NOT NULL, model TEXT NOT NULL, system_prompt TEXT NOT NULL, timeout_ms INTEGER NOT NULL CHECK (timeout_ms > 0), api_key_env TEXT NOT NULL, max_output_tokens INTEGER CHECK (max_output_tokens > 0));
+             CREATE TABLE turns (id INTEGER PRIMARY KEY, thread_id INTEGER NOT NULL REFERENCES threads (id) ON DELETE CASCADE, ordinal INTEGER NOT NULL CHECK (ordinal > 0), created_at_ms INTEGER NOT NULL, prompt TEXT NOT NULL, answer TEXT NOT NULL, status TEXT NOT NULL CHECK (status IN ('complete', 'partial')), reason TEXT CHECK ((status = 'complete') = (reason IS NULL)), UNIQUE (thread_id, ordinal));
+             CREATE TABLE current_thread (singleton INTEGER PRIMARY KEY CHECK (singleton = 1), thread_id INTEGER NOT NULL REFERENCES threads (id) ON DELETE CASCADE);
+             CREATE TABLE query_statistics (id INTEGER PRIMARY KEY, started_at_ms INTEGER NOT NULL, command TEXT NOT NULL CHECK (command IN ('new', 'reply')), profile TEXT NOT NULL, provider_kind TEXT NOT NULL, base_url TEXT NOT NULL, model TEXT NOT NULL, outcome TEXT NOT NULL CHECK (outcome IN ('complete', 'partial', 'failed')), error_class TEXT, wall_ms INTEGER NOT NULL, api_ms INTEGER NOT NULL, first_token_ms INTEGER, input_tokens INTEGER, output_tokens INTEGER);
+             CREATE TABLE provider_health (provider_kind TEXT NOT NULL, base_url TEXT NOT NULL, model TEXT NOT NULL, last_success_at_ms INTEGER, last_failure_at_ms INTEGER, last_failure_class TEXT, PRIMARY KEY (provider_kind, base_url, model)) WITHOUT ROWID;
+             CREATE TABLE history_expiry (singleton INTEGER PRIMARY KEY CHECK (singleton = 1), threads_cleared INTEGER NOT NULL CHECK (threads_cleared >= 0), last_cleared_at_ms INTEGER NOT NULL, highest_thread_id INTEGER NOT NULL CHECK (highest_thread_id >= 0));
+             PRAGMA user_version = 3;",
+        )
+        .unwrap();
+    let before = fs::read(&path).unwrap();
+    let store = Store::open(&path).unwrap();
+    assert_eq!(scalar::<i64>(&store, "PRAGMA user_version"), 4);
+    assert!(fs::read(&path).unwrap().len() >= before.len());
+    assert_eq!(
+        scalar::<i64>(
+            &store,
+            "SELECT count(*) FROM pragma_table_info('provider_health') WHERE name = 'last_success_source'"
+        ),
+        1
+    );
+}
+
+fn sidecar_present(path: &Path, suffix: &str) -> bool {
+    let file = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("");
+    path.with_file_name(format!("{file}{suffix}")).is_file()
 }

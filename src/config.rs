@@ -1,5 +1,5 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     env, fmt, fs,
     path::{Path, PathBuf},
 };
@@ -110,6 +110,24 @@ impl Config {
             max_output_tokens: profile.max_output_tokens,
         })
     }
+
+    /// One entry per distinct provider target across every profile.
+    pub fn provider_targets(&self) -> Result<Vec<Target>, ConfigError> {
+        let mut targets = Vec::new();
+        let mut seen = BTreeSet::new();
+        for name in self.profiles.keys() {
+            let target = self.resolve_named(name)?;
+            let identity = (
+                target.kind.clone(),
+                target.base_url.clone(),
+                target.model.clone(),
+            );
+            if seen.insert(identity) {
+                targets.push(target);
+            }
+        }
+        Ok(targets)
+    }
 }
 
 impl fmt::Display for ConfigError {
@@ -140,6 +158,17 @@ pub fn config_path() -> Result<PathBuf, ConfigError> {
 /// `ask.sqlite3` in the platform-standard data directory.
 pub fn data_path() -> Result<PathBuf, ConfigError> {
     located("data", ProjectDirs::data_dir, DATABASE_FILE, "data")
+}
+
+/// The cache directory: `$ASK_HOME/cache`, or the platform-standard cache
+/// directory for an application named `ask`.
+pub fn cache_path() -> Result<PathBuf, ConfigError> {
+    if let Some(home) = env::var_os("ASK_HOME") {
+        return Ok(PathBuf::from(home).join("cache"));
+    }
+    ProjectDirs::from("", "", "ask")
+        .map(|dirs| dirs.cache_dir().to_path_buf())
+        .ok_or_else(|| ConfigError("platform cache directory is unavailable".into()))
 }
 
 fn located(

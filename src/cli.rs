@@ -1,6 +1,6 @@
 use std::{fmt, path::PathBuf};
 
-const USAGE: &str = "usage: ask [--profile NAME | -p NAME] [new|n] [prompt words...] | ask [reply|r] [prompt words...] | ask [thread|t] | ask [switch|s] [ID] | ask stats | ask [init|i] | ask [configure|c] check [FILE|-] | ask [configure|c] apply [FILE|-] | ask help | ask version | ask [--help | -h] | ask [--version | -V]";
+const USAGE: &str = "usage: ask [--profile NAME | -p NAME] [new|n] [prompt words...] | ask [reply|r] [prompt words...] | ask [thread|t] | ask [switch|s] [ID] | ask stats | ask [doctor|d] [--live] [--all] | ask [init|i] | ask [configure|c] check [FILE|-] | ask [configure|c] apply [FILE|-] | ask help | ask version | ask [--help | -h] | ask [--version | -V]";
 
 const REPLY_PROFILE: &str = "--profile and -p apply only to new queries; replies use the profile captured when their thread was created";
 
@@ -11,6 +11,10 @@ pub enum Command {
     /// Select the current thread, interactively when no id is given.
     Switch(Option<i64>),
     Stats,
+    Doctor {
+        live: bool,
+        all: bool,
+    },
     Init,
     Configure(Action),
     Help,
@@ -66,6 +70,7 @@ pub fn parse(
         Some("init" | "i") => alone(&words, Command::Init),
         Some("thread" | "t") => alone(&words, Command::Thread),
         Some("stats") => alone(&words, Command::Stats),
+        Some("doctor" | "d") => doctor(&words[1..]),
         Some("switch" | "s") => switch(&words[1..]),
         Some("configure" | "c") => configure(&words[1..], stdin_is_terminal),
         _ => parse_query(words),
@@ -126,6 +131,22 @@ fn alone(words: &[String], command: Command) -> Result<Command, String> {
         return Ok(command);
     }
     Err(USAGE.to_string())
+}
+
+fn doctor(rest: &[String]) -> Result<Command, String> {
+    let mut live = false;
+    let mut all = false;
+    for word in rest {
+        match word.as_str() {
+            "--live" => live = true,
+            "--all" => all = true,
+            _ => return Err(USAGE.to_string()),
+        }
+    }
+    if all && !live {
+        return Err(format!("--all requires --live\n{USAGE}"));
+    }
+    Ok(Command::Doctor { live, all })
 }
 
 fn switch(rest: &[String]) -> Result<Command, String> {

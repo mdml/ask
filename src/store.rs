@@ -12,8 +12,9 @@
 use std::{
     error::Error,
     fmt, fs, io,
+    io::Read,
     os::unix::fs::{DirBuilderExt, OpenOptionsExt},
-    path::Path,
+    path::{Path, PathBuf},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
@@ -26,7 +27,10 @@ use crate::{
     provider::{Exchange, Usage},
 };
 
-const SCHEMA_VERSION: i64 = 3;
+#[path = "store_recall.rs"]
+mod recall;
+
+const SCHEMA_VERSION: i64 = 4;
 const DAY_MS: i64 = 86_400_000;
 const BUSY_TIMEOUT: Duration = Duration::from_millis(1_000);
 
@@ -81,8 +85,10 @@ CREATE TABLE provider_health (
     base_url TEXT NOT NULL,
     model TEXT NOT NULL,
     last_success_at_ms INTEGER,
+    last_success_source TEXT,
     last_failure_at_ms INTEGER,
     last_failure_class TEXT,
+    last_failure_source TEXT,
     PRIMARY KEY (provider_kind, base_url, model)
 ) WITHOUT ROWID;
 CREATE TABLE history_expiry (
@@ -91,7 +97,7 @@ CREATE TABLE history_expiry (
     last_cleared_at_ms INTEGER NOT NULL,
     highest_thread_id INTEGER NOT NULL CHECK (highest_thread_id >= 0)
 );
-PRAGMA user_version = 3;
+PRAGMA user_version = 4;
 ";
 
 // Version 2 adds the text-free count of threads removed by history expiry and
@@ -113,6 +119,14 @@ ALTER TABLE threads ADD COLUMN max_output_tokens INTEGER CHECK (max_output_token
 PRAGMA user_version = 3;
 ";
 
+// Version 4 records whether the latest success or failure came from an ordinary
+// query or an explicit live check. Existing rows keep NULL sources.
+const MIGRATE_3_TO_4: &str = "
+ALTER TABLE provider_health ADD COLUMN last_success_source TEXT;
+ALTER TABLE provider_health ADD COLUMN last_failure_source TEXT;
+PRAGMA user_version = 4;
+";
+
 const EXPIRE_THREADS: &str = "DELETE FROM threads WHERE coalesce((SELECT max(created_at_ms) FROM turns WHERE turns.thread_id = threads.id), created_at_ms) < ?1";
 const HIGHEST_THREAD_ID: &str = "SELECT coalesce(max(id), 0) FROM threads";
 const COUNT_CLEARED: &str = "INSERT INTO history_expiry (singleton, threads_cleared, last_cleared_at_ms, highest_thread_id) VALUES (1, ?1, ?2, ?3) ON CONFLICT (singleton) DO UPDATE SET threads_cleared = threads_cleared + excluded.threads_cleared, last_cleared_at_ms = excluded.last_cleared_at_ms, highest_thread_id = max(highest_thread_id, excluded.highest_thread_id)";
@@ -123,8 +137,8 @@ const SELECT_HISTORY: &str = "SELECT prompt, answer FROM turns WHERE thread_id =
 const INSERT_THREAD: &str = "INSERT INTO threads (id, created_at_ms, profile, provider_kind, base_url, model, system_prompt, timeout_ms, api_key_env, max_output_tokens) VALUES (max((SELECT coalesce(max(id), 0) FROM threads), coalesce((SELECT highest_thread_id FROM history_expiry), 0)) + 1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)";
 const INSERT_TURN: &str = "INSERT INTO turns (thread_id, ordinal, created_at_ms, prompt, answer, status, reason) SELECT ?1, COALESCE(MAX(ordinal), 0) + 1, ?2, ?3, ?4, ?5, ?6 FROM turns WHERE thread_id = ?1";
 const INSERT_STATISTICS: &str = "INSERT INTO query_statistics (started_at_ms, command, profile, provider_kind, base_url, model, outcome, error_class, wall_ms, api_ms, first_token_ms, input_tokens, output_tokens) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)";
-const OBSERVE_SUCCESS: &str = "INSERT INTO provider_health (provider_kind, base_url, model, last_success_at_ms) VALUES (?1, ?2, ?3, ?4) ON CONFLICT (provider_kind, base_url, model) DO UPDATE SET last_success_at_ms = excluded.last_success_at_ms";
-const OBSERVE_FAILURE: &str = "INSERT INTO provider_health (provider_kind, base_url, model, last_failure_at_ms, last_failure_class) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT (provider_kind, base_url, model) DO UPDATE SET last_failure_at_ms = excluded.last_failure_at_ms, last_failure_class = excluded.last_failure_class";
+const OBSERVE_SUCCESS: &str = "INSERT INTO provider_health (provider_kind, base_url, model, last_success_at_ms, last_success_source) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT (provider_kind, base_url, model) DO UPDATE SET last_success_at_ms = excluded.last_success_at_ms, last_success_source = excluded.last_success_source";
+const OBSERVE_FAILURE: &str = "INSERT INTO provider_health (provider_kind, base_url, model, last_failure_at_ms, last_failure_class, last_failure_source) VALUES (?1, ?2, ?3, ?4, ?5, ?6) ON CONFLICT (provider_kind, base_url, model) DO UPDATE SET last_failure_at_ms = excluded.last_failure_at_ms, last_failure_class = excluded.last_failure_class, last_failure_source = excluded.last_failure_source";
 const MAKE_CURRENT: &str = "INSERT INTO current_thread (singleton, thread_id) VALUES (1, ?1) ON CONFLICT (singleton) DO UPDATE SET thread_id = excluded.thread_id";
 
 pub struct Store {
@@ -150,9 +164,29 @@ pub struct Turn<'a> {
     pub status: TurnStatus,
 }
 
+/// Whether a provider-health observation came from an ordinary query or an
+/// explicit live check.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HealthSource {
+    Query,
+    LiveCheck,
+}
+
+impl HealthSource {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Query => "query",
+            Self::LiveCheck => "live-check",
+        }
+    }
+}
+
 pub enum Health {
-    Success,
-    Failure(&'static str),
+    Success(HealthSource),
+    Failure {
+        class: &'static str,
+        source: HealthSource,
+    },
 }
 
 /// Text-free measurements of one query.
@@ -192,6 +226,34 @@ impl From<rusqlite::Error> for StoreError {
     }
 }
 
+/// The outcome of a side-effect-free database inspection for `ask doctor`.
+pub enum DatabaseState {
+    Absent,
+    Inaccessible(String),
+    Current,
+    Limited(String),
+    Unusable(String),
+}
+
+/// Database state and health observations from one read-only connection and one
+/// read transaction, without creating, migrating, or reopening the file.
+pub struct StorageInspection {
+    pub state: DatabaseState,
+    pub targets: Vec<recall::TargetHealth>,
+}
+
+impl fmt::Display for DatabaseState {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Absent => formatter.write_str("absent"),
+            Self::Inaccessible(reason) => write!(formatter, "inaccessible: {reason}"),
+            Self::Current => formatter.write_str("current schema, integrity ok"),
+            Self::Limited(reason) => write!(formatter, "limited check: {reason}"),
+            Self::Unusable(reason) => write!(formatter, "unusable: {reason}"),
+        }
+    }
+}
+
 impl Store {
     /// Opens the database, creating it and its schema when absent. A newer
     /// schema version is refused before anything is written.
@@ -221,6 +283,79 @@ impl Store {
             create_schema(&mut connection)?;
         }
         Ok(Self { connection })
+    }
+
+    /// Validates an existing database and reads health observations without
+    /// creating, migrating, or writing to it. Header bytes and sidecar files
+    /// are checked before SQLite opens the file so implicit recovery sidecars
+    /// are never created.
+    pub fn inspect_storage(path: &Path) -> StorageInspection {
+        if let Err(state) = database_metadata(path) {
+            return StorageInspection {
+                state,
+                targets: Vec::new(),
+            };
+        }
+        let flags = OpenFlags::SQLITE_OPEN_READ_ONLY;
+        let opened = Connection::open_with_flags(path, flags).and_then(|connection| {
+            connection.pragma_update(None, "query_only", true)?;
+            Ok(connection)
+        });
+        let mut connection = match opened {
+            Ok(connection) => connection,
+            Err(error) if is_hot_journal(&error) => {
+                return StorageInspection {
+                    state: DatabaseState::Unusable(
+                        "a hot rollback journal is present; close other ask processes and retry"
+                            .into(),
+                    ),
+                    targets: Vec::new(),
+                };
+            }
+            Err(error) => {
+                return StorageInspection {
+                    state: DatabaseState::Unusable(format!("cannot open read-only: {error}")),
+                    targets: Vec::new(),
+                };
+            }
+        };
+        let transaction = match connection.transaction() {
+            Ok(transaction) => transaction,
+            Err(error) => {
+                return StorageInspection {
+                    state: DatabaseState::Unusable(format!(
+                        "cannot begin read transaction: {error}"
+                    )),
+                    targets: Vec::new(),
+                };
+            }
+        };
+        match inspect_in_transaction(&transaction) {
+            Ok(targets) => StorageInspection {
+                state: DatabaseState::Current,
+                targets,
+            },
+            Err(state) => StorageInspection {
+                state,
+                targets: Vec::new(),
+            },
+        }
+    }
+
+    /// Returns only the database state from [`Self::inspect_storage`].
+    #[cfg(test)]
+    pub fn inspect_database(path: &Path) -> DatabaseState {
+        Self::inspect_storage(path).state
+    }
+
+    /// Records one provider-health observation without touching history.
+    pub fn record_health(&mut self, target: &Target, health: Health) -> Result<(), StoreError> {
+        let transaction = self
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        observe(&transaction, target, &health)?;
+        transaction.commit()?;
+        Ok(())
     }
 
     /// Opens the database only when its file already exists, so inspection
@@ -317,6 +452,162 @@ fn user_version(connection: &Connection) -> rusqlite::Result<i64> {
     connection.pragma_query_value(None, "user_version", |row| row.get(0))
 }
 
+fn sidecar(path: &Path, suffix: &str) -> PathBuf {
+    let file = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("");
+    path.with_file_name(format!("{file}{suffix}"))
+}
+
+fn sidecar_present(path: &Path, suffix: &str) -> bool {
+    sidecar(path, suffix).is_file()
+}
+
+fn blocking_sidecar(path: &Path) -> Option<String> {
+    for suffix in ["-wal", "-shm", "-journal"] {
+        if sidecar_present(path, suffix) {
+            return Some(format!(
+                "companion file '{suffix}' is present; deeper validation was not attempted"
+            ));
+        }
+    }
+    None
+}
+
+fn is_hot_journal(error: &rusqlite::Error) -> bool {
+    error.sqlite_error_code() == Some(rusqlite::ErrorCode::ReadOnly)
+        && error.to_string().contains("rollback")
+}
+
+const SQLITE_MAGIC: &[u8] = b"SQLite format 3\0";
+
+fn database_metadata(path: &Path) -> Result<(), DatabaseState> {
+    match fs::metadata(path) {
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Err(DatabaseState::Absent),
+        Err(error) => Err(DatabaseState::Inaccessible(format!("cannot stat: {error}"))),
+        Ok(metadata) if metadata.is_dir() => Err(DatabaseState::Unusable(
+            "path is a directory, not a database file".into(),
+        )),
+        Ok(metadata) if !metadata.is_file() => {
+            Err(DatabaseState::Unusable("path is not a regular file".into()))
+        }
+        Ok(_) => Ok(()),
+    }?;
+    if let Some(reason) = blocking_sidecar(path) {
+        return Err(DatabaseState::Limited(reason));
+    }
+    if let Some(reason) = wal_header_issue(path) {
+        return Err(DatabaseState::Limited(reason));
+    }
+    Ok(())
+}
+
+fn wal_header_issue(path: &Path) -> Option<String> {
+    let mut header = [0u8; 20];
+    let mut file = fs::File::open(path).ok()?;
+    if file.read_exact(&mut header).is_err() {
+        return Some("file is too small to be a SQLite database".into());
+    }
+    if header.get(..16) != Some(SQLITE_MAGIC) {
+        return Some("file is not a SQLite database".into());
+    }
+    if header[18] == 2 || header[19] == 2 {
+        return Some(
+            "database header indicates WAL journal mode; deeper validation was not attempted"
+                .into(),
+        );
+    }
+    None
+}
+
+fn inspect_in_transaction(
+    transaction: &Transaction<'_>,
+) -> Result<Vec<recall::TargetHealth>, DatabaseState> {
+    let version = match user_version(transaction) {
+        Ok(version) => version,
+        Err(error) => {
+            return Err(DatabaseState::Unusable(format!(
+                "cannot read schema version: {error}"
+            )));
+        }
+    };
+    match supported(version) {
+        Ok(SCHEMA_VERSION) => {}
+        Ok(older) => {
+            return Err(DatabaseState::Limited(format!(
+                "schema version {older} is older than this ask supports ({SCHEMA_VERSION}); migration was not attempted"
+            )));
+        }
+        Err(message) => return Err(DatabaseState::Unusable(message)),
+    }
+    if !expected_tables(transaction) {
+        return Err(DatabaseState::Unusable(
+            "required tables are missing from the history database".into(),
+        ));
+    }
+    if let Err(message) = required_columns(transaction) {
+        return Err(DatabaseState::Unusable(message));
+    }
+    if let Err(message) = integrity(transaction) {
+        return Err(DatabaseState::Unusable(message));
+    }
+    recall::read_target_health(transaction).map_err(|message| {
+        DatabaseState::Limited(format!("health observations could not be read: {message}"))
+    })
+}
+
+const REQUIRED_COLUMNS: [(&str, &str); 3] = [
+    ("threads", "max_output_tokens"),
+    ("provider_health", "last_success_source"),
+    ("provider_health", "last_failure_source"),
+];
+
+fn required_columns(transaction: &Transaction<'_>) -> Result<(), String> {
+    for (table, column) in REQUIRED_COLUMNS {
+        let exists =
+            column_exists(transaction, table, column).map_err(|error| error.to_string())?;
+        if !exists {
+            return Err(format!(
+                "required column '{column}' is missing from table '{table}'"
+            ));
+        }
+    }
+    Ok(())
+}
+
+const EXPECTED_TABLES: [&str; 6] = [
+    "threads",
+    "turns",
+    "current_thread",
+    "query_statistics",
+    "provider_health",
+    "history_expiry",
+];
+
+fn expected_tables(connection: &Connection) -> bool {
+    EXPECTED_TABLES.iter().all(|name| {
+        connection
+            .query_row(
+                "SELECT count(*) FROM sqlite_schema WHERE type = 'table' AND name = ?1",
+                [*name],
+                |row| row.get::<_, i64>(0),
+            )
+            .is_ok_and(|count| count > 0)
+    })
+}
+
+fn integrity(connection: &Connection) -> Result<(), String> {
+    let message: String = connection
+        .query_row("PRAGMA integrity_check", [], |row| row.get(0))
+        .map_err(|error| error.to_string())?;
+    if message == "ok" {
+        Ok(())
+    } else {
+        Err(message)
+    }
+}
+
 fn supported(version: i64) -> Result<i64, String> {
     match version {
         0..=SCHEMA_VERSION => Ok(version),
@@ -365,6 +656,7 @@ fn create_schema(connection: &mut Connection) -> Result<(), Box<dyn Error>> {
         1 => {
             transaction.execute_batch(MIGRATE_1_TO_2)?;
             transaction.execute_batch(MIGRATE_2_TO_3)?;
+            transaction.execute_batch(MIGRATE_3_TO_4)?;
         }
         2 => {
             if !table_exists(&transaction, "history_expiry")? {
@@ -379,6 +671,10 @@ fn create_schema(connection: &mut Connection) -> Result<(), Box<dyn Error>> {
                 );
             }
             transaction.execute_batch(MIGRATE_2_TO_3)?;
+            transaction.execute_batch(MIGRATE_3_TO_4)?;
+        }
+        3 => {
+            transaction.execute_batch(MIGRATE_3_TO_4)?;
         }
         _ => (),
     }
@@ -504,13 +800,20 @@ fn observe(
     let identity = (&target.kind, &target.base_url, &target.model);
     let now = epoch_ms(SystemTime::now());
     match health {
-        Health::Success => transaction.execute(
+        Health::Success(source) => transaction.execute(
             OBSERVE_SUCCESS,
-            params![identity.0, identity.1, identity.2, now],
+            params![identity.0, identity.1, identity.2, now, source.as_str()],
         ),
-        Health::Failure(class) => transaction.execute(
+        Health::Failure { class, source } => transaction.execute(
             OBSERVE_FAILURE,
-            params![identity.0, identity.1, identity.2, now, class],
+            params![
+                identity.0,
+                identity.1,
+                identity.2,
+                now,
+                class,
+                source.as_str()
+            ],
         ),
     }?;
     Ok(())
@@ -528,12 +831,10 @@ fn integer(value: u64) -> i64 {
     i64::try_from(value).unwrap_or(i64::MAX)
 }
 
-#[path = "store_recall.rs"]
-mod recall;
+pub use recall::{Summary, TargetHealth, ThreadSummary, ThreadView};
 
 #[cfg(test)]
 pub use recall::StoredTurn;
-pub use recall::{Summary, TargetHealth, ThreadSummary, ThreadView};
 
 #[cfg(test)]
 #[path = "store_tests.rs"]

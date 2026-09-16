@@ -33,8 +33,10 @@ fn targets_report_historical_health() {
                 model: "one".to_string(),
                 queries: 1,
                 last_success_at_ms: Some(0),
+                last_success_source: Some("query".to_string()),
                 last_failure_at_ms: Some(60_000),
                 last_failure_class: Some("timeout".to_string()),
+                last_failure_source: Some("live-check".to_string()),
             },
             TargetHealth {
                 kind: "openai-compatible".to_string(),
@@ -42,8 +44,10 @@ fn targets_report_historical_health() {
                 model: "two".to_string(),
                 queries: 2,
                 last_success_at_ms: None,
+                last_success_source: None,
                 last_failure_at_ms: None,
                 last_failure_class: None,
+                last_failure_source: None,
             },
         ],
     };
@@ -56,7 +60,7 @@ fn targets_report_historical_health() {
          \n\
          provider targets (historical observations, not a current check):\n\
          openai-compatible · http://127.0.0.1:1/v1 · one\n  \
-         1 query · last observed healthy 1970-01-01 00:00 UTC · last failure 1970-01-01 00:01 UTC (timeout)\n\
+         1 query · last observed healthy 1970-01-01 00:00 UTC (from query) · last failure 1970-01-01 00:01 UTC (timeout) (from live check)\n\
          openai-compatible · http://127.0.0.1:1/v1 · two\n  \
          2 queries · never observed healthy · no failures observed\n"
     );
