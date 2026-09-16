@@ -21,7 +21,7 @@ The owner's own nightly install integration and credential isolation live outsid
 
 | Packet | Landed on this branch | Still open |
 |:--|:--|:--|
-| P1 | Provider kinds `openai` (Responses), `anthropic`, `openrouter`, and `openai-compatible` through Rig provider modules, plus a scoped direct Gemini GenerateContent streaming adapter because Rig 0.42 drops candidate-free prompt feedback and usage; redirects disabled; `configure` validation of the kinds; profile `max_output_tokens` with the output-limit truncation policy; schema version 3 output-token snapshot column with version 1 and recall version 2 migration; percent-encoded Gemini model path and credential, and encoded-credential redaction; OpenRouter in-band stream errors as partial turns; `provider_proof` wire-format fixtures. | `init` provider menu and defaults, credential-supply instructions and injection recipe, explicit profile selection, offline help/version inspection. |
+| P1 | Provider kinds `openai` (Responses), `anthropic`, `openrouter`, and `openai-compatible` through Rig provider modules, plus a scoped direct Gemini GenerateContent streaming adapter because Rig 0.42 drops candidate-free prompt feedback and usage; redirects disabled; `configure` validation of the kinds; profile `max_output_tokens` with the output-limit truncation policy; schema version 3 output-token snapshot column with version 1 and recall version 2 migration; percent-encoded Gemini model path and credential, and encoded-credential redaction; OpenRouter in-band stream errors as partial turns; `provider_proof` wire-format fixtures; `init` provider menu and defaults, credential-supply instructions and injection recipe, `--profile`/`-p` on new queries, offline `help`/`version` and `--help`/`-h`/`--version`/`-V`. | None for the packet scope; integration with P2 is verified through schema version 3. |
 | P2 | `thread`/`t`, `switch`/`s`, `stats`; configurable whole-thread expiry with highwater thread ids; schema version 2 history expiry with version 1 migration; `recall_proof` coverage including expiry, captured-thread races, and invalid-configuration fallback; durable concurrent-writer proof; partial-line double Ctrl-D PTY proof in `query_proof`. | None for the packet scope; integration with P1 is verified through schema version 3. |
 
 On 2026-09-16 the beta umbrella gained durable concurrent-writer proofs through PR #35. The implemented-baseline table above remains a snapshot of `ba658d4`.
@@ -48,9 +48,9 @@ Acceptance proofs run in this order through the real product boundary. Ordinary 
 | Proof | Existing evidence | Missing |
 |:--|:--|:--|
 | Install | Nightly packaging tests; offline packaged `configure check` | Repeat published-archive installation for the final candidate; stable and Homebrew installs |
-| Configure | `configure_proof`; retention validation in unit tests and `recall_proof` | Provider menu/defaults per supported provider |
-| Query | `query_proof`, including the partial-line double Ctrl-D PTY proof | Per-provider wire formats (streaming, usage, errors, rate limits, auth) |
-| Continue | `continue_proof`, including concurrent writers | Per-provider reply history encoding |
+| Configure | `configure_proof` (init menu/defaults, help/version offline, apply/check); retention validation in unit tests and `recall_proof` | None after P1 setup UX |
+| Query | `query_proof`, including the partial-line double Ctrl-D PTY proof; `provider_proof` covers supported wire formats, usage, errors, limits, and refusals | None for deterministic provider coverage |
+| Continue | `continue_proof`, including concurrent writers; `provider_proof` covers reply history for each supported kind | None for deterministic provider coverage |
 | Recall | `recall_proof`: thread output, switching, statistics, expiry, cancellation, captured-thread races, invalid-configuration fallback, and schema migration | None after schema version 3 integration |
 | Diagnose | None | `doctor` offline/side-effect-free, `--live`, `--live --all` against fake provider |
 | Compose | `query_proof`/`continue_proof`; inspection stdout/stderr assertions in `recall_proof` | Recheck with diagnostics |
@@ -70,7 +70,7 @@ Proposed implementation route reusing pinned actions and packaging code where su
 
 ## External prerequisites
 
-- Live checks wait for the owner to confirm credential provisioning. No provider credentials are needed for ordinary development.
+- The owner provisioned live-check credentials on 2026-09-16. Ordinary development and gates need no provider credentials; opt-in checks use process-scoped injection.
 - Any new dependency or changed acceptance boundary discovered during the spike returns to the owner before adoption.
 
 ## Completion conditions

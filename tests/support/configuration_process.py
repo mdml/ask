@@ -62,7 +62,7 @@ elif scenario in ('content', 'identity', 'appeared'):
 elif scenario == 'exclusion':
     child, producer = reading()
     assert b'lock' in finish(start('configure', 'apply', '-', stdin=subprocess.DEVNULL), 1)
-    answers = b'local\nhttp://localhost/v1\nm\nKEY\n\n\ny\n'
+    answers = b'5\nlocal\nhttp://localhost/v1\nKEY\nm\n\n\ny\n'
     init = start('init', stdin=subprocess.PIPE)
     init.stdin.write(answers)
     init.stdin.close()
@@ -75,7 +75,7 @@ elif scenario == 'exclusion':
 elif scenario == 'init_interaction':
     init = start('init', stdin=subprocess.PIPE)
     # The flushed confirmation prompt is the dialogue rendezvous.
-    init.stdin.write(b'local\nhttp://localhost/v1\nm\nKEY\n\n\n')
+    init.stdin.write(b'5\nlocal\nhttp://localhost/v1\nKEY\nm\n\n\n')
     init.stdin.flush()
     transcript = b''
     while not transcript.endswith(b'Write this configuration? [y/N]: '):

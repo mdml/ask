@@ -23,6 +23,7 @@ pub const NO_CURRENT_THREAD: &str = "no current thread; start one with `ask new`
 
 pub struct Query<'a> {
     pub mode: Mode,
+    pub profile: Option<&'a str>,
     pub words: Option<&'a str>,
     pub stdin_is_terminal: bool,
     pub started: Instant,
@@ -67,7 +68,7 @@ pub async fn run(
     stderr: &mut impl io::Write,
 ) -> ExitCode {
     let started_at = SystemTime::now();
-    let mut session = match prepare(query.mode) {
+    let mut session = match prepare(query.mode, query.profile) {
         Ok(session) => session,
         Err(message) => return report(stderr, &message, ExitCode::FAILURE),
     };
@@ -95,17 +96,22 @@ pub async fn run(
     conclude(stderr, &session.target, &finished, saved)
 }
 
-fn prepare(mode: Mode) -> Result<Session, String> {
+fn prepare(mode: Mode, profile: Option<&str>) -> Result<Session, String> {
     match mode {
-        Mode::New => fresh(),
+        Mode::New => fresh(profile),
         Mode::Reply => continued(),
     }
 }
 
-fn fresh() -> Result<Session, String> {
+fn fresh(profile: Option<&str>) -> Result<Session, String> {
     let config = config::load().map_err(|error| error.to_string())?;
     let retention = Retention::from(&config);
-    let target = config.resolve().map_err(|error| error.to_string())?;
+    let target = match profile {
+        Some(name) => config
+            .resolve_named(name)
+            .map_err(|error| error.to_string())?,
+        None => config.resolve().map_err(|error| error.to_string())?,
+    };
     let credential = credential(&target.api_key_env)?;
     Ok(Session {
         store: open()?,

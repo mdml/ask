@@ -3,6 +3,7 @@
 mod cli;
 mod config;
 mod configure;
+mod help;
 mod init;
 mod input;
 mod output;
@@ -38,18 +39,21 @@ async fn execute(
 ) -> ExitCode {
     let wall_start = Instant::now();
     let stdin_is_terminal = io::stdin().is_terminal();
-    let (mode, words) = match cli::parse(args, stdin_is_terminal) {
-        Ok(cli::Command::Query(mode, words)) => (mode, words),
+    let (mode, options) = match cli::parse(args, stdin_is_terminal) {
+        Ok(cli::Command::Query(mode, options)) => (mode, options),
         Ok(cli::Command::Thread) => return recall::thread(stdout, stderr),
         Ok(cli::Command::Switch(id)) => return recall::switch(id, &mut io::stdin().lock(), stderr),
         Ok(cli::Command::Stats) => return overview::run(stdout, stderr),
         Ok(cli::Command::Init) => return init(stderr),
         Ok(cli::Command::Configure(action)) => return configure(&action, stderr),
+        Ok(cli::Command::Help) => return help::run(stdout, stderr),
+        Ok(cli::Command::Version) => return help::version(stdout, stderr),
         Err(message) => return report(stderr, &message, ExitCode::from(2)),
     };
     let query = query::Query {
         mode,
-        words: words.as_deref(),
+        profile: options.profile.as_deref(),
+        words: options.words.as_deref(),
         stdin_is_terminal,
         started: wall_start,
     };

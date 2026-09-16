@@ -50,6 +50,25 @@ fn profile_replaces_the_default_system_prompt() {
 }
 
 #[test]
+fn profile_flag_selects_a_non_default_profile_for_a_new_query() {
+    let fake = FakeProvider::start(Scenario::Stream);
+    let home = fresh_home();
+    let config = format!(
+        "default_profile = \"default\"\n\n[providers.local]\nkind = \"openai-compatible\"\nbase_url = \"{}\"\napi_key_env = \"LOCAL_API_KEY\"\n\n[profiles.default]\nprovider = \"local\"\nmodel = \"default-model\"\n\n[profiles.terse]\nprovider = \"local\"\nmodel = \"terse-model\"\nsystem_prompt = \"Use terse tables.\"\n",
+        fake.base_url()
+    );
+    fs::write(home.join("config.toml"), config).unwrap();
+    let output = ask(&home, &["--profile", "terse", "question"], true);
+    assert!(output.status.success(), "{:?}", output);
+    let request = fake.recorded().unwrap();
+    assert_eq!(request.model, "terse-model");
+    assert_eq!(
+        request.messages[0],
+        ("system".into(), "Use terse tables.".into())
+    );
+}
+
+#[test]
 fn all_three_command_forms_join_prompt_words() {
     let forms: [&[&str]; 3] = [
         &["one", "question"],

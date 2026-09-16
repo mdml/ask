@@ -60,6 +60,20 @@ fn profile_replaces_prompt_and_provider_timeout() {
 }
 
 #[test]
+fn resolve_named_selects_a_non_default_profile() {
+    let configured = CONFIG.replace(
+        "[profiles.default]",
+        "[profiles.terse]\nprovider = \"local\"\nmodel = \"other-model\"\n\n[profiles.default]",
+    );
+    let config = validate::document(&configured).unwrap();
+    assert_eq!(config.resolve_named("terse").unwrap().model, "other-model");
+    assert_eq!(
+        config.resolve_named("missing").unwrap_err().to_string(),
+        "profile 'missing' is not configured"
+    );
+}
+
+#[test]
 fn resolve_reports_a_default_profile_that_is_absent() {
     let config = Config {
         default_profile: "missing".to_string(),
