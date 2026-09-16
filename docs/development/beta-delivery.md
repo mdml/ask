@@ -33,7 +33,7 @@ Order: P1 → P2 → P3. P4–P7 run in parallel wherever they do not touch the 
 | P4 | Stable release preparation (see below). | None for workflow shape; first stable push needs P1–P3, P5 live checks, owner nightly evaluation and release authorization. |
 | P5 | Live-provider checks: opt-in credentialed query/reply checks for the four named providers; reports only, never merges. | P1; owner notice that live credentials are ready. |
 | P6 | Native SQLite monitoring in the existing nightly check, then migration of readiness probes into the gate and retirement of the separate workflow per the adoption record's criteria. | None. |
-| P7 | Nightly action disposition renewal before it expires after 2026-09-29 UTC. | None; nightly release preparation fails without it. |
+| P7 | Nightly action disposition [reassessed on 2026-09-16](../reviews/nightly-actions-2026-09-16.md) with no new blocker; acceptance and the enforced deadline remain unchanged and expire after 2026-09-29 UTC. | A later deadline requires a separately authorized review and code change; nightly release preparation fails after the current deadline. |
 | P8 | Nightly unchanged-source skipping: scheduled and ordinary manual runs skip tagging, building, and publishing when `main` equals the most recent successfully published nightly source, judged from published-release evidence rather than a tag or draft; a failed unpublished attempt retries; a same-source republish needs the `repair` dispatch input. Implemented in `nightly-release.yml`, `scripts/nightly-release.py`, and the [nightly guide](../guides/nightly-releases.md). | None. |
 
 ## Proof and evidence matrix
