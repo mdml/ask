@@ -1,7 +1,11 @@
 use std::{
     os::unix::fs::PermissionsExt,
     path::PathBuf,
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::{
+        Arc, Barrier,
+        atomic::{AtomicUsize, Ordering},
+    },
+    thread,
     time::Instant,
 };
 
@@ -159,6 +163,44 @@ fn newer_and_foreign_databases_are_refused_without_writing() {
         assert!(message.starts_with("cannot open history database '"));
         assert_eq!(fs::read(&path).unwrap(), before);
     }
+}
+
+#[test]
+fn simultaneous_first_runs_create_the_schema_once() {
+    for _ in 0..8 {
+        let path = scratch();
+        let barrier = Arc::new(Barrier::new(4));
+        let openers: Vec<_> = (0..4)
+            .map(|_| {
+                let (path, barrier) = (path.clone(), Arc::clone(&barrier));
+                thread::spawn(move || {
+                    barrier.wait();
+                    Store::open(&path).map(|_| ())
+                })
+            })
+            .collect();
+        for opener in openers {
+            opener.join().unwrap().unwrap();
+        }
+        let store = Store::open(&path).unwrap();
+        assert_eq!(scalar::<i64>(&store, "PRAGMA user_version"), 1);
+        assert_eq!(counts(&store), vec![0; 5]);
+    }
+}
+
+#[test]
+fn a_first_run_that_loses_the_race_keeps_the_winners_schema() {
+    let path = scratch();
+    prepare_file(&path).unwrap();
+    let mut loser = Connection::open(&path).unwrap();
+    assert_eq!(user_version(&loser).unwrap(), 0);
+    let mut winner = Store::open(&path).unwrap();
+    let snapshot = target("model");
+    winner
+        .record(&record(&snapshot, None, complete("q", "a")))
+        .unwrap();
+    create_schema(&mut loser).unwrap();
+    assert_eq!(counts(&winner), vec![1, 1, 1, 1, 1]);
 }
 
 #[test]

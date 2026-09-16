@@ -12,7 +12,7 @@ use std::{
     io::Write,
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
-    process::{Output, Stdio},
+    process::{Child, Output, Stdio},
 };
 
 use rusqlite::Connection;
@@ -144,6 +144,72 @@ fn an_overlapped_reply_appends_to_its_pinned_thread_and_finishes_current() {
         fake.requests(4)[3].messages,
         conversation(&["qa", "a1", "follow", "r1", "again"])
     );
+}
+
+#[test]
+fn replies_pinned_to_the_same_context_append_in_completion_order() {
+    let fake = FakeProvider::holding(
+        vec![
+            Scenario::Answer("a1"),
+            Scenario::Answer("slow"),
+            Scenario::Answer("fast"),
+            Scenario::Answer("next"),
+        ],
+        1,
+    );
+    let home = configured(&fake.base_url());
+    answered(&ask(&home, &["new", "qa"]), b"a1\n");
+    let held = spawn_reply(&home, "first");
+    assert_eq!(fake.requests(2).len(), 2);
+    answered(&ask(&home, &["reply", "second"]), b"fast\n");
+    fake.release();
+    answered(&held.wait_with_output().unwrap(), b"slow\n");
+    let requests = fake.requests(3);
+    assert_eq!(requests[1].messages, conversation(&["qa", "a1", "first"]));
+    assert_eq!(requests[2].messages, conversation(&["qa", "a1", "second"]));
+    assert_rows(
+        &home,
+        &[
+            (
+                "SELECT group_concat(thread_id || ':' || ordinal || ':' || prompt, ',') FROM (SELECT * FROM turns ORDER BY ordinal)",
+                "1:1:qa,1:2:second,1:3:first",
+            ),
+            ("SELECT thread_id FROM current_thread", "1"),
+            ("SELECT count(*) FROM query_statistics", "3"),
+        ],
+    );
+    answered(&ask(&home, &["r", "after"]), b"next\n");
+    assert_eq!(
+        fake.requests(4)[3].messages,
+        conversation(&["qa", "a1", "second", "fast", "first", "slow", "after"])
+    );
+}
+
+#[test]
+fn a_locked_database_fails_the_record_whole_and_keeps_stdout() {
+    let fake = FakeProvider::holding(vec![Scenario::Answer("a1"), Scenario::Answer("r1")], 1);
+    let home = configured(&fake.base_url());
+    answered(&ask(&home, &["new", "qa"]), b"a1\n");
+    let reply = spawn_reply(&home, "PRIVATE_PROMPT");
+    assert_eq!(fake.requests(2).len(), 2);
+    let data = home.join("data");
+    let database = data.join("ask.sqlite3");
+    let before = fs::read(&database).unwrap();
+    let holder = Connection::open(&database).unwrap();
+    holder.execute_batch("BEGIN IMMEDIATE").unwrap();
+    fake.release();
+    let output = reply.wait_with_output().unwrap();
+    holder.execute_batch("ROLLBACK").unwrap();
+    drop(holder);
+    let stderr = failed_with(&output, b"r1\n");
+    assert!(
+        stderr.starts_with("ask: answer was delivered but not recorded: ")
+            && stderr.contains("database is locked")
+            && stderr.lines().count() == 1
+            && !stderr.contains("PRIVATE_PROMPT"),
+        "{stderr}"
+    );
+    assert_eq!((fs::read(&database).unwrap(), entries(&data)), (before, 1));
 }
 
 #[test]
@@ -380,6 +446,17 @@ fn assert_snapshot(requests: &[RecordedRequest]) {
             && request.messages[0] == system),
         "{requests:?}"
     );
+}
+
+/// Starts `ask reply` with a prompt, leaving it to finish in the background.
+fn spawn_reply(home: &Path, prompt: &str) -> Child {
+    command(home, true)
+        .args(["reply", prompt])
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap()
 }
 
 fn ask(home: &Path, args: &[&str]) -> Output {
