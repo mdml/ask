@@ -114,3 +114,33 @@ fn sources_describe_themselves() {
         "'a/b.toml'"
     );
 }
+
+#[test]
+fn recall_commands_and_aliases_take_no_arguments() {
+    for (name, expected) in [
+        ("thread", Command::Thread),
+        ("t", Command::Thread),
+        ("stats", Command::Stats),
+    ] {
+        assert_eq!(terminal(&[name]), Ok(expected));
+        assert_eq!(piped(&[name, "x"]), usage());
+    }
+}
+
+#[test]
+fn switch_takes_an_optional_positive_thread_id() {
+    for name in ["switch", "s"] {
+        assert_eq!(terminal(&[name]), Ok(Command::Switch(None)));
+        assert_eq!(piped(&[name, "12"]), Ok(Command::Switch(Some(12))));
+        for bad in ["0", "-1", "+3", "x", "99999999999999999999"] {
+            assert_eq!(piped(&[name, bad]), usage(), "{bad}");
+        }
+        assert_eq!(piped(&[name, "1", "2"]), usage());
+    }
+}
+
+#[test]
+fn other_words_remain_prompts() {
+    assert_eq!(piped(&["statistics"]), query("statistics"));
+    assert_eq!(piped(&["threads", "please"]), query("threads please"));
+}

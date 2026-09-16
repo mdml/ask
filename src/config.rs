@@ -10,12 +10,17 @@ use serde::{Deserialize, Serialize};
 use crate::validate;
 
 pub(crate) const DEFAULT_TIMEOUT_MS: u64 = 30_000;
+pub(crate) const DEFAULT_HISTORY_DAYS: u64 = 90;
 const DATABASE_FILE: &str = "ask.sqlite3";
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     pub(crate) default_profile: String,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub(crate) expire_history: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) history_days: Option<u64>,
     pub(crate) providers: BTreeMap<String, ProviderConfig>,
     pub(crate) profiles: BTreeMap<String, ProfileConfig>,
 }
@@ -61,6 +66,12 @@ impl Config {
     pub fn to_toml(&self) -> Result<String, ConfigError> {
         toml::to_string(self)
             .map_err(|error| ConfigError(format!("cannot render configuration: {error}")))
+    }
+
+    /// The history retention in days, or `None` when history is kept forever.
+    pub fn history_days(&self) -> Option<u64> {
+        self.expire_history
+            .then(|| self.history_days.unwrap_or(DEFAULT_HISTORY_DAYS))
     }
 
     pub fn resolve(self) -> Result<Target, ConfigError> {
@@ -132,6 +143,10 @@ fn located(
 
 const fn default_timeout_ms() -> u64 {
     DEFAULT_TIMEOUT_MS
+}
+
+const fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 const fn is_default_timeout(timeout_ms: &u64) -> bool {

@@ -6,6 +6,8 @@ type Field = (&'static str, fn(&Value) -> bool, bool);
 
 const ROOT: &[Field] = &[
     ("default_profile", Value::is_str, true),
+    ("expire_history", Value::is_bool, false),
+    ("history_days", unsigned, false),
     ("providers", Value::is_table, true),
     ("profiles", Value::is_table, true),
 ];

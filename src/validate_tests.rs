@@ -190,3 +190,37 @@ fn positions_count_lines_and_columns_from_one() {
     assert_eq!(Document("ab\ncd").position(4), (2, 2));
     assert_eq!(Document("ab\ncd").position(99), (2, 3));
 }
+
+#[test]
+fn history_expiry_values_are_validated() {
+    for (prefix, expected) in [
+        (
+            "history_days = 7",
+            "history_days requires expire_history = true",
+        ),
+        (
+            "expire_history = false\nhistory_days = 7",
+            "history_days requires expire_history = true",
+        ),
+        (
+            "expire_history = true\nhistory_days = 0",
+            "history_days must be greater than zero",
+        ),
+        (
+            "expire_history = true\nhistory_days = -3",
+            "configuration.history_days: invalid type or range",
+        ),
+        (
+            "expire_history = \"yes\"",
+            "configuration.expire_history: invalid type or range",
+        ),
+    ] {
+        assert_eq!(problem(&format!("{prefix}\n{CONFIG}")), expected);
+    }
+    assert!(
+        document(&format!(
+            "expire_history = true\nhistory_days = 1\n{CONFIG}"
+        ))
+        .is_ok()
+    );
+}

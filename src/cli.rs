@@ -1,10 +1,14 @@
 use std::{fmt, path::PathBuf};
 
-const USAGE: &str = "usage: ask [new|n] <prompt words...> | ask [reply|r] <prompt words...> | ask [init|i] | ask [configure|c] check [FILE|-] | ask [configure|c] apply [FILE|-]";
+const USAGE: &str = "usage: ask [new|n] <prompt words...> | ask [reply|r] <prompt words...> | ask [thread|t] | ask [switch|s] [ID] | ask stats | ask [init|i] | ask [configure|c] check [FILE|-] | ask [configure|c] apply [FILE|-]";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
     Query(Mode, Option<String>),
+    Thread,
+    /// Select the current thread, interactively when no id is given.
+    Switch(Option<i64>),
+    Stats,
     Init,
     Configure(Action),
 }
@@ -46,8 +50,10 @@ pub fn parse(
 ) -> Result<Command, String> {
     let mut words: Vec<String> = args.into_iter().collect();
     let (mode, named) = match words.first().map(String::as_str) {
-        Some("init" | "i") if words.len() == 1 => return Ok(Command::Init),
-        Some("init" | "i") => return Err(USAGE.to_string()),
+        Some("init" | "i") => return alone(&words, Command::Init),
+        Some("thread" | "t") => return alone(&words, Command::Thread),
+        Some("stats") => return alone(&words, Command::Stats),
+        Some("switch" | "s") => return switch(&words[1..]),
         Some("configure" | "c") => return configure(&words[1..], stdin_is_terminal),
         Some("new" | "n") => (Mode::New, true),
         Some("reply" | "r") => (Mode::Reply, true),
@@ -60,6 +66,25 @@ pub fn parse(
         mode,
         (!words.is_empty()).then(|| words.join(" ")),
     ))
+}
+
+/// A command that takes no arguments.
+fn alone(words: &[String], command: Command) -> Result<Command, String> {
+    if words.len() == 1 {
+        return Ok(command);
+    }
+    Err(USAGE.to_string())
+}
+
+fn switch(rest: &[String]) -> Result<Command, String> {
+    match rest {
+        [] => Ok(Command::Switch(None)),
+        [id] if id.bytes().all(|byte| byte.is_ascii_digit()) => match id.parse::<i64>() {
+            Ok(id) if id > 0 => Ok(Command::Switch(Some(id))),
+            _ => Err(USAGE.to_string()),
+        },
+        _ => Err(USAGE.to_string()),
+    }
 }
 
 fn configure(rest: &[String], stdin_is_terminal: bool) -> Result<Command, String> {

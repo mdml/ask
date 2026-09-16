@@ -49,6 +49,8 @@ fn profile_replaces_prompt_and_provider_timeout() {
 fn resolve_reports_a_default_profile_that_is_absent() {
     let config = Config {
         default_profile: "missing".to_string(),
+        expire_history: false,
+        history_days: None,
         providers: BTreeMap::new(),
         profiles: BTreeMap::new(),
     };
@@ -62,6 +64,8 @@ fn resolve_reports_a_default_profile_that_is_absent() {
 fn resolve_reports_a_provider_that_is_absent() {
     let config = Config {
         default_profile: "default".to_string(),
+        expire_history: false,
+        history_days: None,
         providers: BTreeMap::new(),
         profiles: BTreeMap::from([(
             "default".to_string(),
@@ -96,4 +100,28 @@ fn rendered_toml_keeps_a_custom_timeout() {
     config.providers.get_mut("local").unwrap().timeout_ms = 41;
     let rendered = config.to_toml().unwrap();
     assert!(rendered.contains("timeout_ms = 41"));
+}
+
+#[test]
+fn history_is_kept_forever_unless_expiry_is_enabled() {
+    let history = |prefix: &str| {
+        validate::document(&format!("{prefix}\n{CONFIG}"))
+            .unwrap()
+            .history_days()
+    };
+    assert_eq!(history(""), None);
+    assert_eq!(history("expire_history = false"), None);
+    assert_eq!(history("expire_history = true"), Some(90));
+    assert_eq!(history("expire_history = true\nhistory_days = 7"), Some(7));
+}
+
+#[test]
+fn rendered_toml_keeps_enabled_expiry_and_omits_the_default() {
+    let mut config = validate::document(CONFIG).unwrap();
+    assert!(!config.to_toml().unwrap().contains("history"));
+    config.expire_history = true;
+    config.history_days = Some(7);
+    let rendered = config.to_toml().unwrap();
+    let reparsed = validate::document(&rendered).unwrap();
+    assert_eq!(reparsed.history_days(), Some(7));
 }

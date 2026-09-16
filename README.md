@@ -2,7 +2,7 @@
 
 `ask` is a fast, opinionated terminal lookup tool for asking language models quick questions without starting an agent session.
 
-**Status: pre-alpha.** The query, reply, initialization, and configuration commands are implemented, but interfaces may change before the first `0.1.0` release. The only provider kind currently supported is `openai-compatible`.
+**Status: pre-alpha.** The query, reply, recall (`thread`, `switch`, `stats`), initialization, and configuration commands are implemented, but interfaces may change before the first `0.1.0` release. The only provider kind currently supported is `openai-compatible`.
 
 ## Install a nightly
 
@@ -18,7 +18,7 @@ ask new "what is 2+2"
 ask n "what is 2+2"
 ```
 
-`ask reply` and `ask r` continue the current thread; see [Threads and replies](#threads-and-replies).
+`ask reply` and `ask r` continue the current thread; see [Threads and replies](#threads-and-replies). `ask thread`, `ask switch`, and `ask stats` inspect and select history; see [Recall](#recall).
 
 `ask` reads `$ASK_HOME/config.toml` when `ASK_HOME` is set. Otherwise, it reads `config.toml` from the platform-standard configuration directory for an application named `ask`.
 
@@ -87,7 +87,14 @@ model = "fake-model"
 # system_prompt = "..."
 ```
 
-`api_key_env` names the environment variable that supplies the credential; `ask` does not store credential values. The request timeout defaults to 30 seconds and must be greater than zero. When a profile sets no `system_prompt`, `ask` sends this default system prompt: "Answer briefly in plain Markdown suitable for a terminal." A profile's `system_prompt` replaces it. Retention and display settings are not yet implemented.
+History expiry is optional and off by default. To enable it, add top-level keys before the first table:
+
+```toml
+expire_history = true
+# history_days = 90
+```
+
+`api_key_env` names the environment variable that supplies the credential; `ask` does not store credential values. The request timeout defaults to 30 seconds and must be greater than zero. When a profile sets no `system_prompt`, `ask` sends this default system prompt: "Answer briefly in plain Markdown suitable for a terminal." A profile's `system_prompt` replaces it. `expire_history` defaults to `false`, which keeps history indefinitely. `history_days` must be a positive integer, defaults to 90 when `expire_history = true`, and is rejected when expiry is not enabled; see [History expiry](#history-expiry). Display settings are not yet implemented.
 
 ### Query input and output
 
@@ -121,9 +128,9 @@ ask "who was u.s. president in 1846"
 ask r "who succeeded him"
 ```
 
-A thread keeps the profile resolved when the thread was created: profile name, provider kind, base URL, model, system prompt, timeout, and the name of the credential environment variable, never its value. Replies use that snapshot even after the configuration's default profile changes, and they work when the installed configuration is missing or invalid; they need only the credential environment variable the snapshot names. A reply sends the system prompt, then each earlier complete turn of the thread in order as a user message followed by an assistant message, then the new prompt. The assistant message is the raw answer text the provider returned, without the final-newline normalization `ask` applies on stdout.
+A thread keeps the profile resolved when the thread was created: profile name, provider kind, base URL, model, system prompt, timeout, and the name of the credential environment variable, never its value. Replies use that snapshot even after the configuration's default profile changes, and they work when the installed configuration is missing or invalid; they need only the credential environment variable the snapshot names. When the configuration cannot be read, a reply first reports `ask: history expiry skipped: <cause>` on stderr; see [History expiry](#history-expiry). A reply sends the system prompt, then each earlier complete turn of the thread in order as a user message followed by an assistant message, then the new prompt. The assistant message is the raw answer text the provider returned, without the final-newline normalization `ask` applies on stdout.
 
-The current thread is global to the data directory. A thread becomes current when the command that created or continued it records its turn; when commands overlap, the last to finish wins. A reply reads its thread when it starts and appends only to that thread. `ask reply` with no current thread exits 1 with ``ask: no current thread; start one with `ask new` `` on stderr and sends no request.
+The current thread is global to the data directory. A thread becomes current when the command that created or continued it records its turn, or when `ask switch` selects it; when commands overlap, the last to finish wins. A reply reads its thread when it starts, before any input prompt, and appends only to that thread, even if `ask switch` selects another thread while the reply waits for input. `ask reply` with no current thread exits 1 with ``ask: no current thread; start one with `ask new` `` on stderr and sends no request.
 
 Each query becomes a turn with the status complete or partial:
 
@@ -137,18 +144,64 @@ Partial turns are stored but never sent as context.
 
 ### Local history and statistics
 
-`ask new` and `ask reply` store history and statistics in one SQLite database: `$ASK_HOME/data/ask.sqlite3` when `ASK_HOME` is set, otherwise `ask.sqlite3` in the platform-standard data directory for an application named `ask`. They create a missing data directory with mode `0700` and a missing database with mode `0600`, and leave existing permissions alone. `ask init` and `ask configure` never open the database. Both query commands open it before sending a request, so a database that cannot be opened, or whose schema version is newer than this `ask` supports, fails the command with exit 1 before any request.
+`ask new` and `ask reply` store history and statistics in one SQLite database: `$ASK_HOME/data/ask.sqlite3` when `ASK_HOME` is set, otherwise `ask.sqlite3` in the platform-standard data directory for an application named `ask`. They create a missing data directory with mode `0700` and a missing database with mode `0600`, and leave existing permissions alone. `ask init` and `ask configure` never open the database. `ask thread`, `ask switch`, and `ask stats` open it only when it already exists and never create it. Both query commands open it before sending a request, so a database that cannot be opened, or whose schema version is newer than this `ask` supports, fails the command with exit 1 before any request.
 
 The database records:
 
 - threads, each with its profile snapshot;
 - turns: the prompt, the raw answer text, the status, and the reason for a partial turn;
 - one statistics row per query sent to the provider: start time, command, profile name, provider kind, base URL, model, outcome (complete, partial, or failed), error class (provider, timeout, or output), wall, API, and time-to-first-token durations, and token counts when the provider reports them. Statistics rows contain no prompt or answer text;
-- provider health: for each provider target (provider kind, base URL, and model), only the time of the latest success and the time and error class of the latest failure. Output failures are not provider-health observations.
+- provider health: for each provider target (provider kind, base URL, and model), only the time of the latest success and the time and error class of the latest failure. Output failures are not provider-health observations;
+- the total number of threads removed by history expiry and the time of the latest removal.
 
-Credential values are never stored. History has no expiry yet; it is kept until the database is removed.
+Credential values are never stored. The database schema is version 2; a version 1 database from an earlier `ask` is upgraded in place, in one transaction, the first time any command opens it.
 
 Everything one query records is written after the answer finishes or fails, in one transaction: the thread (for `ask new`), the turn, the statistics row, the provider-health update, and the current-thread change. Nothing is written while the answer streams. If the answer was delivered to stdout but that transaction fails, stdout keeps the answer, `ask` exits 1, and stderr reports `ask: answer was delivered but not recorded: <cause>` without repeating the prompt. If a query failed before any answer text and its statistics cannot be recorded, stderr adds `ask: query statistics were not recorded: <cause>`.
+
+### History expiry
+
+History is kept indefinitely unless the installed configuration sets `expire_history = true`. Then `ask new` and `ask reply` remove every whole thread whose newest turn, complete or partial, is more than `history_days` days (default 90) older than the present. The command reads these settings when it starts. Removal runs in its own transaction only after valid query input is submitted and before the request is sent; a cancelled prompt (Ctrl-C), blank input, or any other usage or input error leaves history unchanged. It removes each thread's turns and, if the current thread is removed, the current-thread selection. A thread continued within the period is kept however old its first turn is. Thread ids are never reused: a new thread's id is higher than any id expiry has removed.
+
+`ask reply` captures the current thread when it starts. If that thread no longer exists once input is submitted, whether this reply's expiry or another command removed it, the reply reports ``ask: no current thread; start one with `ask new` `` and sends no request.
+
+Statistics rows and provider health survive expiry. `ask stats` reports the number of threads cleared. `ask thread`, `ask switch`, `ask stats`, `ask init`, and `ask configure` never remove history, so an old thread stays visible and selectable until the next `ask new` or `ask reply`.
+
+`ask reply` reads the installed configuration only for these two settings. When the configuration is missing or invalid, the reply cannot read them: once input is submitted it reports `ask: history expiry skipped: <cause>` on stderr, removes nothing, and continues the current thread with its captured profile.
+
+Another `ask new` or `ask reply` that applies expiry while a reply is streaming may remove that reply's thread, for example when the thread's newest turn ages past the retention period in the meantime or the other command uses a shorter period. The reply's record transaction then fails as a whole: stdout keeps the answer, `ask` exits 1 with `ask: answer was delivered but not recorded: <cause>`, and neither its turn, its statistics row, its provider-health observation, nor a current-thread change is recorded.
+
+## Recall
+
+`ask thread` and `ask t` write the full current thread to stdout and exit 0. The first line is `thread <id> · profile <profile> · model <model>`. Each turn follows after a blank line: the prompt with every line quoted as Markdown (`> `), a blank line, and the raw answer without trailing line endings. A partial turn ends with a line `[incomplete: <reason>]`; an empty answer prints nothing for the answer. Blocks are separated by one blank line, and the output ends with a newline. With no current thread, or no database, `ask thread` exits 1 with ``ask: no current thread; start one with `ask new` `` on stderr. Answer text is printed as stored, like query output.
+
+`ask switch <id>` and `ask s <id>` make thread `<id>` current and report `ask: current thread is now <id>` on stderr; stdout stays empty. The id is the number `ask thread` and the `ask switch` menu show, written as decimal digits. A missing id exits 1 with `ask: no thread with id <id>`; an id that is not a positive decimal integer is a usage error (exit 2).
+
+`ask switch` and `ask s` without an id list up to 10 threads on stderr, most recently continued first, then read one line from stdin, from a terminal or redirected:
+
+```text
+ 1. thread 3 (current) · 2026-09-16 14:02 UTC · 2 turns · default · fake-model · who was u.s. president in 1846
+ 2. thread 1 · 2026-09-15 09:30 UTC · 1 turn · default · fake-model · remove blockquoting from this text
+select a thread [1-2]:
+```
+
+Each entry shows the thread id, the time of its newest turn in UTC, the turn count, the profile, the model, and up to 60 characters of the first line of its first prompt; in the profile, model, and prompt, control characters and invisible Unicode format characters are replaced by spaces: bidirectional controls (U+061C, U+200E, U+200F, U+202A–U+202E, U+2066–U+2069), zero-width and other invisible characters (U+00AD, U+180E, U+200B, U+2060–U+2064, U+206A–U+206F, U+FEFF), interlinear annotation (U+FFF9–U+FFFB), and tag characters (U+E0001, U+E0020–U+E007F). The zero-width joiner and non-joiner (U+200C, U+200D), which shape emoji and scripts such as Persian, are kept, as is all other visible text. Entering a listed number selects that thread. Empty input, EOF, or anything else exits 2 with `ask: selection must be a number from 1 to <n>; current thread unchanged`. With no threads, `ask switch` exits 1 with ``ask: no threads; start one with `ask new` ``. Selection does not contact a provider, read the configuration, or remove expired history. The next `ask reply` continues the selected thread with its captured profile.
+
+`ask stats` writes a local summary to stdout and exits 0. It has no one-character alias. It reads only the database, contains no prompt or answer text, and never contacts a provider:
+
+```text
+queries: 12 · 10 complete · 1 partial · 1 failed
+tokens: 1480 in / 322 out · reported by 11 queries
+median complete query: 2.1s wall · 0.8s to first token
+history: 4 threads · 9 turns · 3 threads cleared by expiry
+
+provider targets (historical observations, not a current check):
+openai-compatible · https://openrouter.ai/api/v1 · openai/gpt-5.6-luna
+  12 queries · last observed healthy 2026-09-16 14:02 UTC · last failure 2026-09-12 08:11 UTC (timeout)
+```
+
+Query counts include every recorded query, including those later removed from history. Token totals sum the counts providers reported, and `reported by` counts the queries that reported them. Medians are lower medians over complete queries, truncated to tenths of a second, and `-` when there is none. Each provider target line shows its recorded queries, its latest success as `last observed healthy` (or `never observed healthy`), and its latest failure with its error class (or `no failures observed`). These are historical observations, not a health check. Without a database, `ask stats` prints zero counts and creates nothing.
+
+`ask thread` and `ask stats` take no arguments; extra arguments are a usage error. If a reader closes their stdout early, they exit 0 without a diagnostic.
 
 ## Development
 

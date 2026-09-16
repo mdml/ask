@@ -112,6 +112,8 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
         };
         Ok(Config {
             default_profile: profile_name.clone(),
+            expire_history: false,
+            history_days: None,
             providers: BTreeMap::from([(provider_name, provider)]),
             profiles: BTreeMap::from([(profile_name, profile)]),
         })

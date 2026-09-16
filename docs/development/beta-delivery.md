@@ -19,7 +19,7 @@ The owner's own nightly install integration and credential isolation live outsid
 
 ## Delivery progress
 
-On 2026-09-16 the beta umbrella gained durable concurrent-writer proofs through PR #35. The partial-line double Ctrl-D proof is implemented in `query_proof`; the P2 list below describes packet scope, and these two items are complete. The implemented-baseline table above remains a snapshot of `ba658d4`.
+On 2026-09-16 the beta umbrella gained durable concurrent-writer proofs through PR #35. The partial-line double Ctrl-D proof is implemented in `query_proof`. P2 now also implements thread inspection, interactive and explicit thread switching, statistics, and configurable whole-thread expiry, with schema v1-to-v2 migration and `recall_proof` coverage. The P2 list below describes the completed packet scope; integration with the provider snapshot migration still needs verification. The implemented-baseline table above remains a snapshot of `ba658d4`.
 
 ## Work packets
 
@@ -43,12 +43,12 @@ Acceptance proofs run in this order through the real product boundary. Ordinary 
 | Proof | Existing evidence | Missing |
 |:--|:--|:--|
 | Install | Nightly packaging tests; offline packaged `configure check` | Repeat published-archive installation for the final candidate; stable and Homebrew installs |
-| Configure | `configure_proof` | Provider menu/defaults per supported provider; retention fields |
+| Configure | `configure_proof`; retention validation in unit tests and `recall_proof` | Provider menu/defaults per supported provider |
 | Query | `query_proof`, including the partial-line double Ctrl-D PTY proof | Per-provider wire formats (streaming, usage, errors, rate limits, auth) |
 | Continue | `continue_proof`, including concurrent writers | Per-provider reply history encoding |
-| Recall | None | `thread`, `switch`, `stats`, expiry |
+| Recall | `recall_proof`: thread output, switching, statistics, expiry, cancellation, captured-thread races, invalid-configuration fallback, and schema migration | Recheck with provider snapshot changes |
 | Diagnose | None | `doctor` offline/side-effect-free, `--live`, `--live --all` against fake provider |
-| Compose | Covered inside `query_proof`/`continue_proof` | Confirm coverage for new inspection commands' stdout/stderr |
+| Compose | `query_proof`/`continue_proof`; inspection stdout/stderr assertions in `recall_proof` | Recheck with diagnostics |
 | Live | None | P5 run records for OpenAI, Anthropic, Gemini, OpenRouter |
 
 Record personally run results in PRs; this table lists proof targets, not results.
