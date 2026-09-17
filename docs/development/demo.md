@@ -4,6 +4,8 @@ The README terminal demo is a repeatable presentation fixture, not provider-spee
 
 The recorder writes asciicast v2 terminal bytes with measured event times to `docs/assets/demo/demo.cast` and derives `docs/assets/demo/demo.txt` from the same byte stream by removing ANSI control sequences and trailing whitespace. It renders `docs/assets/demo/demo.gif` only when an approved renderer is supplied. Generated artifacts contain no credentials, machine-specific paths, or hostnames.
 
+The recorder gives Bash ownership of the pseudo-terminal and drives typing and output draining in one bounded event loop. A stalled command reports the command, input progress, and the sanitized tail of terminal output.
+
 ## Record and validate
 
 Use the final presentation build when it is available:

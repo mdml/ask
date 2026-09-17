@@ -25,6 +25,7 @@ demo = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(demo)
 chunks = iter((b"\xe2", b"\x80", b"\xa2$ "))
 original_read = demo.os.read
+original_write = demo.os.write
 original_select = demo.select.select
 demo.os.read = lambda _fd, _size: next(chunks)
 demo.select.select = lambda *_args: ([0], [], [])
@@ -36,6 +37,57 @@ finally:
     demo.os.read = original_read
     demo.select.select = original_select
 assert "".join(event[2] for event in split_events) == "•$ "
+
+# A single event loop must keep draining output while a slow PTY accepts input.
+reads = [b"echoed output", b"$ "]
+writes = bytearray()
+demo.os.read = lambda _fd, _size: reads.pop(0)
+demo.os.write = lambda _fd, value: writes.extend(value) or len(value)
+demo.select.select = lambda readable, writable, _errors, _timeout: (
+    readable if reads and (len(reads) == 2 or writes == b"slow\n") else [], writable, [])
+flow_events = []
+try:
+    demo.enter_command(0, "slow", flow_events, demo.time.monotonic(),
+                       codecs.getincrementaldecoder("utf-8")(), timeout=1, key_delay=0)
+finally:
+    demo.os.read = original_read
+    demo.os.write = original_write
+    demo.select.select = original_select
+assert writes == b"slow\n"
+assert "".join(event[2] for event in flow_events) == "echoed output$ "
+
+try:
+    demo.enter_command(0, "stalled", [], demo.time.monotonic(),
+                       codecs.getincrementaldecoder("utf-8")(), timeout=0)
+    raise AssertionError("stalled command did not time out")
+except TimeoutError as error:
+    assert "command 'stalled': sent 0/8 bytes; output tail=''" in str(error)
+
+def expect_terminal_failure(incoming, expected_error):
+    chunks = list(incoming)
+    demo.os.read = lambda _fd, _size: chunks.pop(0) if chunks else b""
+    demo.os.write = lambda _fd, value: len(value)
+    demo.select.select = lambda readable, writable, *_args: (
+        readable if chunks else [], writable, [])
+    try:
+        demo.enter_command(0, "x", [], demo.time.monotonic(),
+                           codecs.getincrementaldecoder("utf-8")(), timeout=0.02, key_delay=0)
+    except expected_error:
+        return
+    finally:
+        demo.os.read = original_read
+        demo.os.write = original_write
+        demo.select.select = original_select
+    raise AssertionError(f"terminal did not raise {expected_error.__name__}")
+
+
+failures = []
+for incoming, error in [([b"$ "], TimeoutError), ([b""], EOFError)]:
+    try:
+        expect_terminal_failure(incoming, error)
+    except Exception as failure:
+        failures.append(f"{error.__name__}: {failure!r}")
+assert not failures, failures
 
 with tempfile.TemporaryDirectory(prefix="ask-demo-test-") as temporary:
     renamed_binary = pathlib.Path(temporary) / "renamed-executable"

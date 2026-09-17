@@ -3,6 +3,7 @@
 
 import argparse
 import codecs
+import fcntl
 import hashlib
 import http.server
 import json
@@ -93,14 +94,31 @@ def terminate_process_group(process, grace=5):
         process.wait()
 
 
-def read_until(master, events, started, decoder, marker, timeout=10):
+def output_tail(collected, limit=240):
+    return ANSI.sub(b"", collected[-limit:]).decode("utf-8", "backslashreplace")
+
+
+def read_chunk(master, stage, collected):
+    try:
+        chunk = os.read(master, 65536)
+    except BlockingIOError:
+        return None
+    if not chunk:
+        raise EOFError(f"{stage}: terminal closed; output tail={output_tail(collected)!r}")
+    return chunk
+
+
+def read_until(master, events, started, decoder, marker, timeout=10, stage="shell startup"):
     collected = b""
     deadline = time.monotonic() + timeout
     while marker not in collected:
         remaining = deadline - time.monotonic()
         if remaining <= 0 or not select.select([master], [], [], remaining)[0]:
-            raise TimeoutError(f"terminal did not emit {marker!r}")
-        chunk = os.read(master, 65536)
+            raise TimeoutError(
+                f"{stage}: terminal did not emit {marker!r}; output tail={output_tail(collected)!r}")
+        chunk = read_chunk(master, stage, collected)
+        if chunk is None:
+            continue
         collected += chunk
         text = decoder.decode(chunk)
         if text:
@@ -108,21 +126,48 @@ def read_until(master, events, started, decoder, marker, timeout=10):
     return collected
 
 
-def type_command(master, command):
-    for byte in command.encode():
-        os.write(master, bytes((byte,)))
-        time.sleep(0.018)
-    os.write(master, b"\n")
+def enter_command(master, command, events, started, decoder, timeout=10, key_delay=0.018,
+                  wait_for_prompt=True):
+    pending = command.encode() + b"\n"
+    sent = 0
+    collected = b""
+    deadline = time.monotonic() + timeout
+    next_key = time.monotonic()
+    response_start = None
+    while sent < len(pending) or (wait_for_prompt and (
+            response_start is None or b"$ " not in collected[response_start:])):
+        now = time.monotonic()
+        remaining = deadline - now
+        if remaining <= 0:
+            raise TimeoutError(
+                f"command {command!r}: sent {sent}/{len(pending)} bytes; "
+                f"output tail={output_tail(collected)!r}")
+        writable = [master] if sent < len(pending) and now >= next_key else []
+        wait = min(remaining, next_key - now) if sent < len(pending) and next_key > now else remaining
+        readable, writable, _ = select.select([master], writable, [], wait)
+        if readable:
+            chunk = read_chunk(master, f"command {command!r}: sent {sent}/{len(pending)} bytes", collected)
+            if chunk is not None:
+                collected += chunk
+                text = decoder.decode(chunk)
+                if text:
+                    events.append([round(time.monotonic() - started, 6), "o", text])
+        if writable:
+            try:
+                sent += os.write(master, pending[sent:sent + 1])
+            except BlockingIOError:
+                pass
+            if sent == len(pending):
+                response_start = len(collected)
+            next_key = time.monotonic() + key_delay
+    if wait_for_prompt:
+        time.sleep(1.5)
 
 
-def enter_command(master, command, events, started, decoder):
-    writer = threading.Thread(target=type_command, args=(master, command), daemon=True)
-    writer.start()
-    try:
-        read_until(master, events, started, decoder, b"$ ")
-    finally:
-        writer.join(timeout=5)
-    time.sleep(1.5)
+def configure_child_terminal():
+    os.setsid()
+    fcntl.ioctl(0, termios.TIOCSCTTY, 0)
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 
 def record(binary, output_dir):
@@ -132,7 +177,7 @@ def record(binary, output_dir):
     output_dir.mkdir(parents=True, exist_ok=True)
     provider = Provider()
     serving = threading.Thread(target=provider.serve_forever, daemon=True)
-    serving.start()
+    serving_started = False
     try:
         with tempfile.TemporaryDirectory(prefix="ask-demo-") as temporary:
             private_bin = pathlib.Path(temporary) / "bin"
@@ -152,13 +197,15 @@ def record(binary, output_dir):
             if "LLVM_PROFILE_FILE" in os.environ:
                 env["LLVM_PROFILE_FILE"] = os.environ["LLVM_PROFILE_FILE"]
             master, slave = pty.openpty()
+            os.set_blocking(master, False)
             termios.tcsetwinsize(slave, (ROWS, COLS))
             process = subprocess.Popen(
                 ["/bin/bash", "--noprofile", "--norc", "-i"], stdin=slave,
                 stdout=slave, stderr=slave,
-                cwd=temporary, env=env, start_new_session=True,
-                preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_DFL))
+                cwd=temporary, env=env, preexec_fn=configure_child_terminal)
             os.close(slave)
+            serving.start()
+            serving_started = True
             events = []
             started = time.monotonic()
             decoder = codecs.getincrementaldecoder("utf-8")()
@@ -173,7 +220,7 @@ def record(binary, output_dir):
                 )
                 for command in commands:
                     enter_command(master, command, events, started, decoder)
-                type_command(master, "exit")
+                enter_command(master, "exit", events, started, decoder, wait_for_prompt=False)
                 process.wait(timeout=5)
             finally:
                 os.close(master)
@@ -205,9 +252,11 @@ def record(binary, output_dir):
             transcript = b"\n".join(line.rstrip() for line in transcript.splitlines()) + b"\n"
             (output_dir / "demo.txt").write_bytes(transcript)
     finally:
-        provider.shutdown()
+        if serving_started:
+            provider.shutdown()
         provider.server_close()
-        serving.join(timeout=5)
+        if serving_started:
+            serving.join(timeout=5)
 
 
 def validate_renderer(agg):
