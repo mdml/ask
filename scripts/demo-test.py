@@ -7,6 +7,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import pty
 import select
 import shutil
 import signal
@@ -95,6 +96,39 @@ assert not failures, failures
 OUTER_WATCHDOG_SECONDS = demo.STAGED_TIMEOUT_ALLOWANCE_SECONDS + 15
 assert demo.STAGED_TIMEOUT_ALLOWANCE_SECONDS == 76
 assert OUTER_WATCHDOG_SECONDS == 91
+
+# A child that writes more than the PTY buffer cannot exit until its output is drained.
+master, slave = pty.openpty()
+backpressure = subprocess.Popen(
+    [sys.executable, "-c", "import os; os.write(1, b'x' * 1024 * 1024)"],
+    stdout=slave, stderr=slave)
+os.close(slave)
+try:
+    try:
+        backpressure.wait(timeout=0.1)
+        raise AssertionError("backpressure probe exited without a terminal reader")
+    except subprocess.TimeoutExpired:
+        pass
+    exit_events = []
+    demo.wait_for_terminal_exit(
+        master, backpressure, exit_events, time.monotonic(),
+        codecs.getincrementaldecoder("utf-8")(), timeout=5)
+    assert backpressure.returncode == 0
+    assert len("".join(event[2] for event in exit_events)) == 1024 * 1024
+finally:
+    os.close(master)
+    if backpressure.poll() is None:
+        backpressure.kill()
+        backpressure.wait(timeout=5)
+
+try:
+    demo.wait_for_terminal_exit(
+        0, backpressure, [], time.monotonic(),
+        codecs.getincrementaldecoder("utf-8")(), timeout=0)
+    raise AssertionError("shell exit wait did not time out")
+except TimeoutError as error:
+    assert "shell exit wait timed out after" in str(error)
+    assert "terminal output tail=''" in str(error)
 
 demo.select.select = lambda *_args: (_ for _ in ()).throw(KeyboardInterrupt())
 interrupted_at = time.monotonic()
