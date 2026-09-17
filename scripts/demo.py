@@ -27,6 +27,15 @@ FONT_SHA256 = "c805f9436dbc268644c1d9584f01a601a653e028e08fd74b9b949f6cf8304d88"
 COLS = 88
 ROWS = 24
 ANSI = re.compile(rb"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
+STAGE_TIMEOUT = 10
+PROMPT_PAUSE = 1.5
+EXIT_WAIT_TIMEOUT = 5
+CLEANUP_GRACE = 5
+RECORDED_COMMANDS = 4
+STAGED_TIMEOUT_ALLOWANCE_SECONDS = (
+    STAGE_TIMEOUT + RECORDED_COMMANDS * (STAGE_TIMEOUT + PROMPT_PAUSE)
+    + STAGE_TIMEOUT + EXIT_WAIT_TIMEOUT + CLEANUP_GRACE
+)
 
 
 class Provider(http.server.ThreadingHTTPServer):
@@ -77,7 +86,7 @@ def digest(path):
     return value.hexdigest()
 
 
-def terminate_process_group(process, grace=5):
+def terminate_process_group(process, grace=CLEANUP_GRACE):
     if process.poll() is not None:
         return
     try:
@@ -108,7 +117,8 @@ def read_chunk(master, stage, collected):
     return chunk
 
 
-def read_until(master, events, started, decoder, marker, timeout=10, stage="shell startup"):
+def read_until(master, events, started, decoder, marker, timeout=STAGE_TIMEOUT,
+               stage="shell startup"):
     collected = b""
     deadline = time.monotonic() + timeout
     while marker not in collected:
@@ -126,7 +136,7 @@ def read_until(master, events, started, decoder, marker, timeout=10, stage="shel
     return collected
 
 
-def enter_command(master, command, events, started, decoder, timeout=10, key_delay=0.018,
+def enter_command(master, command, events, started, decoder, timeout=STAGE_TIMEOUT, key_delay=0.018,
                   wait_for_prompt=True):
     pending = command.encode() + b"\n"
     sent = 0
@@ -134,34 +144,40 @@ def enter_command(master, command, events, started, decoder, timeout=10, key_del
     deadline = time.monotonic() + timeout
     next_key = time.monotonic()
     response_start = None
-    while sent < len(pending) or (wait_for_prompt and (
-            response_start is None or b"$ " not in collected[response_start:])):
-        now = time.monotonic()
-        remaining = deadline - now
-        if remaining <= 0:
-            raise TimeoutError(
-                f"command {command!r}: sent {sent}/{len(pending)} bytes; "
-                f"output tail={output_tail(collected)!r}")
-        writable = [master] if sent < len(pending) and now >= next_key else []
-        wait = min(remaining, next_key - now) if sent < len(pending) and next_key > now else remaining
-        readable, writable, _ = select.select([master], writable, [], wait)
-        if readable:
-            chunk = read_chunk(master, f"command {command!r}: sent {sent}/{len(pending)} bytes", collected)
-            if chunk is not None:
-                collected += chunk
-                text = decoder.decode(chunk)
-                if text:
-                    events.append([round(time.monotonic() - started, 6), "o", text])
-        if writable:
-            try:
-                sent += os.write(master, pending[sent:sent + 1])
-            except BlockingIOError:
-                pass
-            if sent == len(pending):
-                response_start = len(collected)
-            next_key = time.monotonic() + key_delay
-    if wait_for_prompt:
-        time.sleep(1.5)
+    try:
+        while sent < len(pending) or (wait_for_prompt and (
+                response_start is None or b"$ " not in collected[response_start:])):
+            now = time.monotonic()
+            remaining = deadline - now
+            if remaining <= 0:
+                raise TimeoutError(
+                    f"command {command!r}: sent {sent}/{len(pending)} bytes; "
+                    f"output tail={output_tail(collected)!r}")
+            writable = [master] if sent < len(pending) and now >= next_key else []
+            wait = min(remaining, next_key - now) if sent < len(pending) and next_key > now else remaining
+            readable, writable, _ = select.select([master], writable, [], wait)
+            if readable:
+                chunk = read_chunk(master, f"command {command!r}: sent {sent}/{len(pending)} bytes", collected)
+                if chunk is not None:
+                    collected += chunk
+                    text = decoder.decode(chunk)
+                    if text:
+                        events.append([round(time.monotonic() - started, 6), "o", text])
+            if writable:
+                try:
+                    sent += os.write(master, pending[sent:sent + 1])
+                except BlockingIOError:
+                    pass
+                if sent == len(pending):
+                    response_start = len(collected)
+                next_key = time.monotonic() + key_delay
+        if wait_for_prompt:
+            time.sleep(PROMPT_PAUSE)
+    except KeyboardInterrupt as error:
+        elapsed = time.monotonic() - (deadline - timeout)
+        raise KeyboardInterrupt(
+            f"command {command!r} interrupted after {elapsed:.3f}s: "
+            f"sent {sent}/{len(pending)} bytes; output tail={output_tail(collected)!r}") from error
 
 
 def configure_child_terminal():
@@ -171,14 +187,18 @@ def configure_child_terminal():
 
 
 def record(binary, output_dir):
+    record_started = time.monotonic()
+    phase = "fixture setup"
     binary = binary.resolve()
     if not binary.is_file() or not os.access(binary, os.X_OK):
         raise SystemExit(f"not an executable: {binary}")
     output_dir.mkdir(parents=True, exist_ok=True)
-    provider = Provider()
-    serving = threading.Thread(target=provider.serve_forever, daemon=True)
+    provider = None
+    serving = None
     serving_started = False
     try:
+        provider = Provider()
+        serving = threading.Thread(target=provider.serve_forever, daemon=True)
         with tempfile.TemporaryDirectory(prefix="ask-demo-") as temporary:
             private_bin = pathlib.Path(temporary) / "bin"
             private_bin.mkdir()
@@ -199,6 +219,7 @@ def record(binary, output_dir):
             master, slave = pty.openpty()
             os.set_blocking(master, False)
             termios.tcsetwinsize(slave, (ROWS, COLS))
+            phase = "shell process creation"
             process = subprocess.Popen(
                 ["/bin/bash", "--noprofile", "--norc", "-i"], stdin=slave,
                 stdout=slave, stderr=slave,
@@ -210,18 +231,23 @@ def record(binary, output_dir):
             started = time.monotonic()
             decoder = codecs.getincrementaldecoder("utf-8")()
             try:
+                phase = "shell startup"
                 read_until(master, events, started, decoder, b"$ ")
-                enter_command(master, "# Deterministic local fixture; timings are not provider performance.",
-                              events, started, decoder)
+                command = "# Deterministic local fixture; timings are not provider performance."
+                phase = f"command {command!r}"
+                enter_command(master, command, events, started, decoder)
                 commands = (
                     "printf 'latency: 120ms\\nlatency: 80ms\\n' | ask 'Report the median latency'",
                     "ask reply 'Which request was faster?'",
                     "ask thread",
                 )
                 for command in commands:
+                    phase = f"command {command!r}"
                     enter_command(master, command, events, started, decoder)
+                phase = "command 'exit'"
                 enter_command(master, "exit", events, started, decoder, wait_for_prompt=False)
-                process.wait(timeout=5)
+                phase = "shell exit wait"
+                process.wait(timeout=EXIT_WAIT_TIMEOUT)
             finally:
                 os.close(master)
                 terminate_process_group(process)
@@ -251,12 +277,17 @@ def record(binary, output_dir):
             transcript = ANSI.sub(b"", stream).replace(b"\r\n", b"\n").replace(b"\r", b"")
             transcript = b"\n".join(line.rstrip() for line in transcript.splitlines()) + b"\n"
             (output_dir / "demo.txt").write_bytes(transcript)
+    except KeyboardInterrupt as error:
+        elapsed = time.monotonic() - record_started
+        raise KeyboardInterrupt(
+            f"demo recording interrupted during {phase} after {elapsed:.3f}s: {error}") from error
     finally:
-        if serving_started:
-            provider.shutdown()
-        provider.server_close()
-        if serving_started:
-            serving.join(timeout=5)
+        if provider is not None:
+            if serving_started:
+                provider.shutdown()
+            provider.server_close()
+            if serving_started:
+                serving.join(timeout=5)
 
 
 def validate_renderer(agg):
