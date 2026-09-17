@@ -159,12 +159,21 @@ finally:
     demo.select.select = original_select
 
 signal_probe = """
-import codecs, importlib.util, os, pathlib, pty, sys, time
+import codecs, importlib.util, os, pathlib, pty, signal, sys, time
 spec = importlib.util.spec_from_file_location('ask_demo_signal', pathlib.Path(sys.argv[1]))
 demo = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(demo)
 master, slave = pty.openpty()
-print('ready', flush=True)
+real_select = demo.select.select
+ready = False
+def ready_select(*args):
+    global ready
+    if not ready:
+        ready = True
+        print('ready', flush=True)
+        signal.pause()
+    return real_select(*args)
+demo.select.select = ready_select
 demo.enter_command(master, 'signal diagnostic', [], time.monotonic(),
                    codecs.getincrementaldecoder('utf-8')(), timeout=10)
 """
@@ -172,18 +181,25 @@ probe = subprocess.Popen(
     [sys.executable, "-c", signal_probe, str(script)], stdout=subprocess.PIPE,
     stderr=subprocess.PIPE, text=True, start_new_session=True)
 try:
-    assert select.select([probe.stdout], [], [], 5)[0], "signal probe did not start"
-    assert probe.stdout.readline().strip() == "ready"
-    time.sleep(0.1)
+    if not select.select([probe.stdout], [], [], 5)[0]:
+        probe.kill()
+        _stdout, stderr = probe.communicate(timeout=5)
+        raise AssertionError(f"signal probe did not start; stderr={stderr!r}")
+    readiness = probe.stdout.readline().strip()
+    if readiness != "ready":
+        probe.kill()
+        _stdout, stderr = probe.communicate(timeout=5)
+        raise AssertionError(
+            f"signal probe reported {readiness!r}, expected 'ready'; stderr={stderr!r}")
     os.kill(probe.pid, signal.SIGINT)
     _stdout, stderr = probe.communicate(timeout=5)
 finally:
     if probe.poll() is None:
         probe.kill()
         probe.wait(timeout=5)
-assert probe.returncode != 0
-assert "command 'signal diagnostic' interrupted after" in stderr
-assert "/18 bytes; output tail=" in stderr
+assert probe.returncode != 0, f"signal probe succeeded; stderr={stderr!r}"
+assert "command 'signal diagnostic' interrupted after" in stderr, stderr
+assert "/18 bytes; output tail=" in stderr, stderr
 
 original_provider = demo.Provider
 demo.Provider = lambda: (_ for _ in ()).throw(KeyboardInterrupt("fixture interrupted"))
