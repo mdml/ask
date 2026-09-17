@@ -24,13 +24,19 @@ Read only the relevant version's documentation: installation, configuration, pro
 
 ## Install or upgrade
 
-Choose an exact release compatible with the user's platform from <https://github.com/mdml/ask/releases>. The supported platforms are macOS and Linux, arm64 and x86-64. Nightlies are prereleases. For an authorized mise installation:
+Default to a published stable release, checking <https://github.com/mdml/ask/releases> before selecting an exact tag. The supported platforms are macOS and Linux, arm64 and x86-64. For an authorized Homebrew installation:
 
 ```sh
-mise use -g 'github:mdml/ask[prerelease=true]@TAG'
+brew install mdml/tap/ask
 ```
 
-Explain the selected tag and global configuration change. Use existing authorization; ask only when the desired release or scope is unresolved. Follow the selected release's installation guide for other installation methods, archive checksums, and attestations. Do not present a stable channel or package as available without checking. Finish with offline inspection.
+For an authorized mise installation, replace `TAG` with the selected exact stable tag:
+
+```sh
+mise use -g 'github:mdml/ask@TAG'
+```
+
+If the user has selected another exact release from <https://github.com/mdml/ask/releases>, use that tag; nightlies are prereleases. Explain the selected tag and global configuration change. Use existing authorization; ask only when the desired release or scope is unresolved. Follow the selected release's installation guide for archive checksums and attestations. Finish with offline inspection.
 
 ## Configure without losing existing settings
 
