@@ -3,6 +3,7 @@
 
 import argparse
 import codecs
+import errno
 import fcntl
 import hashlib
 import http.server
@@ -136,6 +137,44 @@ def read_until(master, events, started, decoder, marker, timeout=STAGE_TIMEOUT,
     return collected
 
 
+def wait_for_terminal_exit(master, process, events, started, decoder,
+                           timeout=EXIT_WAIT_TIMEOUT):
+    collected = b""
+    wait_started = time.monotonic()
+    deadline = wait_started + timeout
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError(
+                f"shell exit wait timed out after {time.monotonic() - wait_started:.3f}s; "
+                f"terminal output tail={output_tail(collected)!r}")
+        readable = select.select([master], [], [], min(remaining, 0.05))[0]
+        if readable:
+            try:
+                chunk = os.read(master, 65536)
+            except BlockingIOError:
+                continue
+            except OSError as error:
+                if error.errno != errno.EIO:
+                    raise
+                chunk = b""
+            if not chunk:
+                try:
+                    process.wait(timeout=remaining)
+                except subprocess.TimeoutExpired as error:
+                    raise TimeoutError(
+                        f"shell exit wait timed out after "
+                        f"{time.monotonic() - wait_started:.3f}s; "
+                        f"terminal output tail={output_tail(collected)!r}") from error
+                return
+            collected += chunk
+            text = decoder.decode(chunk)
+            if text:
+                events.append([round(time.monotonic() - started, 6), "o", text])
+        elif process.poll() is not None:
+            return
+
+
 def enter_command(master, command, events, started, decoder, timeout=STAGE_TIMEOUT, key_delay=0.018,
                   wait_for_prompt=True):
     pending = command.encode() + b"\n"
@@ -247,7 +286,7 @@ def record(binary, output_dir):
                 phase = "command 'exit'"
                 enter_command(master, "exit", events, started, decoder, wait_for_prompt=False)
                 phase = "shell exit wait"
-                process.wait(timeout=EXIT_WAIT_TIMEOUT)
+                wait_for_terminal_exit(master, process, events, started, decoder)
             finally:
                 os.close(master)
                 terminate_process_group(process)
