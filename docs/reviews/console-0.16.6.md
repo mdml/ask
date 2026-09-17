@@ -1,0 +1,9 @@
+# Console 0.16.6 dependency evidence
+
+Recorded 2026-09-17 for the terminal presentation change.
+
+- Direct dependency: [`console` 0.16.6](https://crates.io/crates/console/0.16.6), exact pinned, `default-features = false`, `features = ["std"]`. crates.io reports publication at 2026-09-10 07:42:27 UTC, beyond the 48-hour quarantine, checksum `e96a4956774c13c126a8b5af4daa79384f4d826534c95a02d76afb39e2ab64e3`, MIT license, and Rust 1.71 minimum.
+- New transitive lock entry: [`encode_unicode` 1.0.0](https://crates.io/crates/encode_unicode/1.0.0), Windows only. crates.io reports publication at 2022-08-07 14:19:49 UTC, checksum `34aa73646ffb006b8f5147f3dc182bd4bcb190227ce861fc4a4844bf8e3cb2c0`, and Apache-2.0 OR MIT license.
+- Existing transitive crates reused: `libc` 0.2.189, `windows-sys` 0.61.2, and `windows-link` 0.2.1. No unrelated lock versions changed.
+- Source inspection found no build scripts or procedural macros. Console contains the platform terminal FFI expected for termios and Windows console handling. Its Unix key reader restores the saved termios state before returning normally and before raising SIGINT for a keyboard Ctrl-C. `ask` adds no first party unsafe code. Independent PTY review found external SIGINT and SIGTERM can interrupt the raw key read before restoration; restoration claims are limited to the tested keyboard exits. No first-party signal handler was added.
+- `cargo tree --locked -p console -e normal --target all` confirms the complete normal dependency closure above. Real PTY regressions measure arrow selection including Up wrap, bounded narrow menus containing CJK text, Escape cancellation without changing the current thread, keyboard Ctrl-C during initialization, the `You> ` multiline prompt prefix, and termios restoration after those tested menu exits.

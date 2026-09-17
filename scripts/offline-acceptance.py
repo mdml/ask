@@ -7,11 +7,14 @@ import json
 import os
 import pathlib
 import pty
+import select
 import signal
 import subprocess
 import sys
 import tempfile
 import threading
+import termios
+import time
 
 
 if not __debug__:
@@ -84,6 +87,41 @@ def run(binary, env, *args, stdin=None, code=0):
     return result
 
 
+def terminal_menu(binary, env, args, keys, followup=b""):
+    master, slave = pty.openpty()
+    child = None
+    before = termios.tcgetattr(slave)
+    transcript = b""
+    try:
+        child = subprocess.Popen([binary, *args], stdin=slave, stdout=subprocess.PIPE,
+                                 stderr=slave, env=env, close_fds=True,
+                                 preexec_fn=lambda: signal.signal(signal.SIGINT,
+                                                                 signal.SIG_DFL))
+        deadline = time.monotonic() + 5
+        while termios.tcgetattr(slave)[3] & termios.ICANON:
+            returncode = child.poll()
+            assert returncode is None, (args, "child exited before raw mode",
+                                        returncode, transcript)
+            remaining = deadline - time.monotonic()
+            assert remaining > 0, (args, "timed out waiting for raw mode", transcript)
+            ready, _, _ = select.select([master], [], [], min(0.05, remaining))
+            if ready:
+                transcript += os.read(master, 4096)
+        os.write(master, keys)
+        if followup:
+            os.write(master, followup)
+        stdout, _ = child.communicate(timeout=10)
+        assert child.returncode == 0, (args, child.returncode, transcript, stdout)
+        assert termios.tcgetattr(slave) == before, (args, "terminal state not restored")
+        return stdout, transcript
+    finally:
+        os.close(slave)
+        os.close(master)
+        if child is not None and child.poll() is None:
+            child.kill()
+            child.wait()
+
+
 def terminal_query(binary, env):
     master, slave = pty.openpty()
     child = None
@@ -91,7 +129,7 @@ def terminal_query(binary, env):
         child = subprocess.Popen([binary, "new", "--profile", "terse"], stdin=slave,
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env,
                                  preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_DFL))
-        assert child.stderr.read(5) == b"ask> "
+        assert child.stderr.read(5) == b"You> "
         os.write(master, b"first line\nsecond line\n\x04")
         stdout, stderr = child.communicate(timeout=10)
         assert child.returncode == 0, stderr
@@ -121,6 +159,18 @@ def main():
                    "LOCAL_API_KEY": "offline-fixture", "NO_PROXY": "127.0.0.1"}
             if "LLVM_PROFILE_FILE" in os.environ:
                 env["LLVM_PROFILE_FILE"] = os.environ["LLVM_PROFILE_FILE"]
+
+            with tempfile.TemporaryDirectory(prefix="ask-init-menu-") as init_temporary:
+                init_env = dict(env, ASK_HOME=init_temporary, TERM="xterm-256color")
+                init_answers = (f"local\nhttp://127.0.0.1:{provider.server_port}/v1\n"
+                                "LOCAL_API_KEY\nterse-model\nBe terse.\n\ny\n").encode()
+                init_stdout, _ = terminal_menu(binary, init_env, ("init",),
+                                               b"\x1b[B\x1b[B\x1b[B\x1b[B\r",
+                                               init_answers)
+                assert not init_stdout
+                init_config = pathlib.Path(init_temporary, "config.toml").read_text()
+                assert 'kind = "openai-compatible"' in init_config
+
             answers = (f"5\nlocal\nhttp://127.0.0.1:{provider.server_port}/v1\n"
                        "LOCAL_API_KEY\nterse-model\nBe terse.\n\ny\n").encode()
             initialized = run(binary, env, "init", stdin=answers)
@@ -153,6 +203,14 @@ def main():
             assert provider.requests[2]["model"] == "terse-model"
 
             run(binary, env, "new", "second thread")
+            run(binary, env, "switch", "1")
+            switch_env = dict(env, TERM="xterm-256color")
+            switched_thread, _ = terminal_menu(binary, switch_env, ("switch",),
+                                               b"\x1b[B\r")
+            assert switched_thread.count(b"You:\n") == 2, switched_thread
+            assert switched_thread.count(b"Assistant:\n") == 2, switched_thread
+            for content in (b"multiline answer", b"uses captured profile", b"captured profile reply"):
+                assert content in switched_thread, (content, switched_thread)
             run(binary, env, "switch", "1")
             switched = run(binary, env, "reply", "after switch")
             assert switched.stdout == b"switched thread reply\n"
@@ -192,7 +250,6 @@ def main():
             assert len(provider.requests) == len(ANSWERS), len(provider.requests)
             assert provider.authorizations == ["Bearer offline-fixture"] * len(ANSWERS)
             print("offline acceptance: passed")
-            print("follow-up: arrow-key selection and interactive conversation display await presentation changes")
     finally:
         provider.shutdown()
         provider.server_close()

@@ -19,7 +19,7 @@ try:
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                              preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_DFL))
     if scenario != 'words':
-        assert child.stderr.read(5) == b'ask> '
+        assert child.stderr.read(5) == b'You> '
         if scenario == 'cancel':
             # Deliver SIGINT directly, as the terminal driver does for Ctrl-C,
             # so the proof does not depend on controlling-terminal setup.

@@ -1,0 +1,19 @@
+{
+  "name": "ask",
+  "description": "Agent skills for ask, the terminal lookup tool for language models.",
+  "owner": {
+    "name": "Max Leiserson",
+    "url": "https://github.com/mdml"
+  },
+  "plugins": [
+    {
+      "name": "ask",
+      "description": "The ask-doctor skill: install, configure, and troubleshoot the ask terminal lookup tool.",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/ask-doctor"
+      ]
+    }
+  ]
+}

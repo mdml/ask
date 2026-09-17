@@ -1,7 +1,7 @@
 //! Interactive creation of a fresh configuration file.
 //!
-//! The dialogue is line oriented so it works with a terminal or redirected
-//! stdin. Every prompt and diagnostic goes to the supplied `stderr`; nothing
+//! The dialogue uses terminal selection menus or a line-oriented fallback for
+//! redirected stdin. Every prompt and diagnostic goes to `stderr`; nothing
 //! is written to stdout. End of input at any prompt cancels without writing.
 //! `init` never replaces an existing configuration; `ask configure apply`
 //! is the command that installs a replacement.
@@ -95,6 +95,7 @@ impl From<io::Error> for InitError {
 struct Dialogue<'a, R, W> {
     input: &'a mut R,
     output: &'a mut W,
+    interactive_terminal: bool,
 }
 
 /// Creates `path` from answers read on `input`. Refuses to touch an existing file.
@@ -102,11 +103,16 @@ pub fn run<R: BufRead, W: Write>(
     path: &Path,
     input: &mut R,
     output: &mut W,
+    interactive_terminal: bool,
 ) -> Result<(), InitError> {
     if std::fs::symlink_metadata(path).is_ok() {
         return Err(InitError::Exists(path.display().to_string()));
     }
-    let mut dialogue = Dialogue { input, output };
+    let mut dialogue = Dialogue {
+        input,
+        output,
+        interactive_terminal,
+    };
     dialogue.say(&format!("Creating '{}'.", path.display()))?;
     let config = dialogue.collect()?;
     let rendered = config
@@ -181,6 +187,29 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
     }
 
     fn select_provider(&mut self) -> Result<ProviderChoice, InitError> {
+        if self.interactive_terminal {
+            return Self::select_provider_terminal();
+        }
+        self.select_provider_line()
+    }
+
+    fn select_provider_terminal() -> Result<ProviderChoice, InitError> {
+        let mut labels = PRESETS
+            .iter()
+            .map(|preset| preset.menu_label.to_string())
+            .collect::<Vec<_>>();
+        labels.push("Custom OpenAI-compatible endpoint".to_string());
+        match crate::terminal::select(
+            "Select a provider (arrow keys, Enter; Esc cancels):",
+            &labels,
+        )? {
+            Some(index) if index < PRESETS.len() => Ok(ProviderChoice::Preset(index)),
+            Some(_) => Ok(ProviderChoice::Custom),
+            None => Err(InitError::Cancelled),
+        }
+    }
+
+    fn select_provider_line(&mut self) -> Result<ProviderChoice, InitError> {
         self.say("Select a provider:")?;
         for (index, preset) in PRESETS.iter().enumerate() {
             self.say(&format!(" {}. {}", index + 1, preset.menu_label))?;
@@ -283,7 +312,11 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
     }
 
     fn ask(&mut self, prompt: &str) -> Result<String, InitError> {
-        write!(self.output, "{prompt}")?;
+        if self.interactive_terminal {
+            write!(self.output, "? {prompt}")?;
+        } else {
+            write!(self.output, "{prompt}")?;
+        }
         self.output.flush()?;
         let mut line = String::new();
         if self.input.read_line(&mut line)? == 0 {

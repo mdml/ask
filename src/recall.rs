@@ -26,21 +26,44 @@ pub fn thread(stdout: &mut impl io::Write, stderr: &mut impl io::Write) -> ExitC
     }
 }
 
-pub fn switch(
-    id: Option<i64>,
-    stdin: &mut impl io::BufRead,
-    stderr: &mut impl io::Write,
-) -> ExitCode {
+pub fn switch_id(id: i64, stderr: &mut impl io::Write) -> ExitCode {
     let outcome = existing()
         .map_err(Failure::Other)
-        .and_then(|store| match (store, id) {
-            (None, Some(id)) => Err(unknown(id).into()),
-            (None, None) => Err(NO_THREADS.to_string().into()),
-            (Some(mut store), Some(id)) => select(&mut store, id),
-            (Some(mut store), None) => choose(&mut store, stdin, stderr),
+        .and_then(|store| match store {
+            None => Err(unknown(id).into()),
+            Some(mut store) => select(&mut store, id),
         });
     match outcome {
         Ok(id) => report(
+            stderr,
+            &format!("current thread is now {id}"),
+            ExitCode::SUCCESS,
+        ),
+        Err(Failure::Usage(message)) => report(stderr, &message, ExitCode::from(2)),
+        Err(Failure::Other(message)) => report(stderr, &message, ExitCode::FAILURE),
+    }
+}
+
+pub fn switch_interactive(
+    stdin: &mut impl io::BufRead,
+    stdout: &mut impl io::Write,
+    stderr: &mut impl io::Write,
+    interactive_terminal: bool,
+) -> ExitCode {
+    let outcome = existing()
+        .map_err(Failure::Other)
+        .and_then(|store| match store {
+            None => Err(NO_THREADS.to_string().into()),
+            Some(mut store) if interactive_terminal => {
+                choose_terminal(&mut store).map(SwitchOutcome::View)
+            }
+            Some(mut store) => {
+                choose_line(&mut store, stdin, stderr).map(SwitchOutcome::Confirmation)
+            }
+        });
+    match outcome {
+        Ok(SwitchOutcome::View(view)) => emit(stdout, stderr, &render(&view)),
+        Ok(SwitchOutcome::Confirmation(id)) => report(
             stderr,
             &format!("current thread is now {id}"),
             ExitCode::SUCCESS,
@@ -55,6 +78,11 @@ const NO_THREADS: &str = "no threads; start one with `ask new`";
 enum Failure {
     Usage(String),
     Other(String),
+}
+
+enum SwitchOutcome {
+    View(ThreadView),
+    Confirmation(i64),
 }
 
 impl From<String> for Failure {
@@ -81,7 +109,7 @@ fn select(store: &mut Store, id: i64) -> Result<i64, Failure> {
 }
 
 /// Lists recent threads on stderr and reads one selection line from stdin.
-fn choose(
+fn choose_line(
     store: &mut Store,
     stdin: &mut impl io::BufRead,
     stderr: &mut impl io::Write,
@@ -113,6 +141,42 @@ fn choose(
             threads.len()
         ))),
     }
+}
+
+fn choose_terminal(store: &mut Store) -> Result<ThreadView, Failure> {
+    let threads = store
+        .recent(RECENT_THREADS)
+        .map_err(|error| error.to_string())?;
+    if threads.is_empty() {
+        return Err(Failure::Other(NO_THREADS.to_string()));
+    }
+    let labels = threads.iter().map(terminal_entry).collect::<Vec<_>>();
+    match crate::terminal::select("Select a thread (arrow keys, Enter; Esc cancels):", &labels) {
+        Ok(Some(index)) => select_view(store, threads[index].id),
+        Ok(None) => Err(Failure::Other(
+            "selection cancelled; current thread unchanged".to_string(),
+        )),
+        Err(error) => Err(Failure::Other(format!("cannot read selection: {error}"))),
+    }
+}
+
+fn select_view(store: &mut Store, id: i64) -> Result<ThreadView, Failure> {
+    match store.select_view(id) {
+        Ok(Some(view)) => Ok(view),
+        Ok(None) => Err(Failure::Other(unknown(id))),
+        Err(error) => Err(Failure::Other(error.to_string())),
+    }
+}
+
+fn terminal_entry(thread: &ThreadSummary) -> String {
+    let marker = if thread.current { " (current)" } else { "" };
+    let turns = if thread.turns == 1 { "turn" } else { "turns" };
+    format!(
+        "thread {}{marker} · {} {turns} · {}",
+        thread.id,
+        thread.turns,
+        opening(&thread.opening)
+    )
 }
 
 fn menu(threads: &[ThreadSummary]) -> String {
@@ -187,8 +251,7 @@ fn opening(prompt: &str) -> String {
     text
 }
 
-/// The thread header, then each turn: the prompt quoted as Markdown and the
-/// raw answer without trailing line endings. A partial turn ends with an
+/// The thread header, then each turn with explicit speaker labels. A partial turn ends with an
 /// `[incomplete: <reason>]` marker line.
 pub fn render(view: &ThreadView) -> String {
     let mut blocks = vec![format!(
@@ -196,7 +259,10 @@ pub fn render(view: &ThreadView) -> String {
         view.id, view.profile, view.model
     )];
     for turn in &view.turns {
-        blocks.push(quote(&turn.prompt));
+        blocks.push(format!(
+            "You:\n{}",
+            turn.prompt.trim_end_matches(['\r', '\n'])
+        ));
         let mut lines: Vec<String> = Vec::new();
         let answer = turn.answer.trim_end_matches(['\r', '\n']);
         if !answer.is_empty() {
@@ -205,28 +271,16 @@ pub fn render(view: &ThreadView) -> String {
         if let Some(reason) = &turn.reason {
             lines.push(format!("[incomplete: {reason}]"));
         }
-        if !lines.is_empty() {
-            blocks.push(lines.join("\n"));
-        }
+        let answer = lines.join("\n");
+        blocks.push(if answer.is_empty() {
+            "Assistant:".to_string()
+        } else {
+            format!("Assistant:\n{answer}")
+        });
     }
     let mut text = blocks.join("\n\n");
     text.push('\n');
     text
-}
-
-fn quote(prompt: &str) -> String {
-    prompt
-        .trim_end_matches(['\r', '\n'])
-        .lines()
-        .map(|line| {
-            if line.is_empty() {
-                ">".to_string()
-            } else {
-                format!("> {line}")
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
 }
 
 #[cfg(test)]
