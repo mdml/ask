@@ -102,7 +102,7 @@ try:
         assert child.returncode == -signal.SIGINT, (child.returncode, transcript)
         assert out == b'', out
         assert not os.path.exists(os.path.join(home, 'config.toml'))
-    assert termios.tcgetattr(slave) == before
+    assert termios.tcgetattr(slave) == before, (before, termios.tcgetattr(slave))
 finally:
     os.close(slave)
     os.close(master)
