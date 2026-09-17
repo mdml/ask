@@ -10,7 +10,7 @@ fn turn(prompt: &str, answer: &str, reason: Option<&str>) -> StoredTurn {
 }
 
 #[test]
-fn threads_render_quoted_prompts_answers_and_incomplete_markers() {
+fn threads_render_speaker_labels_content_and_incomplete_markers() {
     let view = ThreadView {
         id: 7,
         profile: "terse".to_string(),
@@ -25,10 +25,10 @@ fn threads_render_quoted_prompts_answers_and_incomplete_markers() {
     assert_eq!(
         render(&view),
         "thread 7 · profile terse · model fake-model\n\n\
-         > first\n>\n> second line\n\n**4**\n\n\
-         > empty\n\n\
-         > cut\n\npart\n[incomplete: provider request failed: reset]\n\n\
-         > closed\n\n[incomplete: output closed]\n"
+         You:\nfirst\n\nsecond line\n\nAssistant:\n**4**\n\n\
+         You:\nempty\n\nAssistant:\n\n\
+         You:\ncut\n\nAssistant:\npart\n[incomplete: provider request failed: reset]\n\n\
+         You:\nclosed\n\nAssistant:\n[incomplete: output closed]\n"
     );
 }
 
@@ -80,4 +80,20 @@ fn menu_entries_replace_invisible_format_characters_but_keep_joiners() {
         " 1. thread 1 · 1970-01-01 00:00 UTC · 1 turn · p q · m    ·  hi  x 👨\u{200d}👩 نمی\u{200c}خواهم\n\
          select a thread [1-1]: "
     );
+}
+
+#[test]
+fn terminal_menu_keeps_the_prompt_preview_before_long_metadata() {
+    let thread = ThreadSummary {
+        id: 1,
+        updated_at_ms: 0,
+        profile: "long-profile-name".repeat(4),
+        model: "long-model-name".repeat(4),
+        turns: 2,
+        opening: "recognizable question".to_string(),
+        current: true,
+    };
+    let visible: String = terminal_entry(&thread).chars().take(70).collect();
+    assert!(visible.contains("recognizable question"), "{visible}");
+    assert!(visible.contains("2 turns"), "{visible}");
 }

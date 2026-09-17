@@ -29,7 +29,7 @@ try:
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                              preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_DFL))
     prompt = child.stderr.read(5)
-    assert prompt == b'ask> ', prompt + child.stderr.read()
+    assert prompt == b'You> ', prompt + child.stderr.read()
     if scenario == 'cancel':
         os.write(master, b'partial question')
         child.send_signal(signal.SIGINT)

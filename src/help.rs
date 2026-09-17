@@ -49,7 +49,7 @@ Diagnostics:
 
 Supported provider kinds: openai, anthropic, gemini, openrouter, openai-compatible.
 
-See the project README for the full configuration schema and shell-composition rules.
+Documentation: https://github.com/mdml/ask#documentation
 ";
 
 pub fn run(stdout: &mut impl io::Write, stderr: &mut impl io::Write) -> ExitCode {

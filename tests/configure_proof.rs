@@ -40,6 +40,22 @@ system_prompt = "Use terse tables."
 
 // -- ask init ---------------------------------------------------------------
 
+#[cfg(unix)]
+#[test]
+fn terminal_init_handles_selection_escape_and_keyboard_interrupt_and_restores_the_terminal() {
+    for scenario in ["select", "escape", "ctrl-c"] {
+        let home = fresh_home();
+        let output = Command::new("python3")
+            .arg("tests/support/init_menu_process.py")
+            .arg(env!("CARGO_BIN_EXE_ask"))
+            .arg(&home)
+            .arg(scenario)
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{scenario}: {}", stderr(&output));
+    }
+}
+
 #[test]
 fn init_then_query_answers_through_the_fake_provider() {
     let fake = FakeProvider::start(Scenario::Stream);
