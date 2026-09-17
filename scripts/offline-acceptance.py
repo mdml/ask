@@ -21,6 +21,42 @@ if not __debug__:
     raise SystemExit("offline acceptance requires Python assertions")
 
 
+def terminal_state_restored(before, actual, platform=sys.platform,
+                            pendin=termios.PENDIN):
+    if actual == before:
+        return True
+    if platform != "darwin":
+        return False
+    expected = before.copy()
+    expected[3] |= pendin
+    return actual == expected
+
+
+def test_terminal_state_restored():
+    before = [11010, 3, 19200, 1483, 9600, 9600,
+              [b'\x04', b'\xff', b'\xff', b'\x7f', b'\x17', b'\x15', b'\x12',
+               b'\xff', b'\x03', b'\x1c', b'\x1a', b'\x19', b'\x11', b'\x13',
+               b'\x16', b'\x0f', b'\x01', b'\x00', b'\x14', b'\xff']]
+    pendin = 0x20000000
+    restored = before.copy()
+    restored[3] |= pendin
+    assert terminal_state_restored(before, before.copy(), "darwin", pendin)
+    assert terminal_state_restored(before, restored, "darwin", pendin)
+    assert not terminal_state_restored(before, restored, "linux", pendin)
+    for index, bit in ((0, 1), (3, termios.ICANON), (3, termios.ECHO),
+                       (3, termios.ISIG), (4, 1), (5, 1)):
+        changed = restored.copy()
+        changed[index] ^= bit
+        assert not terminal_state_restored(before, changed, "darwin", pendin)
+    changed = restored.copy()
+    changed[6] = restored[6].copy()
+    changed[6][0] = b'\x00'
+    assert not terminal_state_restored(before, changed, "darwin", pendin)
+
+
+test_terminal_state_restored()
+
+
 def timed_out(_signal, _frame):
     raise TimeoutError("offline acceptance exceeded 60 seconds")
 
@@ -142,7 +178,8 @@ def terminal_menu(binary, env, args, keys, followup=b""):
             except OSError:
                 break
         assert child.returncode == 0, (args, child.returncode, transcript, stdout)
-        assert termios.tcgetattr(slave) == before, (args, before, termios.tcgetattr(slave))
+        actual = termios.tcgetattr(slave)
+        assert terminal_state_restored(before, actual), (args, before, actual)
         return stdout, transcript
     finally:
         os.close(slave)

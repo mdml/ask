@@ -25,6 +25,16 @@ child = subprocess.Popen([binary, 'switch'], stdin=slave, stdout=subprocess.PIPE
                          preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_DFL))
 
 
+def terminal_state_restored(before, actual):
+    if actual == before:
+        return True
+    if sys.platform != 'darwin':
+        return False
+    expected = before.copy()
+    expected[3] |= termios.PENDIN
+    return actual == expected
+
+
 def wait_for(predicate, transcript, description, timeout=5):
     deadline = time.monotonic() + timeout
     while not predicate(transcript):
@@ -76,7 +86,8 @@ try:
         out, transcript = finish(transcript)
         assert child.returncode == 0, (child.returncode, transcript)
         assert out == b'', out
-        assert termios.tcgetattr(slave) == before, (before, termios.tcgetattr(slave))
+        actual = termios.tcgetattr(slave)
+        assert terminal_state_restored(before, actual), (before, actual)
         sys.exit(0)
     if scenario == 'tiny':
         transcript = wait_for(
@@ -85,7 +96,8 @@ try:
         out, transcript = finish(transcript)
         assert child.returncode == 1, (child.returncode, transcript, out)
         assert b'interactive selection requires terminal height of at least 3 rows' in transcript, transcript
-        assert termios.tcgetattr(slave) == before, (before, termios.tcgetattr(slave))
+        actual = termios.tcgetattr(slave)
+        assert terminal_state_restored(before, actual), (before, actual)
         sys.exit(0)
     transcript = wait_for(raw_mode, transcript, 'waiting for switch raw mode')
     if scenario == 'viewport':
@@ -125,7 +137,8 @@ try:
         out, transcript = finish(transcript)
         assert child.returncode == -signal.SIGINT, (child.returncode, transcript)
         assert out == b'', out
-    assert termios.tcgetattr(slave) == before, (before, termios.tcgetattr(slave))
+    actual = termios.tcgetattr(slave)
+    assert terminal_state_restored(before, actual), (before, actual)
 finally:
     os.close(slave)
     os.close(master)
