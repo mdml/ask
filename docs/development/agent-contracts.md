@@ -51,7 +51,7 @@ Report each finding as: file:line, severity (blocker/should-fix/note), evidence,
 ```text
 Outcome: a correctness and quality review of promotion candidate <revision> in worktree <path>, the merge of main at <base revision> and PR head <head revision>, from milestone/<name> at <source revision> with any promotion-branch conflict resolution included.
 Read: `git diff <base revision>..<revision>` and the tests that cover it.
-Check: behavior against the documented command contract in README.md and CONTRIBUTING.md; error paths; concurrency and atomicity of storage writes; test coverage of changed behavior; duplication and unnecessary complexity.
+Check: behavior against the documented command contract in docs/reference/ (commands.md and query-behavior.md), README.md, and CONTRIBUTING.md; error paths; concurrency and atomicity of storage writes; test coverage of changed behavior; duplication and unnecessary complexity.
 Report each finding as: file:line, severity (blocker/should-fix/note), evidence, and a suggested fix. Read-only; change nothing. Return <= 400 words ending with one sentence: "Verdict: <blockers found | no blockers>".
 ```
 

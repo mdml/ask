@@ -59,15 +59,15 @@ fn thread_shows_the_full_current_thread_with_incomplete_turns() {
     assert_eq!(ask(&home, &["r", "second\nline"]).status.code(), Some(1));
     succeeded(&ask(&home, &["r", "third"]));
     let expected = "thread 1 · profile terse · model fake-model\n\n\
-                    > first\n\n**4**\n\n\
-                    > second\n> line\n\npartial\n[incomplete: provider request failed: ";
+                    You:\nfirst\n\nAssistant:\n**4**\n\n\
+                    You:\nsecond\nline\n\nAssistant:\npartial\n[incomplete: provider request failed: ";
     for name in ["thread", "t"] {
         let output = ask(&home, &[name]);
         let stdout = String::from_utf8(output.stdout).unwrap();
         assert!(output.status.success() && output.stderr.is_empty());
         assert!(stdout.starts_with(expected), "{stdout}");
         assert!(
-            stdout.ends_with("]\n\n> third\n\nthird answer\n"),
+            stdout.ends_with("]\n\nYou:\nthird\n\nAssistant:\nthird answer\n"),
             "{stdout}"
         );
     }
@@ -161,6 +161,85 @@ fn switch_selects_by_id_or_menu_and_replies_follow_the_selection() {
         user_messages(&fake.requests(5)[4]),
         ["three", "back to three"]
     );
+}
+
+#[cfg(unix)]
+#[test]
+fn terminal_switch_handles_selection_escape_and_keyboard_interrupt_and_restores_the_terminal() {
+    let fake = FakeProvider::sequence(vec![
+        Scenario::Answer("a1"),
+        Scenario::Answer("a2"),
+        Scenario::Answer("a3"),
+    ]);
+    let home = configured(&fake, Retention::Indefinite);
+    for prompt in ["one", "two", "three"] {
+        succeeded(&ask(&home, &["new", prompt]));
+    }
+    for scenario in ["select", "escape", "cancel"] {
+        let output = std::process::Command::new("python3")
+            .arg("tests/support/switch_menu_process.py")
+            .arg(env!("CARGO_BIN_EXE_ask"))
+            .arg(&home)
+            .arg(scenario)
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{scenario}: {}", stderr(&output));
+        assert_rows(&home, &[("SELECT thread_id FROM current_thread", "2")]);
+    }
+    let output = std::process::Command::new("python3")
+        .arg("tests/support/switch_menu_process.py")
+        .arg(env!("CARGO_BIN_EXE_ask"))
+        .arg(&home)
+        .arg("dumb")
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "dumb: {}", stderr(&output));
+}
+
+#[cfg(unix)]
+#[test]
+fn terminal_switch_renders_the_selected_thread_when_current_changes_after_selection() {
+    let fake = FakeProvider::start(Scenario::Answer("a"));
+    let home = configured(&fake, Retention::Indefinite);
+    for prompt in ["one", "two", "three"] {
+        succeeded(&ask(&home, &["new", prompt]));
+    }
+    let output = std::process::Command::new("python3")
+        .arg("tests/support/switch_snapshot_process.py")
+        .arg(env!("CARGO_BIN_EXE_ask"))
+        .arg(&home)
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{}", stderr(&output));
+}
+
+#[cfg(unix)]
+#[test]
+fn terminal_switch_bounds_a_wide_menu_and_keeps_wrapped_selection_visible() {
+    let fake = FakeProvider::start(Scenario::Answer("a"));
+    let home = configured(&fake, Retention::Indefinite);
+    for number in 1..=10 {
+        succeeded(&ask(
+            &home,
+            &["new", &format!("{number}界界界界界界界界界界界界界界界界")],
+        ));
+    }
+    let output = std::process::Command::new("python3")
+        .arg("tests/support/switch_menu_process.py")
+        .arg(env!("CARGO_BIN_EXE_ask"))
+        .arg(&home)
+        .arg("viewport")
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{}", stderr(&output));
+    let output = std::process::Command::new("python3")
+        .arg("tests/support/switch_menu_process.py")
+        .arg(env!("CARGO_BIN_EXE_ask"))
+        .arg(&home)
+        .arg("tiny")
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{}", stderr(&output));
 }
 
 #[test]

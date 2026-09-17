@@ -1,0 +1,391 @@
+#!/usr/bin/env python3
+"""Record and render the deterministic terminal demo."""
+
+import argparse
+import codecs
+import errno
+import fcntl
+import hashlib
+import http.server
+import json
+import os
+import pathlib
+import pty
+import re
+import select
+import shutil
+import signal
+import subprocess
+import tempfile
+import termios
+import threading
+import time
+
+
+AGG_SHA256 = "ddcbf6ca044c8ac3a434dcb9ee89fb9e3be87209982b7c2adb55f782e8f0f390"
+FONT = pathlib.Path("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
+FONT_SHA256 = "c805f9436dbc268644c1d9584f01a601a653e028e08fd74b9b949f6cf8304d88"
+COLS = 88
+ROWS = 24
+ANSI = re.compile(rb"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
+STAGE_TIMEOUT = 10
+PROMPT_PAUSE = 1.5
+EXIT_WAIT_TIMEOUT = 5
+CLEANUP_GRACE = 5
+RECORDED_COMMANDS = 4
+STAGED_TIMEOUT_ALLOWANCE_SECONDS = (
+    STAGE_TIMEOUT + RECORDED_COMMANDS * (STAGE_TIMEOUT + PROMPT_PAUSE)
+    + STAGE_TIMEOUT + EXIT_WAIT_TIMEOUT + CLEANUP_GRACE
+)
+
+
+class Provider(http.server.ThreadingHTTPServer):
+    allow_reuse_address = True
+
+    def __init__(self):
+        super().__init__(("127.0.0.1", 0), Handler)
+        self.answers = iter((
+            "The median latency is 100 ms.",
+            "The 80 ms request was faster.",
+        ))
+        self.requests = []
+
+
+class Handler(http.server.BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
+    def do_POST(self):
+        length = int(self.headers["Content-Length"])
+        self.server.requests.append(json.loads(self.rfile.read(length)))
+        answer = next(self.server.answers)
+        events = [
+            {"id": "demo", "object": "chat.completion.chunk",
+             "choices": [{"index": 0, "delta": {"content": answer},
+                          "finish_reason": None}]},
+            {"id": "demo", "object": "chat.completion.chunk",
+             "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+             "usage": {"prompt_tokens": 12, "completion_tokens": 7, "total_tokens": 19}},
+        ]
+        body = "".join(f"data: {json.dumps(event)}\n\n" for event in events)
+        encoded = (body + "data: [DONE]\n\n").encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Content-Length", str(len(encoded)))
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.wfile.write(encoded)
+
+    def log_message(self, _format, *_args):
+        pass
+
+
+def digest(path):
+    value = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            value.update(chunk)
+    return value.hexdigest()
+
+
+def terminate_process_group(process, grace=CLEANUP_GRACE):
+    if process.poll() is not None:
+        return
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    try:
+        process.wait(timeout=grace)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        process.wait()
+
+
+def output_tail(collected, limit=240):
+    return ANSI.sub(b"", collected[-limit:]).decode("utf-8", "backslashreplace")
+
+
+def read_chunk(master, stage, collected):
+    try:
+        chunk = os.read(master, 65536)
+    except BlockingIOError:
+        return None
+    if not chunk:
+        raise EOFError(f"{stage}: terminal closed; output tail={output_tail(collected)!r}")
+    return chunk
+
+
+def read_until(master, events, started, decoder, marker, timeout=STAGE_TIMEOUT,
+               stage="shell startup"):
+    collected = b""
+    deadline = time.monotonic() + timeout
+    while marker not in collected:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0 or not select.select([master], [], [], remaining)[0]:
+            raise TimeoutError(
+                f"{stage}: terminal did not emit {marker!r}; output tail={output_tail(collected)!r}")
+        chunk = read_chunk(master, stage, collected)
+        if chunk is None:
+            continue
+        collected += chunk
+        text = decoder.decode(chunk)
+        if text:
+            events.append([round(time.monotonic() - started, 6), "o", text])
+    return collected
+
+
+def wait_for_terminal_exit(master, process, events, started, decoder,
+                           timeout=EXIT_WAIT_TIMEOUT):
+    collected = b""
+    wait_started = time.monotonic()
+    deadline = wait_started + timeout
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError(
+                f"shell exit wait timed out after {time.monotonic() - wait_started:.3f}s; "
+                f"terminal output tail={output_tail(collected)!r}")
+        readable = select.select([master], [], [], min(remaining, 0.05))[0]
+        if readable:
+            try:
+                chunk = os.read(master, 65536)
+            except BlockingIOError:
+                continue
+            except OSError as error:
+                if error.errno != errno.EIO:
+                    raise
+                chunk = b""
+            if not chunk:
+                try:
+                    process.wait(timeout=remaining)
+                except subprocess.TimeoutExpired as error:
+                    raise TimeoutError(
+                        f"shell exit wait timed out after "
+                        f"{time.monotonic() - wait_started:.3f}s; "
+                        f"terminal output tail={output_tail(collected)!r}") from error
+                return
+            collected += chunk
+            text = decoder.decode(chunk)
+            if text:
+                events.append([round(time.monotonic() - started, 6), "o", text])
+        elif process.poll() is not None:
+            return
+
+
+def enter_command(master, command, events, started, decoder, timeout=STAGE_TIMEOUT, key_delay=0.018,
+                  wait_for_prompt=True):
+    pending = command.encode() + b"\n"
+    sent = 0
+    collected = b""
+    deadline = time.monotonic() + timeout
+    next_key = time.monotonic()
+    response_start = None
+    try:
+        while sent < len(pending) or (wait_for_prompt and (
+                response_start is None or b"$ " not in collected[response_start:])):
+            now = time.monotonic()
+            remaining = deadline - now
+            if remaining <= 0:
+                raise TimeoutError(
+                    f"command {command!r}: sent {sent}/{len(pending)} bytes; "
+                    f"output tail={output_tail(collected)!r}")
+            writable = [master] if sent < len(pending) and now >= next_key else []
+            wait = min(remaining, next_key - now) if sent < len(pending) and next_key > now else remaining
+            readable, writable, _ = select.select([master], writable, [], wait)
+            if readable:
+                chunk = read_chunk(master, f"command {command!r}: sent {sent}/{len(pending)} bytes", collected)
+                if chunk is not None:
+                    collected += chunk
+                    text = decoder.decode(chunk)
+                    if text:
+                        events.append([round(time.monotonic() - started, 6), "o", text])
+            if writable:
+                try:
+                    sent += os.write(master, pending[sent:sent + 1])
+                except BlockingIOError:
+                    pass
+                if sent == len(pending):
+                    response_start = len(collected)
+                next_key = time.monotonic() + key_delay
+        if wait_for_prompt:
+            time.sleep(PROMPT_PAUSE)
+    except KeyboardInterrupt as error:
+        elapsed = time.monotonic() - (deadline - timeout)
+        raise KeyboardInterrupt(
+            f"command {command!r} interrupted after {elapsed:.3f}s: "
+            f"sent {sent}/{len(pending)} bytes; output tail={output_tail(collected)!r}") from error
+
+
+def configure_child_terminal():
+    os.setsid()
+    fcntl.ioctl(0, termios.TIOCSCTTY, 0)
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+
+def record(binary, output_dir):
+    record_started = time.monotonic()
+    phase = "fixture setup"
+    binary = binary.resolve()
+    if not binary.is_file() or not os.access(binary, os.X_OK):
+        raise SystemExit(f"not an executable: {binary}")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    provider = None
+    serving = None
+    serving_started = False
+    try:
+        provider = Provider()
+        serving = threading.Thread(target=provider.serve_forever, daemon=True)
+        with tempfile.TemporaryDirectory(prefix="ask-demo-") as temporary:
+            private_bin = pathlib.Path(temporary) / "bin"
+            private_bin.mkdir()
+            (private_bin / "ask").symlink_to(binary)
+            home = pathlib.Path(temporary) / "home"
+            home.mkdir()
+            config = (f'default_profile = "demo"\n\n[providers.fixture]\n'
+                      f'kind = "openai-compatible"\nbase_url = "http://127.0.0.1:{provider.server_port}/v1"\n'
+                      'api_key_env = "DEMO_API_KEY"\n\n[profiles.demo]\n'
+                      'provider = "fixture"\nmodel = "fixture-model"\nsystem_prompt = "Answer briefly."\n')
+            (home / "config.toml").write_text(config, encoding="utf-8")
+            env = {"PATH": f"{private_bin}:/usr/bin:/bin", "ASK_HOME": str(home),
+                   "DEMO_API_KEY": "local-fixture", "NO_PROXY": "127.0.0.1",
+                   "HOME": temporary, "LANG": "C.UTF-8", "TERM": "xterm-256color",
+                   "PS1": "$ "}
+            if "LLVM_PROFILE_FILE" in os.environ:
+                env["LLVM_PROFILE_FILE"] = os.environ["LLVM_PROFILE_FILE"]
+            master, slave = pty.openpty()
+            os.set_blocking(master, False)
+            termios.tcsetwinsize(slave, (ROWS, COLS))
+            phase = "shell process creation"
+            process = subprocess.Popen(
+                ["/bin/bash", "--noprofile", "--norc", "-i"], stdin=slave,
+                stdout=slave, stderr=slave,
+                cwd=temporary, env=env, preexec_fn=configure_child_terminal)
+            os.close(slave)
+            serving.start()
+            serving_started = True
+            events = []
+            started = time.monotonic()
+            decoder = codecs.getincrementaldecoder("utf-8")()
+            try:
+                phase = "shell startup"
+                read_until(master, events, started, decoder, b"$ ")
+                command = "# Deterministic local fixture; timings are not provider performance."
+                phase = f"command {command!r}"
+                enter_command(master, command, events, started, decoder)
+                commands = (
+                    "printf 'latency: 120ms\\nlatency: 80ms\\n' | ask 'Report the median latency'",
+                    "ask reply 'Which request was faster?'",
+                    "ask thread",
+                )
+                for command in commands:
+                    phase = f"command {command!r}"
+                    enter_command(master, command, events, started, decoder)
+                phase = "command 'exit'"
+                enter_command(master, "exit", events, started, decoder, wait_for_prompt=False)
+                phase = "shell exit wait"
+                wait_for_terminal_exit(master, process, events, started, decoder)
+            finally:
+                os.close(master)
+                terminate_process_group(process)
+            tail = decoder.decode(b"", final=True)
+            if tail:
+                events.append([round(time.monotonic() - started, 6), "o", tail])
+            if process.returncode != 0:
+                raise RuntimeError(f"demo shell exited {process.returncode}")
+            if len(provider.requests) != 2:
+                raise RuntimeError(f"expected two fixture requests, got {len(provider.requests)}")
+            reply_messages = provider.requests[1]["messages"]
+            if not any(message.get("content") == "The median latency is 100 ms."
+                       or message.get("content") == [{"type": "text", "text": "The median latency is 100 ms."}]
+                       for message in reply_messages):
+                raise RuntimeError("reply did not include the first fixture answer")
+
+            header = {"version": 2, "width": COLS, "height": ROWS,
+                      "env": {"SHELL": "/bin/bash", "TERM": "xterm-256color"},
+                      "ask_binary_sha256": digest(binary),
+                      "title": "ask deterministic happy-path demo"}
+            cast = output_dir / "demo.cast"
+            with cast.open("w", encoding="utf-8", newline="\n") as target:
+                target.write(json.dumps(header, separators=(",", ":")) + "\n")
+                for event in events:
+                    target.write(json.dumps(event, separators=(",", ":")) + "\n")
+            stream = b"".join(event[2].encode() for event in events)
+            transcript = ANSI.sub(b"", stream).replace(b"\r\n", b"\n").replace(b"\r", b"")
+            transcript = b"\n".join(line.rstrip() for line in transcript.splitlines()) + b"\n"
+            (output_dir / "demo.txt").write_bytes(transcript)
+    except KeyboardInterrupt as error:
+        elapsed = time.monotonic() - record_started
+        raise KeyboardInterrupt(
+            f"demo recording interrupted during {phase} after {elapsed:.3f}s: {error}") from error
+    finally:
+        if provider is not None:
+            if serving_started:
+                provider.shutdown()
+            provider.server_close()
+            if serving_started:
+                serving.join(timeout=5)
+
+
+def validate_renderer(agg):
+    if digest(agg) != AGG_SHA256:
+        raise SystemExit(f"agg SHA-256 does not match approved {AGG_SHA256}")
+    if digest(FONT) != FONT_SHA256:
+        raise SystemExit(f"font SHA-256 does not match recorded {FONT_SHA256}")
+
+
+def render(agg, output_dir):
+    agg = agg.resolve()
+    validate_renderer(agg)
+    cast = (output_dir / "demo.cast").resolve()
+    clean_env = {"PATH": "/usr/bin", "HOME": "/tmp", "LANG": "C.UTF-8"}
+    with tempfile.TemporaryDirectory(prefix="ask-demo-render-") as scratch:
+        command = ["bwrap", "--die-with-parent", "--unshare-net", "--dir", "/usr",
+                   "--dir", "/usr/bin", "--dir", "/usr/share", "--dir", "/etc",
+                   "--dir", "/var", "--dir", "/var/cache",
+                   "--ro-bind", str(agg), "/usr/bin/agg", "--ro-bind", str(cast), "/input.cast",
+                   "--ro-bind", "/usr/share/fonts", "/usr/share/fonts",
+                   "--ro-bind", "/etc/fonts", "/etc/fonts",
+                   "--ro-bind", "/var/cache/fontconfig", "/var/cache/fontconfig",
+                   "--tmpfs", "/tmp", "--dir", "/output", "--bind", scratch, "/output",
+                   "/usr/bin/agg", "--quiet", "--font-family", "DejaVu Sans Mono",
+                   "--font-size", "16", "--line-height", "1.35", "--theme", "github-dark",
+                   "--cols", str(COLS), "--rows", str(ROWS), "--idle-time-limit", "1.5",
+                   "--last-frame-duration", "3", "/input.cast", "/output/demo.gif"]
+        process = subprocess.Popen(command, env=clean_env, start_new_session=True)
+        try:
+            returncode = process.wait(timeout=120)
+        except subprocess.TimeoutExpired:
+            terminate_process_group(process)
+            raise
+        if returncode != 0:
+            raise subprocess.CalledProcessError(returncode, command)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(dir=output_dir, prefix=".demo-", suffix=".gif",
+                                         delete=False) as staged:
+            staged_path = pathlib.Path(staged.name)
+            with (pathlib.Path(scratch) / "demo.gif").open("rb") as rendered:
+                shutil.copyfileobj(rendered, staged)
+        staged_path.chmod(0o644)
+        os.replace(staged_path, output_dir / "demo.gif")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("binary", type=pathlib.Path, help="already-built ask executable")
+    parser.add_argument("--output-dir", type=pathlib.Path,
+                        default=pathlib.Path("docs/assets/demo"))
+    parser.add_argument("--agg", type=pathlib.Path,
+                        help="approved agg 1.9.0 executable; omit to record without rendering")
+    args = parser.parse_args()
+    if args.agg:
+        validate_renderer(args.agg)
+    record(args.binary, args.output_dir)
+    if args.agg:
+        render(args.agg, args.output_dir)
+
+
+if __name__ == "__main__":
+    main()

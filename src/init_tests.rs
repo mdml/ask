@@ -23,7 +23,7 @@ fn fresh_path() -> PathBuf {
 fn drive(path: &Path, answers: &str) -> (Result<(), InitError>, String) {
     let mut input = Cursor::new(answers.as_bytes().to_vec());
     let mut output = Vec::new();
-    let result = run(path, &mut input, &mut output);
+    let result = run(path, &mut input, &mut output, false);
     (result, String::from_utf8(output).unwrap())
 }
 

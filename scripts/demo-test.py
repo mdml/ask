@@ -1,0 +1,255 @@
+#!/usr/bin/env python3
+"""Smoke-test the terminal demo recorder using an already-built ask binary."""
+
+import codecs
+import hashlib
+import importlib.util
+import json
+import os
+import pathlib
+import pty
+import select
+import shutil
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+
+
+if not __debug__:
+    sys.exit("demo proof requires Python assertions")
+
+binary = pathlib.Path(sys.argv[1]).resolve()
+script = pathlib.Path(__file__).with_name("demo.py")
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("ask_demo", script)
+demo = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(demo)
+chunks = iter((b"\xe2", b"\x80", b"\xa2$ "))
+original_read = demo.os.read
+original_write = demo.os.write
+original_select = demo.select.select
+demo.os.read = lambda _fd, _size: next(chunks)
+demo.select.select = lambda *_args: ([0], [], [])
+split_events = []
+try:
+    demo.read_until(0, split_events, demo.time.monotonic(),
+                    codecs.getincrementaldecoder("utf-8")(), b"$ ")
+finally:
+    demo.os.read = original_read
+    demo.select.select = original_select
+assert "".join(event[2] for event in split_events) == "•$ "
+
+# A single event loop must keep draining output while a slow PTY accepts input.
+reads = [b"echoed output", b"$ "]
+writes = bytearray()
+demo.os.read = lambda _fd, _size: reads.pop(0)
+demo.os.write = lambda _fd, value: writes.extend(value) or len(value)
+demo.select.select = lambda readable, writable, _errors, _timeout: (
+    readable if reads and (len(reads) == 2 or writes == b"slow\n") else [], writable, [])
+flow_events = []
+try:
+    demo.enter_command(0, "slow", flow_events, demo.time.monotonic(),
+                       codecs.getincrementaldecoder("utf-8")(), timeout=1, key_delay=0)
+finally:
+    demo.os.read = original_read
+    demo.os.write = original_write
+    demo.select.select = original_select
+assert writes == b"slow\n"
+assert "".join(event[2] for event in flow_events) == "echoed output$ "
+
+try:
+    demo.enter_command(0, "stalled", [], demo.time.monotonic(),
+                       codecs.getincrementaldecoder("utf-8")(), timeout=0)
+    raise AssertionError("stalled command did not time out")
+except TimeoutError as error:
+    assert "command 'stalled': sent 0/8 bytes; output tail=''" in str(error)
+
+def expect_terminal_failure(incoming, expected_error):
+    chunks = list(incoming)
+    demo.os.read = lambda _fd, _size: chunks.pop(0) if chunks else b""
+    demo.os.write = lambda _fd, value: len(value)
+    demo.select.select = lambda readable, writable, *_args: (
+        readable if chunks else [], writable, [])
+    try:
+        demo.enter_command(0, "x", [], demo.time.monotonic(),
+                           codecs.getincrementaldecoder("utf-8")(), timeout=0.02, key_delay=0)
+    except expected_error:
+        return
+    finally:
+        demo.os.read = original_read
+        demo.os.write = original_write
+        demo.select.select = original_select
+    raise AssertionError(f"terminal did not raise {expected_error.__name__}")
+
+
+failures = []
+for incoming, error in [([b"$ "], TimeoutError), ([b""], EOFError)]:
+    try:
+        expect_terminal_failure(incoming, error)
+    except Exception as failure:
+        failures.append(f"{error.__name__}: {failure!r}")
+assert not failures, failures
+
+# The process watchdog covers the whole recorder beyond its configured stage allowances.
+OUTER_WATCHDOG_SECONDS = demo.STAGED_TIMEOUT_ALLOWANCE_SECONDS + 15
+assert demo.STAGED_TIMEOUT_ALLOWANCE_SECONDS == 76
+assert OUTER_WATCHDOG_SECONDS == 91
+
+# A child that writes more than the PTY buffer cannot exit until its output is drained.
+master, slave = pty.openpty()
+backpressure = subprocess.Popen(
+    [sys.executable, "-c", "import os; os.write(1, b'x' * 1024 * 1024)"],
+    stdout=slave, stderr=slave)
+os.close(slave)
+try:
+    try:
+        backpressure.wait(timeout=0.1)
+        raise AssertionError("backpressure probe exited without a terminal reader")
+    except subprocess.TimeoutExpired:
+        pass
+    exit_events = []
+    demo.wait_for_terminal_exit(
+        master, backpressure, exit_events, time.monotonic(),
+        codecs.getincrementaldecoder("utf-8")(), timeout=5)
+    assert backpressure.returncode == 0
+    assert len("".join(event[2] for event in exit_events)) == 1024 * 1024
+finally:
+    os.close(master)
+    if backpressure.poll() is None:
+        backpressure.kill()
+        backpressure.wait(timeout=5)
+
+try:
+    demo.wait_for_terminal_exit(
+        0, backpressure, [], time.monotonic(),
+        codecs.getincrementaldecoder("utf-8")(), timeout=0)
+    raise AssertionError("shell exit wait did not time out")
+except TimeoutError as error:
+    assert "shell exit wait timed out after" in str(error)
+    assert "terminal output tail=''" in str(error)
+
+demo.select.select = lambda *_args: (_ for _ in ()).throw(KeyboardInterrupt())
+interrupted_at = time.monotonic()
+try:
+    demo.enter_command(0, "diagnostic", [], interrupted_at,
+                       codecs.getincrementaldecoder("utf-8")(), timeout=10)
+    raise AssertionError("interrupted command did not report diagnostics")
+except KeyboardInterrupt as error:
+    message = str(error)
+    assert "command 'diagnostic' interrupted after" in message
+    assert "sent 0/11 bytes; output tail=''" in message
+finally:
+    demo.select.select = original_select
+
+original_write = demo.os.write
+demo.os.write = lambda *_args: (_ for _ in ()).throw(KeyboardInterrupt())
+demo.select.select = lambda _readable, writable, *_args: ([], writable, [])
+try:
+    demo.enter_command(0, "diagnostic", [], time.monotonic(),
+                       codecs.getincrementaldecoder("utf-8")(), timeout=10, key_delay=0)
+    raise AssertionError("write interruption did not report command diagnostics")
+except KeyboardInterrupt as error:
+    message = str(error)
+    assert "command 'diagnostic' interrupted after" in message
+    assert "sent 0/11 bytes; output tail=''" in message
+finally:
+    demo.os.write = original_write
+    demo.select.select = original_select
+
+signal_probe = """
+import codecs, importlib.util, os, pathlib, pty, signal, sys, time
+spec = importlib.util.spec_from_file_location('ask_demo_signal', pathlib.Path(sys.argv[1]))
+demo = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(demo)
+master, slave = pty.openpty()
+real_select = demo.select.select
+ready = False
+def ready_select(*args):
+    global ready
+    if not ready:
+        ready = True
+        print('ready', flush=True)
+        signal.pause()
+    return real_select(*args)
+demo.select.select = ready_select
+demo.enter_command(master, 'signal diagnostic', [], time.monotonic(),
+                   codecs.getincrementaldecoder('utf-8')(), timeout=10)
+"""
+probe = subprocess.Popen(
+    [sys.executable, "-c", signal_probe, str(script)], stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE, text=True, start_new_session=True)
+try:
+    if not select.select([probe.stdout], [], [], 5)[0]:
+        probe.kill()
+        _stdout, stderr = probe.communicate(timeout=5)
+        raise AssertionError(f"signal probe did not start; stderr={stderr!r}")
+    readiness = probe.stdout.readline().strip()
+    if readiness != "ready":
+        probe.kill()
+        _stdout, stderr = probe.communicate(timeout=5)
+        raise AssertionError(
+            f"signal probe reported {readiness!r}, expected 'ready'; stderr={stderr!r}")
+    os.kill(probe.pid, signal.SIGINT)
+    _stdout, stderr = probe.communicate(timeout=5)
+finally:
+    if probe.poll() is None:
+        probe.kill()
+        probe.wait(timeout=5)
+assert probe.returncode != 0, f"signal probe succeeded; stderr={stderr!r}"
+assert "command 'signal diagnostic' interrupted after" in stderr, stderr
+assert "/18 bytes; output tail=" in stderr, stderr
+
+original_provider = demo.Provider
+demo.Provider = lambda: (_ for _ in ()).throw(KeyboardInterrupt("fixture interrupted"))
+try:
+    with tempfile.TemporaryDirectory(prefix="ask-demo-phase-test-") as temporary:
+        demo.record(binary, pathlib.Path(temporary) / "assets")
+    raise AssertionError("fixture interruption did not report its phase")
+except KeyboardInterrupt as error:
+    assert "interrupted during fixture setup after" in str(error)
+    assert "fixture interrupted" in str(error)
+finally:
+    demo.Provider = original_provider
+
+with tempfile.TemporaryDirectory(prefix="ask-demo-test-") as temporary:
+    renamed_binary = pathlib.Path(temporary) / "renamed-executable"
+    shutil.copy2(binary, renamed_binary)
+    output = pathlib.Path(temporary) / "assets"
+    rejected = pathlib.Path(temporary) / "rejected"
+    invalid = subprocess.run(
+        [sys.executable, str(script), str(renamed_binary), "--output-dir", str(rejected),
+         "--agg", str(renamed_binary)], capture_output=True, timeout=30)
+    assert invalid.returncode != 0
+    assert not rejected.exists(), "invalid renderer changed recording assets"
+    process = subprocess.Popen(
+        [sys.executable, str(script), str(renamed_binary), "--output-dir", str(output)],
+        start_new_session=True)
+    try:
+        returncode = process.wait(timeout=OUTER_WATCHDOG_SECONDS)
+    except subprocess.TimeoutExpired:
+        os.killpg(process.pid, signal.SIGINT)
+        try:
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            os.killpg(process.pid, signal.SIGKILL)
+            process.wait()
+        raise
+    if returncode != 0:
+        raise subprocess.CalledProcessError(returncode, process.args)
+    lines = (output / "demo.cast").read_text(encoding="utf-8").splitlines()
+    header = json.loads(lines[0])
+    assert (header["version"], header["width"], header["height"], header["env"]["SHELL"]) == (2, 88, 24, "/bin/bash")
+    assert header["ask_binary_sha256"] == hashlib.sha256(renamed_binary.read_bytes()).hexdigest()
+    events = [json.loads(line) for line in lines[1:]]
+    assert all(len(event) == 3 and event[1] == "o" for event in events)
+    assert all(events[index][0] <= events[index + 1][0] for index in range(len(events) - 1))
+    transcript = (output / "demo.txt").read_text(encoding="utf-8")
+    for expected in ("Report the median latency", "The median latency is 100 ms.",
+                     "Which request was faster?", "The 80 ms request was faster.",
+                     "ask thread", "Deterministic local fixture"):
+        assert expected in transcript, expected
+    assert "\x1b" not in transcript
+    assert str(pathlib.Path.home()) not in transcript
+print("demo recorder: passed")

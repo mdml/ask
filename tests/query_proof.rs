@@ -408,7 +408,7 @@ fn terminal_words_never_wait_for_input() {
 }
 
 #[test]
-fn terminal_multiline_submits_on_eof() {
+fn terminal_multiline_uses_you_prompt_and_submits_on_eof() {
     for args in [&[][..], &["new"][..], &["n"][..]] {
         let fake = FakeProvider::start(Scenario::Stream);
         let home = configured_home(&fake.base_url(), None, None);

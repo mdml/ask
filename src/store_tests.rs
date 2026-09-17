@@ -847,6 +847,39 @@ fn selection_changes_current_only_for_an_existing_thread() {
 }
 
 #[test]
+fn selection_view_is_the_named_thread_even_if_current_changes_during_selection() {
+    let mut store = three_threads();
+    store
+        .connection
+        .execute_batch(
+            "CREATE TRIGGER redirect_current AFTER UPDATE ON current_thread
+             BEGIN UPDATE current_thread SET thread_id = 1; END;",
+        )
+        .unwrap();
+    let selected = store.select_view(2).unwrap().unwrap();
+    assert_eq!(
+        (selected.id, selected.turns[0].prompt.as_str()),
+        (2, "second")
+    );
+    assert_eq!(current_id(&mut store), Some(1));
+}
+
+#[test]
+fn selection_view_rolls_back_current_when_reading_the_view_fails() {
+    let mut store = three_threads();
+    store
+        .connection
+        .execute_batch("ALTER TABLE turns RENAME TO inaccessible_turns")
+        .unwrap();
+    assert!(store.select_view(2).is_err());
+    store
+        .connection
+        .execute_batch("ALTER TABLE inaccessible_turns RENAME TO turns")
+        .unwrap();
+    assert_eq!(current_id(&mut store), Some(1));
+}
+
+#[test]
 fn an_empty_store_summarizes_to_nothing() {
     let mut store = Store::open(&scratch()).unwrap();
     let empty = store.summary().unwrap();

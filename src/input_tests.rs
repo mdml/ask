@@ -51,7 +51,7 @@ fn multiline_prompt_preserves_lines_and_rejects_empty_submissions() {
         resolve(None, true, &mut Cursor::new(text), &mut stderr).unwrap(),
         text
     );
-    assert_eq!(stderr, b"ask> ");
+    assert_eq!(stderr, b"You> ");
     for terminal in [true, false] {
         for text in ["", " \t\r\n"] {
             let error =

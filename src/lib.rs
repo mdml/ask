@@ -15,6 +15,7 @@ mod recall;
 mod runner;
 mod stats;
 mod store;
+mod terminal;
 mod utc;
 mod validate;
 
@@ -40,15 +41,28 @@ async fn execute(
 ) -> ExitCode {
     let wall_start = Instant::now();
     let stdin_is_terminal = io::stdin().is_terminal();
+    let interactive_terminal = stdin_is_terminal
+        && io::stderr().is_terminal()
+        && env::var("TERM").is_ok_and(|term| term != "dumb");
     let (mode, options) = match cli::parse(args, stdin_is_terminal) {
         Ok(cli::Command::Query(mode, options)) => (mode, options),
         Ok(cli::Command::Thread) => return recall::thread(stdout, stderr),
-        Ok(cli::Command::Switch(id)) => return recall::switch(id, &mut io::stdin().lock(), stderr),
+        Ok(cli::Command::Switch(id)) => {
+            return match id {
+                Some(id) => recall::switch_id(id, stderr),
+                None => recall::switch_interactive(
+                    &mut io::stdin().lock(),
+                    stdout,
+                    stderr,
+                    interactive_terminal,
+                ),
+            };
+        }
         Ok(cli::Command::Stats) => return overview::run(stdout, stderr),
         Ok(cli::Command::Doctor { live, all }) => {
             return doctor::run(doctor::Options { live, all }, stdout, stderr).await;
         }
-        Ok(cli::Command::Init) => return init(stderr),
+        Ok(cli::Command::Init) => return init(stderr, interactive_terminal),
         Ok(cli::Command::Configure(action)) => return configure(&action, stderr),
         Ok(cli::Command::Help) => return help::run(stdout, stderr),
         Ok(cli::Command::Version) => return help::version(stdout, stderr),
@@ -64,12 +78,12 @@ async fn execute(
     query::run(query, stdout, stderr).await
 }
 
-fn init(stderr: &mut impl io::Write) -> ExitCode {
+fn init(stderr: &mut impl io::Write, interactive_terminal: bool) -> ExitCode {
     let path = match config::config_path() {
         Ok(path) => path,
         Err(error) => return report(stderr, &error.to_string(), ExitCode::FAILURE),
     };
-    match init::run(&path, &mut io::stdin().lock(), stderr) {
+    match init::run(&path, &mut io::stdin().lock(), stderr, interactive_terminal) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => report(stderr, &error.to_string(), ExitCode::FAILURE),
     }

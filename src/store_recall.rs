@@ -138,16 +138,33 @@ impl Store {
 
     /// Makes `id` the current thread. Returns `false` when no such thread exists.
     pub fn select(&mut self, id: i64) -> Result<bool, StoreError> {
+        let Some(transaction) = self.begin_selection(id)? else {
+            return Ok(false);
+        };
+        transaction.commit()?;
+        Ok(true)
+    }
+
+    /// Makes `id` current and captures its view in the same transaction.
+    pub fn select_view(&mut self, id: i64) -> Result<Option<ThreadView>, StoreError> {
+        let Some(transaction) = self.begin_selection(id)? else {
+            return Ok(None);
+        };
+        let selected = view(&transaction, id)?;
+        transaction.commit()?;
+        Ok(Some(selected))
+    }
+
+    fn begin_selection(&mut self, id: i64) -> Result<Option<Transaction<'_>>, StoreError> {
         let transaction = self
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let exists: i64 = transaction.query_row(THREAD_EXISTS, [id], |row| row.get(0))?;
         if exists == 0 {
-            return Ok(false);
+            return Ok(None);
         }
         transaction.execute(MAKE_CURRENT, [id])?;
-        transaction.commit()?;
-        Ok(true)
+        Ok(Some(transaction))
     }
 
     pub fn summary(&mut self) -> Result<Summary, StoreError> {

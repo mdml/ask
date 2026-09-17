@@ -61,7 +61,7 @@ fn compose(instruction: &str, payload: &str) -> String {
 
 // Terminal submission: EOF submits; SIGINT keeps its default behavior.
 fn multiline(reader: &mut impl io::Read, stderr: &mut impl io::Write) -> Result<String, Error> {
-    stderr.write_all(b"ask> ").map_err(Error::Prompt)?;
+    stderr.write_all(b"You> ").map_err(Error::Prompt)?;
     stderr.flush().map_err(Error::Prompt)?;
     submission(read(reader)?)
 }
