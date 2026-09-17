@@ -76,7 +76,7 @@ try:
         out, transcript = finish(transcript)
         assert child.returncode == 0, (child.returncode, transcript)
         assert out == b'', out
-        assert termios.tcgetattr(slave) == before
+        assert termios.tcgetattr(slave) == before, (before, termios.tcgetattr(slave))
         sys.exit(0)
     if scenario == 'tiny':
         transcript = wait_for(
@@ -85,7 +85,7 @@ try:
         out, transcript = finish(transcript)
         assert child.returncode == 1, (child.returncode, transcript, out)
         assert b'interactive selection requires terminal height of at least 3 rows' in transcript, transcript
-        assert termios.tcgetattr(slave) == before
+        assert termios.tcgetattr(slave) == before, (before, termios.tcgetattr(slave))
         sys.exit(0)
     transcript = wait_for(raw_mode, transcript, 'waiting for switch raw mode')
     if scenario == 'viewport':
@@ -125,7 +125,7 @@ try:
         out, transcript = finish(transcript)
         assert child.returncode == -signal.SIGINT, (child.returncode, transcript)
         assert out == b'', out
-    assert termios.tcgetattr(slave) == before
+    assert termios.tcgetattr(slave) == before, (before, termios.tcgetattr(slave))
 finally:
     os.close(slave)
     os.close(master)

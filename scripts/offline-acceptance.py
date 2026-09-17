@@ -142,7 +142,7 @@ def terminal_menu(binary, env, args, keys, followup=b""):
             except OSError:
                 break
         assert child.returncode == 0, (args, child.returncode, transcript, stdout)
-        assert termios.tcgetattr(slave) == before, (args, "terminal state not restored")
+        assert termios.tcgetattr(slave) == before, (args, before, termios.tcgetattr(slave))
         return stdout, transcript
     finally:
         os.close(slave)
