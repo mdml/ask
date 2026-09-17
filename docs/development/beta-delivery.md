@@ -25,12 +25,13 @@ The owner's own nightly install integration and credential isolation live outsid
 | P2 | `thread`/`t`, `switch`/`s`, `stats`; configurable whole-thread expiry with highwater thread ids; schema version 2 history expiry with version 1 migration; `recall_proof` coverage including expiry, captured-thread races, and invalid-configuration fallback; durable concurrent-writer proof; partial-line double Ctrl-D PTY proof in `query_proof`. | None for the packet scope; integration with P1 is verified through schema version 3. |
 | P3 | `doctor`/`d`, offline path/configuration/credential/storage checks, opt-in minimal live checks, schema version 4 health-source observations; `doctor_proof` covers offline side effects and fake-provider live checks. | Final candidate integration and installed workflow verification. |
 | P4 | Stable publication workflow, packaging checks, and Homebrew formula generator are prepared; see [stable releases](../guides/stable-releases.md). | Owner nightly evaluation and stable authorization, then publication and stable/Homebrew installation proofs. |
+| P9 | Terminal presentation and onboarding, task-oriented documentation, the deterministic README demo, the `/ask-doctor` skill, `demo_proof`, and repeatable offline installed-workflow acceptance are implemented. | No nightly containing P9 has been published or evaluated; stable publication remains pending. |
 
 On 2026-09-16 the beta umbrella gained durable concurrent-writer proofs through PR #35. The implemented-baseline table above remains a snapshot of `ba658d4`.
 
 ## Work packets
 
-Order: P1 → P2 → P3. P4–P7 run in parallel wherever they do not touch the same files.
+Order: P1 → P2 → P3. P4–P8 run in parallel wherever they do not touch the same files. P9 follows feedback from use of the initial beta nightly.
 
 | ID | Packet | Depends on |
 |:--|:--|:--|
@@ -42,6 +43,7 @@ Order: P1 → P2 → P3. P4–P7 run in parallel wherever they do not touch the 
 | P6 | Report-only [native SQLite monitoring](sqlite-monitoring.md) and production identity, compile-option, damaged-file, and busy-timeout checks are implemented. The separate readiness workflow remains pending four-target real-release evidence and a complete probe-equivalence review. | Retirement requires the adoption record's remaining evidence. |
 | P7 | Nightly action disposition [reassessed on 2026-09-16](../reviews/nightly-actions-2026-09-16.md) with no new blocker; acceptance and the enforced deadline remain unchanged and expire after 2026-09-29 UTC. | A later deadline requires a separately authorized review and code change; nightly release preparation fails after the current deadline. |
 | P8 | Nightly unchanged-source skipping: scheduled and ordinary manual runs skip tagging, building, and publishing when `main` equals the most recent successfully published nightly source, judged from published-release evidence rather than a tag or draft; a failed unpublished attempt retries; a same-source republish needs the `repair` dispatch input. Implemented in `nightly-release.yml`, `scripts/nightly-release.py`, and the [nightly guide](../guides/nightly-releases.md). | None. |
+| P9 | Presentation and onboarding: terminal menus and speaker-aware output; task-oriented user guides and reference documentation; the deterministic README demo; the `/ask-doctor` skill; `demo_proof`; and the repeatable offline installed-workflow acceptance proof. | Publish and evaluate a nightly containing the presentation changes; stable publication remains pending. |
 
 ## Proof and evidence matrix
 
@@ -50,13 +52,14 @@ Acceptance proofs run in this order through the real product boundary. Ordinary 
 | Proof | Existing evidence | Missing |
 |:--|:--|:--|
 | Install | Nightly packaging tests; offline packaged `configure check` | Repeat published-archive installation for the final candidate; stable and Homebrew installs |
-| Configure | `configure_proof` (init menu/defaults, help/version offline, apply/check); retention validation in unit tests and `recall_proof` | None after P1 setup UX |
+| Configure | `configure_proof` (init menu/defaults, help/version offline, apply/check), including PTY arrow-key selection, Escape, Ctrl-C, and terminal restoration; retention validation in unit tests and `recall_proof` | None after P1 setup UX |
 | Query | `query_proof`, including the partial-line double Ctrl-D PTY proof; `provider_proof` covers supported wire formats, usage, errors, limits, and refusals | None for deterministic provider coverage |
 | Continue | `continue_proof`, including concurrent writers; `provider_proof` covers reply history for each supported kind | None for deterministic provider coverage |
-| Recall | `recall_proof`: thread output, switching, statistics, expiry, cancellation, captured-thread races, invalid-configuration fallback; migration coverage in `store_tests` and `provider_proof` | None after schema version 4 integration |
+| Recall | `recall_proof`: thread output, switching, statistics, expiry, cancellation, captured-thread races, invalid-configuration fallback; PTY arrow-key selection, Escape, Ctrl-C, terminal restoration, `TERM=dumb` fallback, bounded viewports, and selected-snapshot rendering; migration coverage in `store_tests` and `provider_proof` | None after schema version 4 integration |
 | Diagnose | `doctor_proof` offline/side-effect-free, `--live`, `--live --all` against fake provider | Repeat on final candidate |
 | Compose | `query_proof`/`continue_proof`; inspection stdout/stderr assertions in `recall_proof` | Recheck with diagnostics |
 | Live | [2026-09-16 query/reply checks](../reviews/live-provider-checks-2026-09-16.md) passed for OpenAI, Anthropic, Gemini, and OpenRouter | Operational scheduling and complete installed-workflow evidence |
+| Presentation | `demo_proof` smoke-tests the deterministic terminal recorder; `offline_acceptance` and `just acceptance <binary>` exercise initialization, configuration, queries, replies, switching, inspection, composition, credential isolation, and terminal restoration through the real binary | Repeat the walkthrough against a published nightly containing P9; stable publication remains pending |
 
 Record personally run results in PRs; this table lists proof targets, not results.
 
