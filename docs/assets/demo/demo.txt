@@ -1,7 +1,7 @@
 $ # Deterministic local fixture; timings are not provider performance.
 $ printf 'latency: 120ms\nlatency: 80ms\n' | ask 'Report the median latency'
 The median latency is 100 ms.
-ask: fixture-model · 0.1s wall · 0.0s api · 0.0s to first token · 12 in / 7 out
+ask: fixture-model · 0.1s wall · 0.1s api · 0.1s to first token · 12 in / 7 out
 $ ask reply 'Which request was faster?'
 The 80 ms request was faster.
 ask: fixture-model · 0.0s wall · 0.0s api · 0.0s to first token · 12 in / 7 out
@@ -22,4 +22,4 @@ Which request was faster?
 
 Assistant:
 The 80 ms request was faster.
-$
+$ exit
