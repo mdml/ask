@@ -1,12 +1,12 @@
 # Stable releases
 
-Stable publication is **not live yet**. The `stable` branch, stable GitHub releases, and the Homebrew formula do not exist until the owner authorizes the first push. This guide describes the prepared workflow and operator steps; it does not claim any stable asset is published.
+`v0.1.0` is the first stable release, built from accepted nightly source `3c8ce0e`, with release archives and the `mdml/tap/ask` Homebrew formula. This guide gives the reusable operator sequence for later stable releases.
 
 ## Operator sequence
 
-1. **Freeze the candidate.** Choose the exact revision to release. The Cargo version in `Cargo.toml` determines the stable tag (`v<Cargo version>`). Record base, candidate SHA, and tree id. The first authorized stable push should target a revision whose source is already the most recent successfully published nightly on `main`, with P4 review fixes applied and verified on that candidate.
+1. **Prepare and freeze the candidate.** Increment the semantic version in `Cargo.toml`; each stable release needs a version whose `v<Cargo version>` tag does not exist. Publish, review, and test a nightly containing that version and the intended changes before selecting the stable candidate. The candidate may add reviewed fixes, which must also be verified. Record the base, candidate SHA, and tree id.
 2. **Pre-push checks (required, external to the workflow).** The managing agent runs `just verify-full --all`, `cargo deny --locked check advisories`, and the supervised attack search in [SECURITY.md](../../SECURITY.md) on that exact revision. Record findings, dispositions, advisory results, search time, and owner authorization. Unresolved blockers prevent the push.
-3. **Create and push `stable` once authorized.** Only the managing agent pushes to `mdml/ask` after owner authorization. Do not create the branch, tags, or releases before authorization.
+3. **Push `stable` once authorized.** Only the managing agent pushes the exact candidate to `mdml/ask` after owner authorization. Do not create tags or releases before authorization.
 4. **Workflow publication.** A push to protected `stable` runs [.github/workflows/stable-release.yml](../../.github/workflows/stable-release.yml). It checks out the immutable push SHA, refuses an existing tag, runs the full gate and advisory check, builds and tests four native production targets with Rust 1.97.1 and the locked lockfile, packages and attests archives, verifies a draft release's asset inventory and digests, then publishes a non-prerelease release. Workflow repetition does not replace the pre-push checks.
 5. **Homebrew (manual, no cross-repo credential).** After publication, check out the published release revision so `Cargo.toml` matches its version, download `SHA256SUMS` from that same release, and generate the formula locally:
 
@@ -14,9 +14,19 @@ Stable publication is **not live yet**. The `stable` branch, stable GitHub relea
 python3 scripts/homebrew-formula.py SHA256SUMS --output ask.rb
 ```
 
-Review and commit `ask.rb` to the public [mdml/homebrew-tap](https://github.com/mdml/homebrew-tap) repository by hand. As of 2026-09-16 the tap is empty and no stable download URLs exist until step 4 completes.
+Review and commit `ask.rb` to the public [mdml/homebrew-tap](https://github.com/mdml/homebrew-tap) repository by hand.
 
-6. **Install verification.** Install through mise without `prerelease=true`, and through Homebrew after the tap update. Repeat published-archive checksum and attestation checks as for nightlies.
+6. **Install verification.** Install through mise without `prerelease=true`, and through Homebrew after the tap update. Run the archive checks below. Record the checksum, attestation, mise installation, and Homebrew installation results with the release.
+
+## Verify a downloaded archive
+
+Download the archive for your platform and `SHA256SUMS` from the same [stable release](https://github.com/mdml/ask/releases/latest). In their directory, set `archive` to the downloaded filename and run:
+
+```sh
+awk -v name="$archive" '$2 == name' SHA256SUMS | shasum -a 256 -c -
+gh attestation verify "$archive" --repo mdml/ask \
+  --signer-workflow mdml/ask/.github/workflows/stable-release.yml
+```
 
 ## Trust boundary
 
