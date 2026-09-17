@@ -41,10 +41,34 @@ def wait_for_raw(transcript, timeout=5):
     return transcript
 
 
+def finish(transcript, timeout=10):
+    stdout = b''
+    deadline = time.monotonic() + timeout
+    while child.poll() is None:
+        remaining = deadline - time.monotonic()
+        assert remaining > 0, ('waiting for switch exit', 'timed out', transcript, stdout)
+        ready, _, _ = select.select([master, child.stdout], [], [], min(0.05, remaining))
+        for source in ready:
+            if source == master:
+                try:
+                    transcript += os.read(master, 4096)
+                except OSError:
+                    pass
+            else:
+                stdout += child.stdout.read1(4096)
+    stdout += child.stdout.read()
+    while select.select([master], [], [], 0)[0]:
+        try:
+            transcript += os.read(master, 4096)
+        except OSError:
+            break
+    return stdout, transcript
+
+
 try:
     transcript = wait_for_raw(b'')
     os.write(master, b'\x1b[B\r')
-    out, _ = child.communicate(timeout=10)
+    out, transcript = finish(transcript)
     assert child.returncode == 0, (child.returncode, transcript)
     assert b'thread 2' in out and b'You:\ntwo' in out, out
     with sqlite3.connect(database) as connection:

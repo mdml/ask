@@ -109,8 +109,38 @@ def terminal_menu(binary, env, args, keys, followup=b""):
                 transcript += os.read(master, 4096)
         os.write(master, keys)
         if followup:
+            deadline = time.monotonic() + 5
+            while b"Provider name" not in transcript:
+                returncode = child.poll()
+                assert returncode is None, (args, "child exited before normal prompt",
+                                            returncode, transcript)
+                remaining = deadline - time.monotonic()
+                assert remaining > 0, (args, "timed out waiting for normal prompt", transcript)
+                ready, _, _ = select.select([master], [], [], min(0.05, remaining))
+                if ready:
+                    transcript += os.read(master, 4096)
             os.write(master, followup)
-        stdout, _ = child.communicate(timeout=10)
+        stdout = b""
+        deadline = time.monotonic() + 10
+        while child.poll() is None:
+            remaining = deadline - time.monotonic()
+            assert remaining > 0, (args, "timed out waiting for exit", transcript, stdout)
+            ready, _, _ = select.select([master, child.stdout], [], [],
+                                        min(0.05, remaining))
+            for source in ready:
+                if source == master:
+                    try:
+                        transcript += os.read(master, 4096)
+                    except OSError:
+                        pass
+                else:
+                    stdout += child.stdout.read1(4096)
+        stdout += child.stdout.read()
+        while select.select([master], [], [], 0)[0]:
+            try:
+                transcript += os.read(master, 4096)
+            except OSError:
+                break
         assert child.returncode == 0, (args, child.returncode, transcript, stdout)
         assert termios.tcgetattr(slave) == before, (args, "terminal state not restored")
         return stdout, transcript

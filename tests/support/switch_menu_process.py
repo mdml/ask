@@ -43,13 +43,37 @@ def raw_mode(_transcript):
     return not termios.tcgetattr(slave)[3] & termios.ICANON
 
 
+def finish(transcript, timeout=10):
+    stdout = b''
+    deadline = time.monotonic() + timeout
+    while child.poll() is None:
+        remaining = deadline - time.monotonic()
+        assert remaining > 0, ('waiting for switch exit', 'timed out', transcript, stdout)
+        ready, _, _ = select.select([master, child.stdout], [], [], min(0.05, remaining))
+        for source in ready:
+            if source == master:
+                try:
+                    transcript += os.read(master, 4096)
+                except OSError:
+                    pass
+            else:
+                stdout += child.stdout.read1(4096)
+    stdout += child.stdout.read()
+    while select.select([master], [], [], 0)[0]:
+        try:
+            transcript += os.read(master, 4096)
+        except OSError:
+            break
+    return stdout, transcript
+
+
 try:
     transcript = b''
     if scenario == 'dumb':
         transcript = wait_for(lambda output: b'select a thread' in output, transcript,
                               'waiting for dumb terminal prompt')
         os.write(master, b'2\n')
-        out, _ = child.communicate(timeout=10)
+        out, transcript = finish(transcript)
         assert child.returncode == 0, (child.returncode, transcript)
         assert out == b'', out
         assert termios.tcgetattr(slave) == before
@@ -58,7 +82,7 @@ try:
         transcript = wait_for(
             lambda output: b'interactive selection requires terminal height' in output,
             transcript, 'waiting for terminal height diagnostic')
-        out, _ = child.communicate(timeout=10)
+        out, transcript = finish(transcript)
         assert child.returncode == 1, (child.returncode, transcript, out)
         assert b'interactive selection requires terminal height of at least 3 rows' in transcript, transcript
         assert termios.tcgetattr(slave) == before
@@ -83,22 +107,22 @@ try:
                             for character in line.decode())
                 assert width <= 23, (width, line, rendered)
         os.write(master, b'\r')
-        out, _ = child.communicate(timeout=10)
+        out, transcript = finish(transcript)
         assert child.returncode == 0, (child.returncode, transcript)
         assert b'thread 1' in out, out
     elif scenario == 'select':
         os.write(master, b'\x1b[B\r')
-        out, _ = child.communicate(timeout=10)
+        out, transcript = finish(transcript)
         assert child.returncode == 0, (child.returncode, transcript)
         assert b'thread 2' in out and b'You:\n' in out and b'Assistant:\n' in out, out
     elif scenario == 'escape':
         os.write(master, b'\x1b')
-        out, _ = child.communicate(timeout=10)
+        out, transcript = finish(transcript)
         assert child.returncode == 1, (child.returncode, transcript)
         assert out == b'', out
     else:
         os.write(master, b'\x03')
-        out, _ = child.communicate(timeout=10)
+        out, transcript = finish(transcript)
         assert child.returncode == -signal.SIGINT, (child.returncode, transcript)
         assert out == b'', out
     assert termios.tcgetattr(slave) == before
