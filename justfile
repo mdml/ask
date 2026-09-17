@@ -15,6 +15,10 @@ verify-full *args:
 verify-toolchain-test:
     scripts/verify-toolchain-test.sh
 
+# Run the offline owner walkthrough against an already-built executable.
+acceptance binary:
+    python3 scripts/offline-acceptance.py {{ quote(binary) }}
+
 fmt:
     cargo fmt --all
 
