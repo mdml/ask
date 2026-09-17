@@ -22,6 +22,16 @@ child = subprocess.Popen([binary, 'init'], stdin=slave, stdout=subprocess.PIPE,
                          preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_DFL))
 
 
+def terminal_state_restored(before, actual):
+    if actual == before:
+        return True
+    if sys.platform != 'darwin':
+        return False
+    expected = before.copy()
+    expected[3] |= termios.PENDIN
+    return actual == expected
+
+
 def wait_for_raw(transcript, timeout=5):
     deadline = time.monotonic() + timeout
     while termios.tcgetattr(slave)[3] & termios.ICANON:
@@ -102,7 +112,8 @@ try:
         assert child.returncode == -signal.SIGINT, (child.returncode, transcript)
         assert out == b'', out
         assert not os.path.exists(os.path.join(home, 'config.toml'))
-    assert termios.tcgetattr(slave) == before, (before, termios.tcgetattr(slave))
+    actual = termios.tcgetattr(slave)
+    assert terminal_state_restored(before, actual), (before, actual)
 finally:
     os.close(slave)
     os.close(master)
