@@ -7,11 +7,13 @@ import importlib.util
 import json
 import os
 import pathlib
+import select
 import shutil
 import signal
 import subprocess
 import sys
 import tempfile
+import time
 
 
 if not __debug__:
@@ -89,6 +91,78 @@ for incoming, error in [([b"$ "], TimeoutError), ([b""], EOFError)]:
         failures.append(f"{error.__name__}: {failure!r}")
 assert not failures, failures
 
+# The process watchdog covers the whole recorder beyond its configured stage allowances.
+OUTER_WATCHDOG_SECONDS = demo.STAGED_TIMEOUT_ALLOWANCE_SECONDS + 15
+assert demo.STAGED_TIMEOUT_ALLOWANCE_SECONDS == 76
+assert OUTER_WATCHDOG_SECONDS == 91
+
+demo.select.select = lambda *_args: (_ for _ in ()).throw(KeyboardInterrupt())
+interrupted_at = time.monotonic()
+try:
+    demo.enter_command(0, "diagnostic", [], interrupted_at,
+                       codecs.getincrementaldecoder("utf-8")(), timeout=10)
+    raise AssertionError("interrupted command did not report diagnostics")
+except KeyboardInterrupt as error:
+    message = str(error)
+    assert "command 'diagnostic' interrupted after" in message
+    assert "sent 0/11 bytes; output tail=''" in message
+finally:
+    demo.select.select = original_select
+
+original_write = demo.os.write
+demo.os.write = lambda *_args: (_ for _ in ()).throw(KeyboardInterrupt())
+demo.select.select = lambda _readable, writable, *_args: ([], writable, [])
+try:
+    demo.enter_command(0, "diagnostic", [], time.monotonic(),
+                       codecs.getincrementaldecoder("utf-8")(), timeout=10, key_delay=0)
+    raise AssertionError("write interruption did not report command diagnostics")
+except KeyboardInterrupt as error:
+    message = str(error)
+    assert "command 'diagnostic' interrupted after" in message
+    assert "sent 0/11 bytes; output tail=''" in message
+finally:
+    demo.os.write = original_write
+    demo.select.select = original_select
+
+signal_probe = """
+import codecs, importlib.util, os, pathlib, pty, sys, time
+spec = importlib.util.spec_from_file_location('ask_demo_signal', pathlib.Path(sys.argv[1]))
+demo = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(demo)
+master, slave = pty.openpty()
+print('ready', flush=True)
+demo.enter_command(master, 'signal diagnostic', [], time.monotonic(),
+                   codecs.getincrementaldecoder('utf-8')(), timeout=10)
+"""
+probe = subprocess.Popen(
+    [sys.executable, "-c", signal_probe, str(script)], stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE, text=True, start_new_session=True)
+try:
+    assert select.select([probe.stdout], [], [], 5)[0], "signal probe did not start"
+    assert probe.stdout.readline().strip() == "ready"
+    time.sleep(0.1)
+    os.kill(probe.pid, signal.SIGINT)
+    _stdout, stderr = probe.communicate(timeout=5)
+finally:
+    if probe.poll() is None:
+        probe.kill()
+        probe.wait(timeout=5)
+assert probe.returncode != 0
+assert "command 'signal diagnostic' interrupted after" in stderr
+assert "/18 bytes; output tail=" in stderr
+
+original_provider = demo.Provider
+demo.Provider = lambda: (_ for _ in ()).throw(KeyboardInterrupt("fixture interrupted"))
+try:
+    with tempfile.TemporaryDirectory(prefix="ask-demo-phase-test-") as temporary:
+        demo.record(binary, pathlib.Path(temporary) / "assets")
+    raise AssertionError("fixture interruption did not report its phase")
+except KeyboardInterrupt as error:
+    assert "interrupted during fixture setup after" in str(error)
+    assert "fixture interrupted" in str(error)
+finally:
+    demo.Provider = original_provider
+
 with tempfile.TemporaryDirectory(prefix="ask-demo-test-") as temporary:
     renamed_binary = pathlib.Path(temporary) / "renamed-executable"
     shutil.copy2(binary, renamed_binary)
@@ -103,7 +177,7 @@ with tempfile.TemporaryDirectory(prefix="ask-demo-test-") as temporary:
         [sys.executable, str(script), str(renamed_binary), "--output-dir", str(output)],
         start_new_session=True)
     try:
-        returncode = process.wait(timeout=45)
+        returncode = process.wait(timeout=OUTER_WATCHDOG_SECONDS)
     except subprocess.TimeoutExpired:
         os.killpg(process.pid, signal.SIGINT)
         try:
