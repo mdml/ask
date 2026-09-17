@@ -8,17 +8,23 @@ intelligence in your terminal
 
 Recorded with local fixture responses; timings do not represent provider performance. [Text version](docs/assets/demo/demo.txt).
 
-**Status: beta, distributed as nightly builds.** No stable release has been published. Interfaces may change during 0.x. `ask` works with OpenAI, Anthropic, Gemini, OpenRouter, and custom OpenAI-compatible endpoints on macOS and Linux (arm64 and x86-64).
+**Status: beta.** `v0.1.0` is the current stable release. Interfaces may change during 0.x. `ask` works with OpenAI, Anthropic, Gemini, OpenRouter, and custom OpenAI-compatible endpoints on macOS and Linux (arm64 and x86-64).
 
 ## Install
 
-Choose a nightly tag from [GitHub Releases](https://github.com/mdml/ask/releases) and install it with [mise](https://mise.jdx.dev/), substituting the tag for `TAG`:
+Install the stable release with Homebrew:
 
 ```sh
-mise use -g 'github:mdml/ask[prerelease=true]@TAG'
+brew install mdml/tap/ask
 ```
 
-Nightly archives are checksummed and carry GitHub attestations; [Nightly releases](docs/guides/nightly-releases.md) explains how to verify them.
+Or install the exact stable version with [mise](https://mise.jdx.dev/):
+
+```sh
+mise use -g 'github:mdml/ask@v0.1.0'
+```
+
+[Stable releases](docs/guides/stable-releases.md#verify-a-downloaded-archive) gives checksum and GitHub attestation verification commands. [Nightly releases](docs/guides/nightly-releases.md) remain available for testing newer builds.
 
 ## First use
 
@@ -76,7 +82,7 @@ Reference, for exact behavior:
 - [Query behavior](docs/reference/query-behavior.md)
 - [Local storage](docs/reference/storage.md)
 
-Release operation: [nightly releases](docs/guides/nightly-releases.md), [stable releases](docs/guides/stable-releases.md) (prepared, not yet published), and [live-provider checks](docs/guides/live-provider-checks.md).
+Release operation: [nightly releases](docs/guides/nightly-releases.md), [stable releases](docs/guides/stable-releases.md), and [live-provider checks](docs/guides/live-provider-checks.md).
 
 ## Development
 

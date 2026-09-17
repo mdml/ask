@@ -1,13 +1,19 @@
 # Getting started
 
-This guide takes a new installation of `ask` to a first answer: install a nightly build, create a configuration, supply a provider credential, ask a question, and check the installation. Exact behavior for every command is in the [command reference](../reference/commands.md).
+This guide takes a new installation of `ask` to a first answer: install the stable release, create a configuration, supply a provider credential, ask a question, and check the installation. Exact behavior for every command is in the [command reference](../reference/commands.md).
 
-## Install a nightly build
+## Install the stable release
 
-`ask` is distributed as nightly prereleases for macOS and Linux on arm64 and x86-64. No stable release has been published. Choose an exact tag from [GitHub Releases](https://github.com/mdml/ask/releases) and install it with [mise](https://mise.jdx.dev/), substituting the tag for `TAG`:
+Install `v0.1.0` on macOS or Linux, arm64 or x86-64, with Homebrew:
 
 ```sh
-mise use -g 'github:mdml/ask[prerelease=true]@TAG'
+brew install mdml/tap/ask
+```
+
+Or install the exact version with [mise](https://mise.jdx.dev/):
+
+```sh
+mise use -g 'github:mdml/ask@v0.1.0'
 ```
 
 Confirm the installed version without reading configuration or contacting a provider:
@@ -16,7 +22,7 @@ Confirm the installed version without reading configuration or contacting a prov
 ask version
 ```
 
-To verify an archive's checksum and GitHub attestation before installing it by hand, see [Nightly releases](nightly-releases.md#install-and-inspect).
+Before installing an archive by hand, follow the checksum and GitHub attestation checks in [Stable releases](stable-releases.md#verify-a-downloaded-archive). [Nightly releases](nightly-releases.md) are also available for testing newer builds.
 
 ## Create a configuration
 

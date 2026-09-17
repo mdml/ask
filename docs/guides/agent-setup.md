@@ -4,7 +4,7 @@
 
 The skill is one Markdown file, [`skills/ask-doctor/SKILL.md`](../../skills/ask-doctor/SKILL.md). Every installation below delivers that same file. Read it before installing: it is the complete set of instructions your agent receives, and it contains no scripts.
 
-Choose one installation method. The commands below track this repository's `main` branch. To keep a reviewed skill revision fixed, replace `main` in the download URL with its full commit SHA or release tag; for a local checkout at that revision, copy `skills/ask-doctor/` into your agent's skills directory. Update it deliberately when you want newer guidance.
+Choose one installation method. The commands below use the current skill content from `main`. To keep a reviewed skill revision fixed, replace `main` in the download URL with its full commit SHA; for a local checkout at that revision, copy `skills/ask-doctor/` into your agent's skills directory. Update it deliberately when you want newer guidance. The `v0.1.0` tag contains the older skill accepted with that release.
 
 ## What the agent will and will not do
 
