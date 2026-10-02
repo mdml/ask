@@ -136,7 +136,7 @@ How each ending is recorded is specified in [query behavior](query-behavior.md#t
 
 ## Reasoning output
 
-Local reasoning models often stream their thinking in a separate field of the chat-completions delta, `reasoning` or `reasoning_content`, beside `content`. For `openai-compatible` targets, text in those fields is never written to stdout and is not recorded in the turn. Text that arrives inside `content`, including inline `<think>...</think>` blocks, is part of the answer and is printed and recorded unchanged.
+Reasoning models expose their thinking in one of two ways. Some stream it in a separate field of the chat-completions delta, `reasoning` or `reasoning_content`, beside `content`; for `openai-compatible` targets, text in those fields is never written to stdout and is not recorded in the turn. Others, mostly local models, put it inline at the start of the answer text as `<think>...</think>`. For every provider kind, `ask` removes a leading inline block before the text reaches stdout, the recorded turn, or reply context; text that merely contains `<think>` elsewhere is unchanged. The exact rule is in [inline reasoning](query-behavior.md#inline-reasoning).
 
 ## Streaming implementation
 

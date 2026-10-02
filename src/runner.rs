@@ -5,6 +5,7 @@ use tokio::time::{Duration, timeout_at};
 
 use crate::{
     config::Target,
+    inline_reasoning::InlineReasoning,
     output::AnswerWriter,
     provider::{Ending, Event, EventStream, PromptProvider, ProviderError, Request, Usage},
 };
@@ -69,7 +70,8 @@ impl fmt::Display for RunError {
 }
 
 /// Everything one query produced, whether it finished or failed. `answer` is
-/// the raw text received from the provider, before stdout normalization.
+/// the text received from the provider without a leading inline reasoning
+/// block, before stdout normalization.
 pub struct Outcome {
     pub answer: String,
     pub usage: Option<Usage>,
@@ -92,6 +94,7 @@ pub async fn run<P: PromptProvider, W: io::Write>(
 struct Progress {
     start: Instant,
     answer: String,
+    reasoning: InlineReasoning,
     usage: Option<Usage>,
     first_token: Option<Duration>,
     api: Option<Duration>,
@@ -103,6 +106,7 @@ impl Progress {
         Self {
             start: Instant::now(),
             answer: String::new(),
+            reasoning: InlineReasoning::new(),
             usage: None,
             first_token: None,
             api: None,
@@ -123,11 +127,12 @@ impl Progress {
         while let Some(event) = limit
             .next(&mut stream)
             .await
-            .map_err(|error| after_partial(output, error))?
+            .map_err(|error| self.abort(output, error))?
         {
             self.accept(event, output)?;
         }
         self.api = Some(self.start.elapsed());
+        self.release(output).map_err(RunError::Output)?;
         match self.ending {
             Some(Ending::Complete) => output.finish(true).map_err(RunError::Output),
             Some(Ending::OutputLimit) => Err(after_partial(output, RunError::OutputLimit)),
@@ -148,8 +153,8 @@ impl Progress {
             Event::Text(text) => {
                 let start = self.start;
                 self.first_token.get_or_insert_with(|| start.elapsed());
-                self.answer.push_str(&text);
-                output.write_chunk(&text).map_err(RunError::Output)
+                let text = self.reasoning.push(&text);
+                self.emit(&text, output).map_err(RunError::Output)
             }
             Event::Final(reported, ending) => {
                 if reported.is_some() {
@@ -164,6 +169,34 @@ impl Progress {
             }
             Event::Other => Ok(()),
         }
+    }
+
+    fn emit<W: io::Write>(
+        &mut self,
+        text: &str,
+        output: &mut AnswerWriter<'_, W>,
+    ) -> io::Result<()> {
+        if text.is_empty() {
+            return Ok(());
+        }
+        self.answer.push_str(text);
+        output.write_chunk(text)
+    }
+
+    /// Writes the text still withheld when the stream ends: tag-like text
+    /// that never became a tag is answer text.
+    fn release<W: io::Write>(&mut self, output: &mut AnswerWriter<'_, W>) -> io::Result<()> {
+        let held = self.reasoning.finish();
+        self.emit(&held, output)
+    }
+
+    fn abort<W: io::Write>(
+        &mut self,
+        output: &mut AnswerWriter<'_, W>,
+        error: RunError,
+    ) -> RunError {
+        let _ = self.release(output);
+        after_partial(output, error)
     }
 
     fn into_outcome(self, error: Option<RunError>) -> Outcome {
