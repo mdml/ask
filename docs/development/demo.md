@@ -25,6 +25,6 @@ Rendering uses `agg` 1.9.0 from release source commit `26ca84c02523973198fca2853
 python3 scripts/demo.py <path-to-final-ask> --agg <path-to-approved-agg>
 ```
 
-The render uses DejaVu Sans Mono Book 2.37 from Debian package `fonts-dejavu-core` version `2.37-8`, SHA-256 `c805f9436dbc268644c1d9584f01a601a653e028e08fd74b9b949f6cf8304d88`, at 16 px. The recorder finds the font in the system font directory. The cast header records the supplied `ask` binary's SHA-256. The [dependency review](../reviews/agg-1.9.0.md) records the accepted limitations.
+The render uses DejaVu Sans Mono Book 2.37 from Ubuntu 26.04 package `fonts-dejavu-core` version `2.37-8build1`, SHA-256 `a54dca07c76d6289e717e75e0a58c0128f6d7269ef3faf76417c9d7d3bba37ab`, at 16 px. The recorder finds the font in the system font directory. The cast header records the supplied `ask` binary's SHA-256. The [dependency review](../reviews/agg-1.9.0.md) records the accepted limitations.
 
 The renderer binary is local tooling and must never be added to the repository. Do not replace it or download another asset without a new security review.
