@@ -68,19 +68,14 @@ class PackagingTests(unittest.TestCase):
         self.assertEqual(outputs, f"tag={TAG}\npublish=true\n")
         self.assertEqual(calls[0], ["git", "rev-parse", "HEAD"])
 
-    def test_prepare_rejects_expired_disposition_and_wrong_checkout(self):
+    def test_prepare_rejects_wrong_checkout(self):
         output = self.root / "outputs"
-        for sha, date in [(SHA, datetime.datetime(2026, 9, 30, tzinfo=datetime.timezone.utc)),
-                          ("b" * 40, datetime.datetime(2026, 9, 15, tzinfo=datetime.timezone.utc))]:
-            with self.subTest(sha=sha, date=date):
-                with patch.object(nightly.datetime, "datetime") as clock, \
-                        patch.object(nightly, "run", return_value=sha + "\n"), \
-                        patch.object(sys, "argv", ["nightly-release.py", "prepare"]), \
-                        patch.dict(os.environ, {"RELEASE_SHA": SHA, "GITHUB_OUTPUT": str(output)}):
-                    clock.now.return_value = date
-                    with self.assertRaises(ValueError):
-                        nightly.main()
-                self.assertFalse(output.exists())
+        with patch.object(nightly, "run", return_value="b" * 40 + "\n"), \
+                patch.object(sys, "argv", ["nightly-release.py", "prepare"]), \
+                patch.dict(os.environ, {"RELEASE_SHA": SHA, "GITHUB_OUTPUT": str(output)}):
+            with self.assertRaisesRegex(ValueError, "checkout SHA mismatch"):
+                nightly.main()
+        self.assertFalse(output.exists())
 
     def published_nightly(self, tag, sha, draft=False, assets=None, **extra):
         """Release JSON as GitHub returns it; drafts and incomplete uploads are not evidence."""
@@ -92,7 +87,7 @@ class PackagingTests(unittest.TestCase):
         release.update(extra)
         return release
 
-    def prepare(self, pages, refs, environment=None):
+    def prepare(self, pages, refs, environment=None, date=None):
         """Run prepare against fake GitHub read responses; every gh call is recorded."""
         output = self.root / "outputs"
         output.unlink(missing_ok=True)
@@ -110,16 +105,20 @@ class PackagingTests(unittest.TestCase):
             prefix = "repos/mdml/ask/git/ref/tags/"
             self.assertTrue(path.startswith(prefix), path)
             return json.dumps(refs[path[len(prefix):]])
-        date = datetime.datetime(2026, 9, 15, tzinfo=datetime.timezone.utc)
+        date = date or datetime.datetime(2026, 9, 15, tzinfo=datetime.timezone.utc)
         variables = {"RELEASE_SHA": SHA, "GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "1",
                      "GITHUB_OUTPUT": str(output), "GITHUB_REPOSITORY": "mdml/ask",
                      "RELEASE_REPAIR": "false", **(environment or {})}
         with patch.object(nightly.datetime, "datetime", wraps=datetime.datetime) as clock, \
                 patch.object(nightly, "run", side_effect=run), \
                 patch.object(sys, "argv", ["nightly-release.py", "prepare"]), \
-                patch.dict(os.environ, variables):
+                patch.dict(os.environ, variables), \
+                patch.object(sys, "stdout", new_callable=io.StringIO) as printed:
             clock.now.return_value = date
-            nightly.main()
+            try:
+                nightly.main()
+            finally:
+                self.printed = printed.getvalue()
         return output.read_text(), calls
 
     def commit_ref(self, sha):
@@ -163,6 +162,44 @@ class PackagingTests(unittest.TestCase):
                 outputs, _ = self.prepare(pages, {previous: self.commit_ref(SHA)},
                                           {"RELEASE_REPAIR": value})
                 self.assertEqual(outputs, "publish=false\n")
+
+    def expired(self):
+        day = nightly.ACTION_REVIEW_DEADLINE + datetime.timedelta(days=1)
+        return datetime.datetime(day.year, day.month, day.day, tzinfo=datetime.timezone.utc)
+
+    def test_prepare_skips_unchanged_source_with_warning_after_review_deadline(self):
+        previous = f"v{nightly.version()}-nightly.20260914.100.1"
+        pages = [[self.published_nightly(previous, SHA)]]
+        outputs, _ = self.prepare(pages, {previous: self.commit_ref(SHA)}, date=self.expired())
+        self.assertEqual(outputs, "publish=false\n")
+        warnings = [line for line in self.printed.splitlines() if line.startswith("::warning::")]
+        self.assertEqual(len(warnings), 1, self.printed)
+        self.assertIn("action dependency review expired", warnings[0])
+        self.assertIn("must be renewed before the next publication", warnings[0])
+        last_day = nightly.ACTION_REVIEW_DEADLINE
+        on_time = datetime.datetime(last_day.year, last_day.month, last_day.day, tzinfo=datetime.timezone.utc)
+        outputs, _ = self.prepare(pages, {previous: self.commit_ref(SHA)}, date=on_time)
+        self.assertEqual(outputs, "publish=false\n")
+        self.assertNotIn("::warning::", self.printed)
+
+    def test_prepare_refuses_publication_after_review_deadline(self):
+        older = "b" * 40
+        previous = f"v{nightly.version()}-nightly.20260914.100.1"
+        cases = [("changed source", [[self.published_nightly(previous, older)]], older, {}),
+                 ("nothing published", [], older, {}),
+                 ("repair run", [[self.published_nightly(previous, SHA)]], SHA, {"RELEASE_REPAIR": "true"})]
+        for name, pages, published, environment in cases:
+            with self.subTest(case=name):
+                with self.assertRaisesRegex(ValueError, "action dependency disposition expired; review required"):
+                    self.prepare(pages, {previous: self.commit_ref(published)}, environment, date=self.expired())
+                self.assertFalse((self.root / "outputs").exists())
+
+    def test_prepare_fails_closed_on_a_malformed_lookup_after_review_deadline(self):
+        previous = f"v{nightly.version()}-nightly.20260914.100.1"
+        pages = [[self.published_nightly(previous, SHA)]]
+        with self.assertRaisesRegex(ValueError, "does not resolve to its release commit"):
+            self.prepare(pages, {previous: self.commit_ref("c" * 40)}, date=self.expired())
+        self.assertFalse((self.root / "outputs").exists())
 
     def test_prepare_compares_the_most_recent_publication_across_pages_and_versions(self):
         older = "b" * 40
