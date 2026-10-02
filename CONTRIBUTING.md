@@ -83,6 +83,7 @@ Run the end-to-end proofs through the built binary with:
 cargo +1.97.1 test --locked --test configure_proof
 cargo +1.97.1 test --locked --test init_edit_proof
 cargo +1.97.1 test --locked --test published_list_proof
+cargo +1.97.1 test --locked --test inline_reasoning_proof
 cargo +1.97.1 test --locked --test query_proof
 cargo +1.97.1 test --locked --test continue_proof
 cargo +1.97.1 test --locked --test recall_proof
@@ -109,6 +110,8 @@ The doctor proof runs the real binary for offline diagnostics and opt-in live ch
 The keyless proof runs a query, a reply after the configuration changes or disappears, and `ask doctor` and `ask doctor --live` against the fake provider on an `openai-compatible` provider without `api_key_env`, with unrelated credential variables set. It asserts that the only credential on the wire is the `Authorization: Bearer no-key` placeholder, that no environment value reaches the request, that `no-key` is not redacted from diagnostics, and that text a reasoning model streams in the `reasoning` and `reasoning_content` delta fields reaches neither stdout nor the recorded turn.
 
 The model list refresh test runs offline through `tests/model_list_refresh.rs`, which invokes `scripts/model-list-refresh-test.py` against a loopback HTTP server with dummy keys. It asserts each provider's endpoint, credential placement, and pagination, the curation and ordering of identifiers, omission and exit status with and without `--allow-partial`, `--providers`, one request per page with no retries, refused redirects, and that no dummy key appears in stdout, stderr, or the written document. Operator runs of `scripts/model-list-refresh.py` with real keys are described in the [model list publishing guide](docs/guides/model-list-publishing.md) and are not part of the verification gate.
+
+The inline-reasoning proof runs the real binary against the fake provider on an `openai-compatible` and an `anthropic` wire format. It asserts that a leading `<think>` block split across several stream chunks is absent from stdout, the recorded turn, and the next reply's request; that answers without the tag, including one that mentions `<think>` mid-text, are byte-identical; that an unclosed block yields an empty answer, with no reasoning on stdout or stderr, for a normal ending (a complete turn), a stream with no completion marker (no turn), and an output-token-limit ending (the existing warning and a partial turn); that an early stdout closure inside and after a block is quiet and records a partial turn; and that piped input composed with arguments is treated the same way. The state machine itself is covered by unit tests that split every sample at each character boundary.
 
 The live-provider check test runs offline through `tests/live_provider_check.rs`, which invokes `scripts/live-provider-check-test.py` with mocked wrapper and `ask` binary. It asserts fingerprint policy, retry blocking, request caps, subprocess safety, and marker matching without contacting real services or incurring cost. Manual runs of `scripts/live-provider-check.py` on an authorized host with owner credentials are separate operational exercises, not part of the verification gate.
 

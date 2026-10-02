@@ -6,6 +6,7 @@ mod configure;
 pub mod doctor;
 mod help;
 mod init;
+mod inline_reasoning;
 mod input;
 mod menu_filter;
 mod model_fetch;
