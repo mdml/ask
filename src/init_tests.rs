@@ -10,7 +10,7 @@ use crate::{config::Target, validate};
 
 static CASE_ID: AtomicUsize = AtomicUsize::new(0);
 
-/// A key only the `keyed` lookup returns; it must never reach a transcript.
+/// A key only the [`KEYED`] lookup returns; it must never reach a transcript.
 const UNIT_SECRET: &str = "unit-secret-never-print";
 
 const COMPLETE: &str = "9\nlocal\nhttp://127.0.0.1:1/v1\nLOCAL_API_KEY\nfake-model\n\n\nn\ny\n";
@@ -25,26 +25,20 @@ fn fresh_path() -> PathBuf {
 
 /// Every variable is unset except the published-list override, which is
 /// empty so no unit test requests the published list.
-fn unset(name: &str) -> Result<String, env::VarError> {
-    if name == published::URL_VARIABLE {
-        return Ok(String::new());
-    }
-    Err(env::VarError::NotPresent)
-}
+const UNSET: Lookup = |name| match name {
+    published::URL_VARIABLE => Ok(String::new()),
+    _ => Err(env::VarError::NotPresent),
+};
 
-/// Like [`unset`], but the published list is at an unreachable address.
+/// Like [`UNSET`], but the published list is at an unreachable address.
 const UNREACHABLE_LIST: Lookup = |name| match name {
     published::URL_VARIABLE => Ok("http://127.0.0.1:1/v1/models.json".to_string()),
     _ => Err(env::VarError::NotPresent),
 };
 
-fn keyed(_: &str) -> Result<String, env::VarError> {
-    Ok(UNIT_SECRET.to_string())
-}
+const KEYED: Lookup = |_| Ok(UNIT_SECRET.to_string());
 
-fn not_unicode(_: &str) -> Result<String, env::VarError> {
-    Err(env::VarError::NotUnicode("x".into()))
-}
+const NOT_UNICODE: Lookup = |_| Err(env::VarError::NotUnicode("x".into()));
 
 fn drive_with(path: &Path, answers: &str, lookup: Lookup) -> (Result<(), InitError>, String) {
     let mut input = Cursor::new(answers.as_bytes().to_vec());
@@ -64,7 +58,7 @@ fn drive_with(path: &Path, answers: &str, lookup: Lookup) -> (Result<(), InitErr
 }
 
 fn drive(path: &Path, answers: &str) -> (Result<(), InitError>, String) {
-    drive_with(path, answers, unset)
+    drive_with(path, answers, UNSET)
 }
 
 fn assert_local_openai_compatible_target(target: &Target) {
@@ -247,7 +241,7 @@ fn a_later_profile_defaults_to_the_provider_name() {
 fn an_environment_key_lists_models_and_verifies_without_being_shown() {
     let path = fresh_path();
     let answers = "9\nlocal\nhttp://127.0.0.1:1/v1\nKEY\nfake-model\n\n\nyes\nn\ny\n";
-    let (result, transcript) = drive_with(&path, answers, keyed);
+    let (result, transcript) = drive_with(&path, answers, KEYED);
     result.unwrap();
     for expected in [
         "Using KEY from the environment (value not shown).",
@@ -267,14 +261,14 @@ fn an_environment_key_lists_models_and_verifies_without_being_shown() {
 fn declining_after_a_failed_verification_writes_nothing() {
     let path = fresh_path();
     let answers = "9\nlocal\nhttp://127.0.0.1:1/v1\nKEY\nfake-model\n\n\nn\n";
-    let (result, transcript) = drive_with(&path, answers, keyed);
+    let (result, transcript) = drive_with(&path, answers, KEYED);
     assert!(matches!(result, Err(InitError::Cancelled)), "{transcript}");
     assert!(!path.exists());
 }
 
 #[test]
 fn unit_tests_never_request_the_published_list() {
-    assert_eq!(unset(published::URL_VARIABLE), Ok(String::new()));
+    assert_eq!(UNSET(published::URL_VARIABLE), Ok(String::new()));
 }
 
 #[test]
@@ -296,8 +290,8 @@ fn a_hosted_preset_without_a_key_tries_the_published_list() {
 fn custom_endpoints_and_disabled_lists_never_request_the_published_list() {
     for (answers, lookup) in [
         (COMPLETE, UNREACHABLE_LIST),
-        ("3\nsome-model\n\n\nn\ny\n", unset),
-        ("4\nsome-model\n\n\nn\ny\n", not_unicode),
+        ("3\nsome-model\n\n\nn\ny\n", UNSET),
+        ("4\nsome-model\n\n\nn\ny\n", NOT_UNICODE),
     ] {
         let path = fresh_path();
         let (result, transcript) = drive_with(&path, answers, lookup);
@@ -312,7 +306,7 @@ fn custom_endpoints_and_disabled_lists_never_request_the_published_list() {
 #[test]
 fn a_published_list_override_that_is_not_unicode_is_ignored() {
     let path = fresh_path();
-    let (_, transcript) = drive_with(&path, "1\nm\n\n\nn\ny\n", not_unicode);
+    let (_, transcript) = drive_with(&path, "1\nm\n\n\nn\ny\n", NOT_UNICODE);
     assert!(
         transcript.contains(
             "ASK_MODEL_LIST_URL is not valid Unicode; skipping the published model list."
@@ -323,7 +317,7 @@ fn a_published_list_override_that_is_not_unicode_is_ignored() {
 #[test]
 fn a_key_that_is_not_unicode_is_ignored() {
     let path = fresh_path();
-    let (result, transcript) = drive_with(&path, COMPLETE, not_unicode);
+    let (result, transcript) = drive_with(&path, COMPLETE, NOT_UNICODE);
     result.unwrap();
     assert!(transcript.contains("LOCAL_API_KEY is set but is not valid Unicode; ignoring it."));
 }
@@ -503,7 +497,7 @@ fn the_local_endpoint_question_takes_enter_as_the_default_and_validates_typed_ur
     };
     let mut dialogue = Dialogue {
         console,
-        lookup: unset,
+        lookup: UNSET,
     };
     assert_eq!(
         dialogue.endpoint_or("? ", "http://d/v1").unwrap(),
