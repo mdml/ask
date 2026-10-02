@@ -40,6 +40,7 @@ pub enum Scenario {
 
 #[derive(Clone, Debug)]
 pub struct RecordedRequest {
+    pub method: String,
     pub path: String,
     pub authorization_present: bool,
     /// Whether the bearer credential is exactly the test fixture's.
@@ -252,17 +253,21 @@ fn read_request(stream: &mut TcpStream) -> Option<RecordedRequest> {
     let split = find(&bytes, b"\r\n\r\n")?;
     let headers = String::from_utf8_lossy(&bytes[..split]);
     let body = &bytes[split + 4..];
-    let path = headers
-        .lines()
-        .next()
-        .and_then(|line| line.split_whitespace().nth(1))?
-        .to_string();
+    let mut request_line = headers.lines().next()?.split_whitespace();
+    let method = request_line.next()?.to_string();
+    let path = request_line.next()?.to_string();
     let authorization_present = headers
         .lines()
         .any(|line| line.to_ascii_lowercase().starts_with("authorization:"));
     let authorization_is_fixture = headers.lines().any(carries_fixture_credential);
-    let value: Value = rig_core::serde_json::from_slice(body).ok()?;
+    // A body-less request, such as a model list, records `Value::Null`.
+    let value: Value = if body.is_empty() {
+        Value::Null
+    } else {
+        rig_core::serde_json::from_slice(body).ok()?
+    };
     Some(RecordedRequest {
+        method,
         path,
         authorization_present,
         authorization_is_fixture,
@@ -308,7 +313,7 @@ fn content_length(headers: &[u8]) -> usize {
                 .map(str::trim)
                 .and_then(|value| value.parse().ok())
         })
-        .unwrap()
+        .unwrap_or(0)
 }
 
 fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {

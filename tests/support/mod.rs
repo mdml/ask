@@ -10,6 +10,17 @@ use std::{
 };
 
 pub const CREDENTIAL: &str = "credential-secret-never-print";
+
+/// Credential variables `ask init` presets read; proofs never inherit them.
+pub const PRESET_VARIABLES: [&str; 7] = [
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "GEMINI_API_KEY",
+    "OPENROUTER_API_KEY",
+    "GROQ_API_KEY",
+    "CEREBRAS_API_KEY",
+    "XAI_API_KEY",
+];
 static HOME_ID: AtomicUsize = AtomicUsize::new(0);
 
 /// Builds a command for the `ask` binary with `ASK_HOME` set to `home` and the
@@ -17,6 +28,9 @@ static HOME_ID: AtomicUsize = AtomicUsize::new(0);
 pub fn command(home: &Path, with_credential: bool) -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_ask"));
     command.env("ASK_HOME", home).env_remove("LOCAL_API_KEY");
+    for variable in PRESET_VARIABLES {
+        command.env_remove(variable);
+    }
     if with_credential {
         command.env("LOCAL_API_KEY", CREDENTIAL);
     }

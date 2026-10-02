@@ -14,6 +14,7 @@ signal.alarm(20)
 binary, home, scenario = sys.argv[1:]
 home = pathlib.Path(home)
 os.environ['ASK_HOME'] = str(home)
+os.environ.pop('KEY', None)
 candidate = (home / 'candidate.toml').read_bytes()
 destination = home / 'config.toml'
 
@@ -62,7 +63,7 @@ elif scenario in ('content', 'identity', 'appeared'):
 elif scenario == 'exclusion':
     child, producer = reading()
     assert b'lock' in finish(start('configure', 'apply', '-', stdin=subprocess.DEVNULL), 1)
-    answers = b'5\nlocal\nhttp://localhost/v1\nKEY\nm\n\n\ny\n'
+    answers = b'8\nlocal\nhttp://localhost/v1\nKEY\nm\n\n\nn\ny\n'
     init = start('init', stdin=subprocess.PIPE)
     init.stdin.write(answers)
     init.stdin.close()
@@ -75,7 +76,7 @@ elif scenario == 'exclusion':
 elif scenario == 'init_interaction':
     init = start('init', stdin=subprocess.PIPE)
     # The flushed confirmation prompt is the dialogue rendezvous.
-    init.stdin.write(b'5\nlocal\nhttp://localhost/v1\nKEY\nm\n\n\n')
+    init.stdin.write(b'8\nlocal\nhttp://localhost/v1\nKEY\nm\n\n\nn\n')
     init.stdin.flush()
     transcript = b''
     while not transcript.endswith(b'Write this configuration? [y/N]: '):

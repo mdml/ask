@@ -98,6 +98,9 @@ pub const KINDS: [(&str, Kind); 5] = [
 /// requires one.
 pub const REQUIRED_MAX_OUTPUT_TOKENS: u64 = 4_096;
 
+/// The `anthropic-version` header value Rig sends with Anthropic requests.
+pub const ANTHROPIC_VERSION: &str = anthropic::completion::ANTHROPIC_VERSION_LATEST;
+
 impl Kind {
     pub fn parse(name: &str) -> Option<Self> {
         KINDS
@@ -477,7 +480,7 @@ async fn stream<M: CompletionModel + Clone>(
 
 /// Refuses redirects so the credential and query content reach only the
 /// configured endpoint; a redirect response surfaces as a provider failure.
-fn http_client() -> reqwest::Result<reqwest::Client> {
+pub(crate) fn http_client() -> reqwest::Result<reqwest::Client> {
     reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .build()
@@ -485,7 +488,7 @@ fn http_client() -> reqwest::Result<reqwest::Client> {
 
 /// Percent-encodes every byte outside RFC 3986's unreserved set, so a value
 /// stays one URL path segment or query value whatever characters it holds.
-fn path_segment(value: &str) -> String {
+pub(crate) fn path_segment(value: &str) -> String {
     value.bytes().fold(String::new(), |mut encoded, byte| {
         if byte.is_ascii_alphanumeric() || b"-._~".contains(&byte) {
             encoded.push(char::from(byte));
@@ -541,7 +544,7 @@ fn usage(value: rig_core::completion::Usage) -> Option<Usage> {
 /// Replaces every occurrence of the credential, whether it appears verbatim or
 /// percent-encoded (in any mix of encoded and literal bytes, either hex case,
 /// or with `+` for a space), as it can inside a URL quoted by an HTTP error.
-fn redact(error: impl std::fmt::Display, credential: &str) -> ProviderError {
+pub(crate) fn redact(error: impl std::fmt::Display, credential: &str) -> ProviderError {
     let message = error.to_string();
     if credential.is_empty() {
         return ProviderError(message);
