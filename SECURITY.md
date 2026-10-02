@@ -14,6 +14,7 @@ The project applies a higher-than-usual supply-chain bar because model-provider 
 
 - Direct dependencies are pinned exactly; transitive dependencies are locked in `Cargo.lock`.
 - Builds use `--locked` to enforce the lockfile.
+- `libc` 0.2.189 is a direct dependency only so that `src/terminal/attributes.rs` can hold the terminal in raw mode while an interactive menu or the hidden key prompt waits; the [libc direct-dependency note](docs/reviews/libc-direct-dependency.md) records that it was already in the locked closure. That module is the crate's only `unsafe` code. `Cargo.toml` denies `unsafe_code` and `unsafe_op_in_unsafe_fn` for every target, the module alone is allowed `unsafe` code (`tests/unsafe_boundary.rs` fails if any other source or test file sets an `unsafe_code` lint level), and Clippy's `undocumented_unsafe_blocks` requires a `SAFETY:` comment on each block.
 - `cargo-deny` enforces license, advisory, ban, and source policy (`deny.toml`).
 - GitHub Actions workflows pin third-party actions to full commit SHAs.
 - Dependency updates are reviewed and merged by the managing agent under the process below; no unattended automation merges them.

@@ -1,21 +1,32 @@
 //! Small terminal presentation primitives backed by `console`.
+//!
+//! `console` enters raw mode for each key it reads and restores the terminal
+//! afterwards. Each menu and the hidden prompt hold raw mode from start to
+//! return, so a key that arrives between reads is never echoed or edited by
+//! the line discipline.
+
+#[allow(unsafe_code)]
+mod attributes;
+mod held;
 
 use std::io;
 
 use console::{Key, Term};
 
+use self::held::Held;
 use crate::menu_filter::{Edit, Filter};
 
 /// Selects one safe, single-line label with arrow keys. Escape cancels.
 ///
 /// `labels` must be nonempty.
 pub fn select(instruction: &str, labels: &[String]) -> io::Result<Option<usize>> {
-    let term = Term::stderr();
+    let held = Held::enter()?;
+    let term = &held.term;
     let rows: Vec<usize> = (0..labels.len()).collect();
     let mut selected = 0;
     loop {
         let drawn = draw(
-            &term,
+            term,
             &[instruction],
             &Rows {
                 labels,
@@ -23,19 +34,18 @@ pub fn select(instruction: &str, labels: &[String]) -> io::Result<Option<usize>>
             },
             selected,
         )?;
-        match term.read_key() {
-            Ok(Key::ArrowUp) => selected = selected.checked_sub(1).unwrap_or(labels.len() - 1),
-            Ok(Key::ArrowDown) => selected = (selected + 1) % labels.len(),
-            Ok(Key::Enter) => {
+        match held.read_key()? {
+            Key::ArrowUp => selected = selected.checked_sub(1).unwrap_or(labels.len() - 1),
+            Key::ArrowDown => selected = (selected + 1) % labels.len(),
+            Key::Enter => {
                 term.clear_last_lines(drawn)?;
                 return Ok(Some(selected));
             }
-            Ok(Key::Escape) => {
+            Key::Escape => {
                 term.clear_last_lines(drawn)?;
                 return Ok(None);
             }
-            Ok(_) => {}
-            Err(error) => return Err(error),
+            _ => {}
         }
         term.clear_last_lines(drawn)?;
     }
@@ -49,13 +59,14 @@ pub fn select_filtered(
     labels: &[String],
     pinned: usize,
 ) -> io::Result<Option<usize>> {
-    let term = Term::stderr();
+    let held = Held::enter()?;
+    let term = &held.term;
     let mut filter = Filter::new(labels, pinned);
     loop {
         let header = format!("Filter: {}", filter.query());
         let rows = filter.visible();
         let drawn = draw(
-            &term,
+            term,
             &[instruction, &header],
             &Rows {
                 labels,
@@ -63,7 +74,7 @@ pub fn select_filtered(
             },
             filter.selected(),
         )?;
-        let key = term.read_key()?;
+        let key = held.read_key()?;
         term.clear_last_lines(drawn)?;
         match (key, filter.choice()) {
             (Key::Enter, Some(choice)) => return Ok(Some(choice)),
@@ -86,11 +97,12 @@ fn edit(key: Key) -> Option<Edit> {
 /// Reads one line without echoing it. Enter submits; Escape or Ctrl-D
 /// returns `None`. Ctrl-C restores the terminal and raises `SIGINT`.
 pub fn read_hidden(prompt: &str) -> io::Result<Option<String>> {
-    let term = Term::stderr();
+    let held = Held::enter()?;
+    let term = &held.term;
     term.write_str(prompt)?;
     let mut line = String::new();
     loop {
-        match term.read_key()? {
+        match held.read_key()? {
             Key::Enter => break,
             Key::Escape | Key::Char('\u{4}') => {
                 term.write_line("")?;

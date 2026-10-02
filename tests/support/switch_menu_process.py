@@ -55,6 +55,27 @@ def raw_mode(_transcript):
     return not termios.tcgetattr(slave)[3] & termios.ICANON
 
 
+def sampled(transcript, chunks, span=0.25):
+    """Writes `chunks` spread over `span` seconds, checking the terminal
+    attributes between writes and output reads: while the menu waits, the
+    terminal never echoes input or buffers lines."""
+    start = time.monotonic()
+    pending = list(chunks)
+    samples = 0
+    while pending or time.monotonic() - start < span:
+        local = termios.tcgetattr(slave)[3]
+        assert not local & (termios.ECHO | termios.ICANON), (samples, local, transcript)
+        assert child.poll() is None, ('sampling attributes', 'child exited', transcript)
+        samples += 1
+        written = len(chunks) - len(pending)
+        if pending and written < (time.monotonic() - start) / span * len(chunks):
+            os.write(master, pending.pop(0))
+        if select.select([master], [], [], 0.001)[0]:
+            transcript += os.read(master, 4096)
+    assert samples >= 50, samples
+    return transcript
+
+
 def finish(transcript, timeout=10):
     stdout = b''
     deadline = time.monotonic() + timeout
@@ -124,7 +145,9 @@ try:
         out, transcript = finish(transcript)
         assert child.returncode == 0, (child.returncode, transcript)
         assert b'thread 1' in out, out
-    elif scenario == 'select':
+    elif scenario in ('select', 'held'):
+        if scenario == 'held':
+            transcript = sampled(transcript, [b'\x1b[B', b'\x1b[A'] * 4)
         os.write(master, b'\x1b[B\r')
         out, transcript = finish(transcript)
         assert child.returncode == 0, (child.returncode, transcript)

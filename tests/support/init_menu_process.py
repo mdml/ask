@@ -24,6 +24,8 @@ for variable in ('OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'OPENR
     os.environ.pop(variable, None)
 environment_key = os.environ.get('LOCAL_API_KEY', '').encode()
 PASTED = b'pasted-secret-never-print'
+# A long key pasted in chunks; the alphabet appears nowhere else in init's output.
+LONG_PASTE = b'pasted-' + b'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789' * 4
 LOCAL = b'\x1b[B' * 7 + b'\r'
 CUSTOM = b'\x1b[B' * 8 + b'\r'
 DOWN = b'\x1b[B'
@@ -100,10 +102,45 @@ def finish(transcript, timeout=10):
     return stdout, transcript
 
 
+def assert_restored():
+    actual = termios.tcgetattr(slave)
+    assert terminal_state_restored(before, actual), (before, actual)
+
+
+def sampled(transcript, chunks, span=0.25):
+    """Writes `chunks` spread over `span` seconds, checking the terminal
+    attributes between writes and output reads: while a menu or the hidden
+    prompt waits, the terminal never echoes input or buffers lines."""
+    start = time.monotonic()
+    pending = list(chunks)
+    samples = 0
+    while pending or time.monotonic() - start < span:
+        local = termios.tcgetattr(slave)[3]
+        assert not local & (termios.ECHO | termios.ICANON), (samples, local, transcript)
+        assert child.poll() is None, ('sampling attributes', 'child exited', transcript)
+        samples += 1
+        written = len(chunks) - len(pending)
+        if pending and written < (time.monotonic() - start) / span * len(chunks):
+            os.write(master, pending.pop(0))
+        if select.select([master], [], [], 0.001)[0]:
+            transcript += os.read(master, 4096)
+    assert samples >= 50, samples
+    return transcript
+
+
+def interrupted(transcript):
+    os.write(master, b'\x03')
+    out, transcript = finish(transcript)
+    assert child.returncode == -signal.SIGINT, (child.returncode, transcript)
+    assert out == b'', out
+    assert not os.path.exists(os.path.join(home, 'config.toml'))
+
+
 def custom_endpoint(transcript, variable=b'LOCAL_API_KEY'):
     """Selects the custom endpoint and answers its three questions."""
     os.write(master, CUSTOM)
     transcript = wait_for_prompt(transcript, b'Provider name')
+    assert_restored()
     os.write(master, b'local\n' + base_url.encode() + b'\n' + variable + b'\n')
     return transcript
 
@@ -312,6 +349,62 @@ try:
         assert b'model = "other-mini"' in config, config
         assert b'Using LOCAL_API_KEY from the environment (value not shown).' in transcript
         assert b'Verified: the provider answered a minimal request.' in transcript
+    elif scenario == 'burst':
+        assert environment_key
+        transcript = sampled(transcript, [DOWN, b'\x1b[A'] * 4)
+        transcript = custom_endpoint(transcript)
+        transcript = at_raw_prompt(transcript, b'Select a model')
+        os.write(master, b'OTHERx')
+        transcript = wait_for_prompt(transcript, b'Filter: OTHERx')
+        transcript = sampled(transcript, [b'y', b'\x7f'] * 4)
+        # Backspace, Down, and Enter in one write, without waiting for redraws.
+        os.write(master, b'\x7f\x1b[B\r')
+        transcript = wait_for_prompt(transcript, b'Model: other-mini')
+        assert_restored()
+        config, transcript = finish_written(transcript)
+        assert b'model = "other-mini"' in config, config
+    elif scenario == 'paste':
+        assert not environment_key
+        transcript = custom_endpoint(transcript)
+        prompt = b'API key (hidden; Enter skips): '
+        transcript = at_raw_prompt(transcript, prompt)
+        chunks = [LONG_PASTE[start:start + 16] for start in range(0, len(LONG_PASTE), 16)]
+        transcript = sampled(transcript, chunks)
+        os.write(master, b'\r')
+        transcript = wait_for_prompt(transcript, b'Requesting the model list')
+        assert_restored()
+        after = transcript[transcript.rindex(prompt) + len(prompt):]
+        assert after.startswith(b'\r\nRequesting the model list'), after
+        assert not any(chunk in transcript for chunk in chunks), transcript
+        transcript = at_raw_prompt(transcript, b'Select a model')
+        transcript = sampled(transcript, [b'\x1b[A', DOWN] * 4)
+        os.write(master, b'\x1b[A\r')
+        transcript = write_after(transcript, b'Model identifier', b'typed-model\n')
+        config, transcript = finish_written(transcript)
+        assert LONG_PASTE not in transcript + config
+        assert b'model = "typed-model"' in config, config
+    elif scenario == 'hidden-ctrl-d':
+        transcript = custom_endpoint(transcript)
+        transcript = at_raw_prompt(transcript, b'API key (hidden; Enter skips): ')
+        os.write(master, b'partial\x04')
+        cancelled(transcript)
+    elif scenario == 'hidden-ctrl-c':
+        transcript = custom_endpoint(transcript)
+        interrupted(at_raw_prompt(transcript, b'API key (hidden; Enter skips): '))
+    elif scenario == 'hangup':
+        # End of input at a raw terminal is a hangup. The device is gone
+        # afterwards, so its attributes can no longer be read back.
+        transcript = custom_endpoint(transcript)
+        transcript = at_raw_prompt(transcript, b'API key (hidden; Enter skips): ')
+        os.close(master)
+        assert child.wait(timeout=5) == 1, child.returncode
+        assert child.stdout.read() == b''
+        assert not os.path.exists(config_path)
+        sys.exit(0)
+    elif scenario == 'model-ctrl-c':
+        assert environment_key
+        transcript = custom_endpoint(transcript)
+        interrupted(at_raw_prompt(transcript, b'Select a model'))
     elif scenario == 'local':
         assert environment_key
         transcript = local_server(transcript, 1)
@@ -379,16 +472,12 @@ try:
         os.write(master, b'\x1b')
         cancelled(transcript)
     else:
-        os.write(master, b'\x03')
-        out, transcript = finish(transcript)
-        assert child.returncode == -signal.SIGINT, (child.returncode, transcript)
-        assert out == b'', out
-        assert not os.path.exists(os.path.join(home, 'config.toml'))
-    actual = termios.tcgetattr(slave)
-    assert terminal_state_restored(before, actual), (before, actual)
+        interrupted(transcript)
+    assert_restored()
 finally:
     os.close(slave)
-    os.close(master)
+    if scenario != 'hangup':
+        os.close(master)
     if child.poll() is None:
         child.kill()
         child.wait()

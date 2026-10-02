@@ -15,6 +15,7 @@ dependencies = [
  "console",
  "directories",
  "futures-util",
+ "libc",
  "reqwest",
  "rig-core",
  "rusqlite",
