@@ -156,7 +156,15 @@ try:
         transcript = at_raw_prompt(transcript, b'Select a model')
         os.write(master, b'OTHERx')
         transcript = wait_for_prompt(transcript, b'Filter: OTHERx')
-        os.write(master, b'\x7f\x1b[B\r')
+        # Each key waits for the redraw it causes and for raw mode: a key that
+        # arrives between reads is handled by the terminal's line discipline.
+        for key, redraw in ((b'\x7f', b'Filter: OTHER\r\n'), (b'\x1b[B', b'> 2. other-mini')):
+            transcript = wait_for_raw(transcript)
+            sent = len(transcript)
+            os.write(master, key)
+            transcript = transcript[:sent] + wait_for_prompt(transcript[sent:], redraw)
+        transcript = wait_for_raw(transcript)
+        os.write(master, b'\r')
         transcript = wait_for_prompt(transcript, b'Model: other-mini')
         config, transcript = finish_written(transcript)
         assert b'model = "other-mini"' in config, config
