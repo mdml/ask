@@ -87,16 +87,14 @@ fn terminal_init_filters_the_listed_models_and_verifies_the_choice() {
     let fake = FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Stream]);
     terminal_init("filter", Some(&fake), true);
     let requests = fake.requests(2);
-    assert_eq!(
-        (requests[0].method.as_str(), requests[0].path.as_str()),
-        ("GET", "/v1/models")
-    );
-    assert!(requests[0].authorization_is_fixture);
-    assert_eq!(requests[1].model, "other-mini");
-    assert_eq!(
-        requests[1].messages.last().unwrap().1,
-        ask::doctor::LIVE_PROMPT
-    );
+    let listing = &requests[0];
+    assert_eq!(listing.method, "GET");
+    assert_eq!(listing.path, "/v1/models");
+    assert!(listing.authorization_is_fixture);
+    let verification = &requests[1];
+    assert_eq!(verification.model, "other-mini");
+    let prompt = &verification.messages.last().unwrap().1;
+    assert_eq!(prompt, ask::doctor::LIVE_PROMPT);
 }
 
 #[cfg(unix)]
@@ -153,16 +151,15 @@ fn init_then_query_answers_through_the_fake_provider() {
         fake.base_url()
     );
     let transcript = succeeded(&interactive(&home, "init", &answers));
-    assert!(transcript.contains(ask::DEFAULT_SYSTEM_PROMPT));
-    assert!(
-        transcript.contains("LOCAL_API_KEY is not set; skipping the model list and verification.")
-    );
-    assert!(transcript.contains("docs/guides/credentials.md"));
-    assert_eq!(
-        fake.connections(),
-        0,
-        "redirected stdin never supplies a key"
-    );
+    for expected in [
+        ask::DEFAULT_SYSTEM_PROMPT,
+        "LOCAL_API_KEY is not set; skipping the model list and verification.",
+        "docs/guides/credentials.md",
+    ] {
+        assert!(transcript.contains(expected), "{transcript}");
+    }
+    let connections = fake.connections();
+    assert_eq!(connections, 0, "redirected stdin never supplies a key");
     let written = fs::read_to_string(home.join("config.toml")).unwrap();
     assert!(written.contains("api_key_env = \"LOCAL_API_KEY\""));
 
@@ -174,9 +171,10 @@ fn init_then_query_answers_through_the_fake_provider() {
     assert_eq!(query.stdout, b"**4**\n");
     let request = fake.recorded().unwrap();
     assert_eq!(request.model, "fake-model");
+    let (role, system_prompt) = &request.messages[0];
     assert_eq!(
-        request.messages[0],
-        ("system".to_string(), "Use terse tables.".to_string())
+        (role.as_str(), system_prompt.as_str()),
+        ("system", "Use terse tables.")
     );
 }
 
@@ -337,6 +335,12 @@ fn an_empty_local_model_list_falls_back_to_manual_entry() {
     );
 }
 
+/// What init prints when verification fails before it writes.
+const ASKED_BEFORE_WRITING: [&str; 2] = [
+    "Verification failed: ",
+    "Write the configuration anyway? [y/N]: ",
+];
+
 #[test]
 fn a_failed_local_verification_asks_before_writing() {
     for (decision, written) in [("n\n", false), ("y\nn\ny\n", true)] {
@@ -346,8 +350,9 @@ fn a_failed_local_verification_asks_before_writing() {
         let answers = local_answers(1, &fake.base_url(), &format!("1\n\n\n{decision}"));
         let output = interactive(&home, "init", &answers);
         let transcript = stderr(&output);
-        assert!(transcript.contains("Verification failed: "), "{transcript}");
-        assert!(transcript.contains("Write the configuration anyway? [y/N]: "));
+        for expected in ASKED_BEFORE_WRITING {
+            assert!(transcript.contains(expected), "{transcript}");
+        }
         assert_eq!(output.status.success(), written, "{transcript}");
         assert_eq!(home.join("config.toml").exists(), written);
     }
@@ -404,8 +409,9 @@ fn init_asks_before_writing_after_a_failed_verification() {
         );
         let output = keyed(&home, &answers);
         let transcript = stderr(&output);
-        assert!(transcript.contains("Verification failed: "), "{transcript}");
-        assert!(transcript.contains("Write the configuration anyway? [y/N]: "));
+        for expected in ASKED_BEFORE_WRITING {
+            assert!(transcript.contains(expected), "{transcript}");
+        }
         assert!(!transcript.contains(CREDENTIAL));
         assert_eq!(output.status.success(), written, "{transcript}");
         assert_eq!(home.join("config.toml").exists(), written);
