@@ -175,7 +175,7 @@ fn terminal_switch_handles_selection_escape_and_keyboard_interrupt_and_restores_
     for prompt in ["one", "two", "three"] {
         succeeded(&ask(&home, &["new", prompt]));
     }
-    for scenario in ["select", "escape", "cancel"] {
+    for scenario in ["select", "held", "escape", "cancel"] {
         let output = std::process::Command::new("python3")
             .arg("tests/support/switch_menu_process.py")
             .arg(env!("CARGO_BIN_EXE_ask"))

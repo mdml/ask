@@ -76,6 +76,9 @@ fn terminal_init_handles_selection_escape_and_keyboard_interrupt_and_restores_th
         "escape",
         "ctrl-c",
         "hidden-escape",
+        "hidden-ctrl-d",
+        "hidden-ctrl-c",
+        "hangup",
         "local-escape",
     ] {
         terminal_init(scenario, None, false);
@@ -133,6 +136,36 @@ fn terminal_init_uses_a_hidden_key_only_for_the_list_and_verification() {
         assert_eq!(request.header("authorization"), Some(bearer.as_str()));
     }
     assert_eq!(requests[1].model, "typed-model");
+}
+
+/// While a menu or the hidden prompt waits, the terminal neither echoes nor
+/// edits input, so a burst of keys written at once is read in order.
+#[cfg(unix)]
+#[test]
+fn terminal_init_reads_a_burst_of_keys_in_order_without_echo() {
+    let fake = FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Stream]);
+    terminal_init("burst", Some(&fake), true);
+    assert_eq!(fake.requests(2)[1].model, "other-mini");
+}
+
+#[cfg(unix)]
+#[test]
+fn terminal_init_reads_a_long_paste_at_the_hidden_prompt_without_echo() {
+    let fake = FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Stream]);
+    terminal_init("paste", Some(&fake), false);
+    let alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let bearer = format!("Bearer pasted-{}", alphabet.repeat(4));
+    for request in &fake.requests(2) {
+        assert_eq!(request.header("authorization"), Some(bearer.as_str()));
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn terminal_init_ctrl_c_at_the_model_menu_restores_the_terminal() {
+    let fake = FakeProvider::start(Scenario::Status(200, MODELS));
+    terminal_init("model-ctrl-c", Some(&fake), true);
+    assert_eq!(fake.requests(1).len(), 1);
 }
 
 #[cfg(unix)]
