@@ -363,19 +363,22 @@ fn an_empty_credential_answer_means_no_credential() {
 
 /// Answers for a local preset at an unreachable endpoint: the list fails, the
 /// model is typed, verification fails and is accepted, then the file is written.
-fn local_answers(choice: &str, endpoint: &str) -> String {
-    format!("8\n{choice}\n{endpoint}\ntyped-model\n\n\ny\nn\ny\n")
+fn local_answers(choice: usize) -> String {
+    format!("8\n{choice}\n{UNREACHABLE}\ntyped-model\n\n\ny\nn\ny\n")
 }
+
+/// A loopback endpoint nothing listens on.
+const UNREACHABLE: &str = "http://127.0.0.1:1/v1";
 
 #[test]
 fn local_presets_write_a_keyless_target_with_a_long_timeout() {
     for (choice, name, url) in [
-        ("1", "ollama", "http://localhost:11434/v1"),
-        ("2", "lmstudio", "http://localhost:1234/v1"),
-        ("3", "llamacpp", "http://localhost:8080/v1"),
+        (1, "ollama", "http://localhost:11434/v1"),
+        (2, "lmstudio", "http://localhost:1234/v1"),
+        (3, "llamacpp", "http://localhost:8080/v1"),
     ] {
         let path = fresh_path();
-        let answers = local_answers(choice, "http://127.0.0.1:1/v1");
+        let answers = local_answers(choice);
         let (result, transcript) = drive(&path, &answers);
         result.unwrap();
         assert!(transcript.contains(&format!("[{url}]: ")), "{transcript}");
@@ -388,14 +391,14 @@ fn local_presets_write_a_keyless_target_with_a_long_timeout() {
         let target = validate::document(&contents).unwrap().resolve().unwrap();
         assert_eq!(target.kind, "openai-compatible");
         assert_eq!(target.timeout_ms, 120_000);
-        assert_eq!(target.base_url, "http://127.0.0.1:1/v1");
+        assert_eq!(target.base_url, UNREACHABLE);
     }
 }
 
 #[test]
 fn an_unreachable_local_server_names_the_endpoint_and_how_to_start_it() {
     let path = fresh_path();
-    let (result, transcript) = drive(&path, &local_answers("1", "http://127.0.0.1:1/v1"));
+    let (result, transcript) = drive(&path, &local_answers(1));
     result.unwrap();
     for expected in [
         "Cannot list models from http://127.0.0.1:1/v1 (",
