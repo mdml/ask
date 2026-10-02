@@ -1,6 +1,6 @@
 # Provider reference
 
-A provider table's `kind` selects the HTTP API that `ask` speaks to the endpoint in `base_url`. The provider set is compiled into `ask`; model identifiers are free text. Configuration keys are in the [configuration reference](configuration.md#providers).
+A provider table's `kind` selects the HTTP API that `ask` speaks to the endpoint in `base_url`. The provider set is compiled into `ask`; model identifiers are free text, which `ask init` can choose from the provider's own [model list](#model-lists). Configuration keys are in the [configuration reference](configuration.md#providers).
 
 ## Provider kinds
 
@@ -18,16 +18,31 @@ Each kind uses its provider's own HTTP API with streaming over server-sent event
 
 ## Initialization presets
 
-`ask init` offers these presets and writes the listed values, so choosing one requires entering only a model identifier:
+`ask init` offers these presets and writes the listed values, so choosing one requires no endpoint or variable name:
 
-| Menu entry | Provider name and `kind` | `base_url` | `api_key_env` |
+| Menu entry | Provider name | `kind` | `base_url` | `api_key_env` |
+|:--|:--|:--|:--|:--|
+| OpenAI | `openai` | `openai` | `https://api.openai.com/v1` | `OPENAI_API_KEY` |
+| Anthropic | `anthropic` | `anthropic` | `https://api.anthropic.com` | `ANTHROPIC_API_KEY` |
+| Gemini | `gemini` | `gemini` | `https://generativelanguage.googleapis.com` | `GEMINI_API_KEY` |
+| OpenRouter | `openrouter` | `openrouter` | `https://openrouter.ai/api/v1` | `OPENROUTER_API_KEY` |
+| Groq | `groq` | `openai-compatible` | `https://api.groq.com/openai/v1` | `GROQ_API_KEY` |
+| Cerebras | `cerebras` | `openai-compatible` | `https://api.cerebras.ai/v1` | `CEREBRAS_API_KEY` |
+| xAI | `xai` | `openai-compatible` | `https://api.x.ai/v1` | `XAI_API_KEY` |
+
+The last menu entry, a custom OpenAI-compatible endpoint, writes `kind = "openai-compatible"` with a provider name, `base_url`, and `api_key_env` that you enter.
+
+## Model lists
+
+When a key is available, `ask init` requests the selected provider's model list to offer identifiers in a menu. The request goes only to the provider's `base_url`, carries the credential the same way queries do for that kind, never follows redirects, and times out after 10 seconds:
+
+| `kind` | Request | Credential sent as | Pagination |
 |:--|:--|:--|:--|
-| OpenAI | `openai` | `https://api.openai.com/v1` | `OPENAI_API_KEY` |
-| Anthropic | `anthropic` | `https://api.anthropic.com` | `ANTHROPIC_API_KEY` |
-| Gemini | `gemini` | `https://generativelanguage.googleapis.com` | `GEMINI_API_KEY` |
-| OpenRouter | `openrouter` | `https://openrouter.ai/api/v1` | `OPENROUTER_API_KEY` |
+| `openai`, `openrouter`, `openai-compatible` | `GET {base_url}/models` | `Authorization: Bearer` header | none |
+| `anthropic` | `GET {base_url}/v1/models`, then `?after_id={last_id}` | `x-api-key` header, with `anthropic-version: 2023-06-01` | while `has_more` is true |
+| `gemini` | `GET {base_url}/v1beta/models?pageSize=1000&key={credential}`, then with `&pageToken={nextPageToken}` | `key` URL query parameter | while `nextPageToken` is nonempty |
 
-The fifth menu entry, a custom OpenAI-compatible endpoint, writes `kind = "openai-compatible"` with a provider name, `base_url`, and `api_key_env` that you enter.
+`ask init` reads at most 10 pages of at most 8 MiB each and keeps at most 2,000 identifiers. It treats the response as untrusted: it drops identifiers that are empty, longer than 200 bytes, or contain control characters, and drops repeated identifiers. It also drops entries the API marks as unusable for text generation: Gemini models whose `supportedGenerationMethods` lacks `generateContent` (the `models/` prefix is removed from the rest), and entries whose `architecture.output_modalities` excludes `text`, as OpenRouter reports them. The remaining identifiers keep the provider's order, except that identifiers ending in a date-like snapshot suffix (`-YYYYMMDD`, `-YYYY-MM-DD`, `-MMDD`, or `-MM-DD`) follow the others. `ask` compiles in no model names or recommended defaults; the menu always includes an entry for typing any identifier. If the request fails, the dialogue shows the redacted reason and asks for the identifier as free text.
 
 ## Model identifiers
 

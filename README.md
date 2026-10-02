@@ -8,7 +8,7 @@ intelligence in your terminal
 
 Recorded with local fixture responses; timings do not represent provider performance. [Text version](docs/assets/demo/demo.txt).
 
-**Status: beta.** `v0.1.0` is the current stable release. Interfaces may change during 0.x. `ask` works with OpenAI, Anthropic, Gemini, OpenRouter, and custom OpenAI-compatible endpoints on macOS and Linux (arm64 and x86-64).
+**Status: beta.** `v0.1.0` is the current stable release. Interfaces may change during 0.x. `ask` works with OpenAI, Anthropic, Gemini, OpenRouter, Groq, Cerebras, xAI, and custom OpenAI-compatible endpoints on macOS and Linux (arm64 and x86-64).
 
 ## Install
 
@@ -28,13 +28,13 @@ mise use -g 'github:mdml/ask@v0.1.0'
 
 ## First use
 
-1. Create a configuration. `ask init` asks for a provider, a model identifier, an optional system prompt, and a profile name, shows the TOML it will write, and writes it only after you confirm.
+1. Create a configuration. `ask init` offers a provider menu, uses the provider's key from the environment or a hidden prompt to list its models and verify the setup, asks for an optional system prompt and a profile name, shows the TOML it will write, and writes it only after you confirm. The key is never written.
 
    ```sh
    ask init
    ```
 
-2. Ask a first question. `ask` reads the provider key from an environment variable, which `ask init` names, and never stores it. In bash or zsh, this hidden prompt keeps the key out of shell history and out of the parent shell:
+2. Ask a first question. `ask` reads the provider key from an environment variable, which `ask init` names, and never stores it; a key pasted during `ask init` is not kept. In bash or zsh, this hidden prompt keeps the key out of shell history and out of the parent shell:
 
    ```sh
    ( printf 'API key: ' >&2; IFS= read -rs OPENAI_API_KEY </dev/tty || exit; printf '\n' >&2; export OPENAI_API_KEY; exec ask "what is 2+2" )

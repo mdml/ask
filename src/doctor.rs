@@ -20,7 +20,8 @@ use crate::{
 pub const LIVE_PROMPT: &str = "Reply with exactly: ok";
 pub const LIVE_SYSTEM_PROMPT: &str = "Reply with exactly one word.";
 const LIVE_MAX_OUTPUT_TOKENS: u64 = 128;
-const COST_NOTICE: &str = "live check sends a minimal provider request that may incur cost";
+pub(crate) const COST_NOTICE: &str =
+    "live check sends a minimal provider request that may incur cost";
 
 pub struct Options {
     pub live: bool,
@@ -419,7 +420,7 @@ fn report_live_persistence(
     }
 }
 
-async fn live_request(target: &Target, credential: &str) -> Result<(), String> {
+pub(crate) async fn live_request(target: &Target, credential: &str) -> Result<(), String> {
     let mut live_target = target.clone();
     live_target.system_prompt = LIVE_SYSTEM_PROMPT.to_string();
     live_target.max_output_tokens = Some(LIVE_MAX_OUTPUT_TOKENS);

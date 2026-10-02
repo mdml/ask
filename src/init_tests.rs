@@ -6,11 +6,14 @@ use std::{
 };
 
 use super::*;
-use crate::config::Target;
+use crate::{config::Target, validate};
 
 static CASE_ID: AtomicUsize = AtomicUsize::new(0);
 
-const COMPLETE: &str = "5\nlocal\nhttp://127.0.0.1:1/v1\nLOCAL_API_KEY\nfake-model\n\n\ny\n";
+/// A key only the `keyed` lookup returns; it must never reach a transcript.
+const UNIT_SECRET: &str = "unit-secret-never-print";
+
+const COMPLETE: &str = "8\nlocal\nhttp://127.0.0.1:1/v1\nLOCAL_API_KEY\nfake-model\n\n\nn\ny\n";
 
 fn fresh_path() -> PathBuf {
     let id = CASE_ID.fetch_add(1, Ordering::SeqCst);
@@ -20,11 +23,37 @@ fn fresh_path() -> PathBuf {
     dir.join("config.toml")
 }
 
-fn drive(path: &Path, answers: &str) -> (Result<(), InitError>, String) {
+fn unset(_: &str) -> Result<String, env::VarError> {
+    Err(env::VarError::NotPresent)
+}
+
+fn keyed(_: &str) -> Result<String, env::VarError> {
+    Ok(UNIT_SECRET.to_string())
+}
+
+fn not_unicode(_: &str) -> Result<String, env::VarError> {
+    Err(env::VarError::NotUnicode("x".into()))
+}
+
+fn drive_with(path: &Path, answers: &str, lookup: Lookup) -> (Result<(), InitError>, String) {
     let mut input = Cursor::new(answers.as_bytes().to_vec());
     let mut output = Vec::new();
-    let result = run(path, &mut input, &mut output, false);
+    let console = Console {
+        input: &mut input,
+        output: &mut output,
+        menus: false,
+        attended: false,
+    };
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    let result = runtime.block_on(start(path, console, lookup));
     (result, String::from_utf8(output).unwrap())
+}
+
+fn drive(path: &Path, answers: &str) -> (Result<(), InitError>, String) {
+    drive_with(path, answers, unset)
 }
 
 fn assert_local_openai_compatible_target(target: &Target) {
@@ -49,8 +78,10 @@ fn assert_local_openai_compatible_target(target: &Target) {
 fn assert_complete_dialogue_transcript(transcript: &str) {
     for expected in [
         crate::DEFAULT_SYSTEM_PROMPT,
+        "LOCAL_API_KEY is not set; skipping the model list and verification.",
         "read -rs LOCAL_API_KEY",
         "docs/guides/credentials.md",
+        "ask 'what is 2+2'",
         "Write this configuration? [y/N]: Wrote '",
     ] {
         assert!(
@@ -60,23 +91,15 @@ fn assert_complete_dialogue_transcript(transcript: &str) {
     }
 }
 
-fn assert_openai_preset_contents(contents: &str) {
-    for expected in [
-        "kind = \"openai\"",
-        "base_url = \"https://api.openai.com/v1\"",
-        "api_key_env = \"OPENAI_API_KEY\"",
-        "model = \"gpt-5.6-luna\"",
-    ] {
-        assert!(
-            contents.contains(expected),
-            "missing preset field: {expected}"
-        );
+fn assert_preset_contents(contents: &str, fields: [&str; 4]) {
+    for field in fields {
+        assert!(contents.contains(field), "missing preset field: {field}");
     }
 }
 
 fn assert_invalid_answer_explanations(transcript: &str) {
     for (message, count) in [
-        ("Enter a number from 1 to 5.", 1),
+        ("Enter a number from 1 to 8.", 1),
         ("That value must not be empty.", 1),
         (
             "That value must be an http:// or https:// URL with a host, no embedded credentials, and no query or fragment component.",
@@ -119,23 +142,131 @@ fn complete_dialogue_writes_a_loadable_default_profile() {
 }
 
 #[test]
-fn openai_preset_supplies_endpoint_and_credential_defaults() {
-    let path = fresh_path();
-    let answers = "1\ngpt-5.6-luna\n\n\ny\n";
-    drive(&path, answers).0.unwrap();
-    assert_openai_preset_contents(&fs::read_to_string(&path).unwrap());
+fn presets_supply_endpoint_and_credential_defaults() {
+    for (choice, fields) in [
+        (
+            "1",
+            [
+                "kind = \"openai\"",
+                "base_url = \"https://api.openai.com/v1\"",
+                "api_key_env = \"OPENAI_API_KEY\"",
+                "[providers.openai]",
+            ],
+        ),
+        (
+            "5",
+            [
+                "kind = \"openai-compatible\"",
+                "base_url = \"https://api.groq.com/openai/v1\"",
+                "api_key_env = \"GROQ_API_KEY\"",
+                "[providers.groq]",
+            ],
+        ),
+        (
+            "6",
+            [
+                "kind = \"openai-compatible\"",
+                "base_url = \"https://api.cerebras.ai/v1\"",
+                "api_key_env = \"CEREBRAS_API_KEY\"",
+                "[providers.cerebras]",
+            ],
+        ),
+        (
+            "7",
+            [
+                "kind = \"openai-compatible\"",
+                "base_url = \"https://api.x.ai/v1\"",
+                "api_key_env = \"XAI_API_KEY\"",
+                "[providers.xai]",
+            ],
+        ),
+    ] {
+        let path = fresh_path();
+        let answers = format!("{choice}\nsome-model\n\n\nn\ny\n");
+        drive(&path, &answers).0.unwrap();
+        assert_preset_contents(&fs::read_to_string(&path).unwrap(), fields);
+    }
 }
 
 #[test]
 fn replacement_prompt_and_profile_name_are_recorded() {
     let path = fresh_path();
-    let answers = "5\nlocal\nhttps://example.test/v1\nKEY\nm\nBe terse.\nterse\nyes\n";
+    let answers = "8\nlocal\nhttps://example.test/v1\nKEY\nm\nBe terse.\nterse\nn\nyes\n";
     drive(&path, answers).0.unwrap();
     let contents = fs::read_to_string(&path).unwrap();
     assert!(contents.contains("default_profile = \"terse\""));
     assert!(contents.contains("[profiles.terse]"));
     let target = validate::document(&contents).unwrap().resolve().unwrap();
     assert_eq!(target.system_prompt, "Be terse.");
+}
+
+#[test]
+fn another_provider_gets_its_own_uniquely_named_profile() {
+    let path = fresh_path();
+    let answers = concat!(
+        "1\nfirst-model\n\n\ny\n",
+        "1\nopenai\nwork\nsecond-model\n\ndefault\nwork-profile\nn\ny\n"
+    );
+    let (result, transcript) = drive(&path, answers);
+    result.unwrap();
+    assert!(transcript.contains("A provider named 'openai' is already configured."));
+    assert!(transcript.contains("That provider name is already used; choose another."));
+    assert!(transcript.contains("Profile name [work]: "));
+    assert!(transcript.contains("That profile name is already used; choose another."));
+    assert!(transcript.contains("Supply OPENAI_API_KEY only"));
+    let config = validate::document(&fs::read_to_string(&path).unwrap()).unwrap();
+    assert_eq!(config.default_profile, "default");
+    assert_eq!(config.profiles["default"].model, "first-model");
+    assert_eq!(config.profiles["work-profile"].provider, "work");
+    assert_eq!(config.profiles["work-profile"].model, "second-model");
+}
+
+#[test]
+fn a_later_profile_defaults_to_the_provider_name() {
+    let path = fresh_path();
+    let answers = "2\nm\n\n\ny\n3\nm\n\n\nn\ny\n";
+    drive(&path, answers).0.unwrap();
+    let config = validate::document(&fs::read_to_string(&path).unwrap()).unwrap();
+    assert_eq!(config.default_profile, "default");
+    assert_eq!(config.profiles["default"].provider, "anthropic");
+    assert_eq!(config.profiles["gemini"].provider, "gemini");
+}
+
+#[test]
+fn an_environment_key_lists_models_and_verifies_without_being_shown() {
+    let path = fresh_path();
+    let answers = "8\nlocal\nhttp://127.0.0.1:1/v1\nKEY\nfake-model\n\n\nyes\nn\ny\n";
+    let (result, transcript) = drive_with(&path, answers, keyed);
+    result.unwrap();
+    for expected in [
+        "Using KEY from the environment (value not shown).",
+        "Requesting the model list from http://127.0.0.1:1/v1.",
+        "Cannot list models (",
+        "warning: live check sends a minimal provider request that may incur cost",
+        "Verification failed: ",
+        "Write the configuration anyway? [y/N]: ",
+    ] {
+        assert!(transcript.contains(expected), "{expected}: {transcript}");
+    }
+    assert!(!transcript.contains(UNIT_SECRET));
+    assert!(!fs::read_to_string(&path).unwrap().contains(UNIT_SECRET));
+}
+
+#[test]
+fn declining_after_a_failed_verification_writes_nothing() {
+    let path = fresh_path();
+    let answers = "8\nlocal\nhttp://127.0.0.1:1/v1\nKEY\nfake-model\n\n\nn\n";
+    let (result, transcript) = drive_with(&path, answers, keyed);
+    assert!(matches!(result, Err(InitError::Cancelled)), "{transcript}");
+    assert!(!path.exists());
+}
+
+#[test]
+fn a_key_that_is_not_unicode_is_ignored() {
+    let path = fresh_path();
+    let (result, transcript) = drive_with(&path, COMPLETE, not_unicode);
+    result.unwrap();
+    assert!(transcript.contains("LOCAL_API_KEY is set but is not valid Unicode; ignoring it."));
 }
 
 #[test]
@@ -154,7 +285,7 @@ fn end_of_input_cancels_at_every_prompt_without_writing() {
 fn declining_confirmation_cancels_without_writing() {
     for refusal in ["n\n", "\n", "maybe\n"] {
         let path = fresh_path();
-        let answers = COMPLETE.replace("y\n", refusal);
+        let answers = COMPLETE.replace("n\ny\n", &format!("n\n{refusal}"));
         let (result, _) = drive(&path, &answers);
         assert!(matches!(result, Err(InitError::Cancelled)));
         assert!(!path.exists());
@@ -165,7 +296,7 @@ fn declining_confirmation_cancels_without_writing() {
 fn invalid_answers_are_explained_and_asked_again() {
     let path = fresh_path();
     let answers = COMPLETE
-        .replacen("5\n", "0\n5\n", 1)
+        .replacen("8\n", "0\n8\n", 1)
         .replacen("local\n", "\nlocal\n", 1)
         .replacen("http://", "ftp://x\nhttp:// spaced\nhttp://\nhttp://", 1)
         .replacen("LOCAL_API_KEY\n", "1KEY\nBAD-NAME\nLOCAL_API_KEY\n", 1);
@@ -204,6 +335,11 @@ fn unwritable_location_is_reported() {
     let (result, _) = drive(&nested, COMPLETE);
     let message = result.unwrap_err().to_string();
     assert!(message.starts_with("cannot write '"), "{message}");
+}
+
+#[test]
+fn diagnostics_are_collapsed_to_one_printable_line() {
+    assert_eq!(one_line("a\n\u{1b}[2J b\r\n\tc "), "a [2J b c");
 }
 
 #[test]

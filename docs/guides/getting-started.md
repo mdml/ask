@@ -32,13 +32,16 @@ ask init
 
 `ask init` (alias `ask i`) is a dialogue on stderr. It:
 
-1. Offers a provider menu: OpenAI, Anthropic, Gemini, OpenRouter, or a custom OpenAI-compatible endpoint. For the four named providers, `ask init` supplies the endpoint and the credential environment-variable name, which are listed in the [provider reference](../reference/providers.md#initialization-presets). For a custom endpoint, you enter a provider name, an endpoint base URL, and a credential variable name.
-2. Asks for a model identifier. This is free text sent to the provider; `ask` has no model catalog.
-3. Shows the default system prompt and accepts an optional one-line replacement. An empty answer keeps the default.
-4. Asks for a profile name, defaulting to `default`. This profile becomes the default profile.
-5. Shows the exact TOML it will write and asks for confirmation. Only `y` or `yes` writes the file.
+1. Offers a provider menu: OpenAI, Anthropic, Gemini, OpenRouter, Groq, Cerebras, xAI, or a custom OpenAI-compatible endpoint. For the named providers, `ask init` supplies the endpoint and the credential environment-variable name, which are listed in the [provider reference](../reference/providers.md#initialization-presets). For a custom endpoint, you enter a provider name, an endpoint base URL, and a credential variable name.
+2. Looks for the key. If the provider's variable is set, `ask init` uses it and says so without showing the value. Otherwise, on an attended terminal, it offers a hidden prompt where you can paste the key; nothing you type is echoed, and Enter skips. The key is used only during `ask init`, to list models and verify the setup, and is never written anywhere.
+3. With a key, requests the provider's model list and offers it as a menu. Type to narrow the list (case-insensitive), Backspace to edit, arrow keys to move, and Enter to choose; the last entry lets you type an identifier instead. Without a key, or if the list is unavailable, `ask init` says why and asks for the model identifier as free text.
+4. Shows the default system prompt and accepts an optional one-line replacement. An empty answer keeps the default.
+5. Asks for a profile name, defaulting to `default`. This first profile becomes the default profile.
+6. With a key, verifies the setup with one minimal request, the same one `ask doctor --live` sends, after a cost notice. If verification fails, `ask init` shows the reason and asks whether to write the configuration anyway.
+7. Asks whether to add another provider. Each additional provider repeats these steps and gets one profile, named after the provider by default.
+8. Shows the exact TOML it will write and asks for confirmation. Only `y` or `yes` writes the file. It then prints next steps: how to supply the key and a first question to ask.
 
-On an attended terminal, choose the provider with the arrow keys and Enter; Esc cancels. When stdin or stderr is redirected, or `TERM` is unset or `dumb`, the menu is numbered and you type the number. An invalid answer prints an explanation and asks again. Esc at the menu, any other confirmation answer, or end of input at any prompt cancels without writing and exits 1. `ask init` never replaces an existing configuration; to change one, see [Configuring profiles and providers](configuration.md).
+On an attended terminal, choose the provider with the arrow keys and Enter; Esc cancels. When stdin or stderr is redirected, or `TERM` is unset or `dumb`, the menus are numbered and you type the number. With redirected stdin, `ask init` never reads a key; it uses the key only if the variable is already set. An invalid answer prints an explanation and asks again. Esc at a menu or the hidden prompt, any other confirmation answer, or end of input at any prompt cancels without writing and exits 1. `ask init` never replaces an existing configuration; to change one, see [Configuring profiles and providers](configuration.md).
 
 `ask init` prints the path it writes. The file is `$ASK_HOME/config.toml` when `ASK_HOME` is set, and otherwise `config.toml` in the platform-standard configuration directory for an application named `ask`. `ask doctor` shows every resolved path.
 
@@ -46,7 +49,7 @@ On an attended terminal, choose the provider with the arrow keys and Enter; Esc 
 
 ## Supply a credential and ask a question
 
-`ask` reads the provider key from the environment variable named in the configuration and never stores its value. `ask init` prints the variable name for your provider. In bash or zsh, this hidden prompt supplies the key to a single `ask` process, keeping it out of shell history and out of the parent shell:
+`ask` reads the provider key from the environment variable named in the configuration and never stores its value. A key pasted during `ask init` is not kept, so later commands need it again. `ask init` prints the variable name for your provider and this command in its next steps. In bash or zsh, this hidden prompt supplies the key to a single `ask` process, keeping it out of shell history and out of the parent shell:
 
 ```sh
 ( printf 'API key: ' >&2; IFS= read -rs OPENAI_API_KEY </dev/tty || exit; printf '\n' >&2; export OPENAI_API_KEY; exec ask "what is 2+2" )

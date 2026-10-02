@@ -13,7 +13,7 @@ With the skill loaded, the agent:
 - starts from the installed binary: `ask version`, `ask help`, and the offline `ask doctor`. It reads documentation that matches your installed release, because `main` can describe behavior your copy does not have yet;
 - changes configuration only by copying your existing file, editing the copy, validating the complete document with `ask configure check`, reviewing the difference, and installing it with `ask configure apply` within your authorized scope;
 - never asks for, reads, or stores a provider key. It tells you which environment variable `ask` expects and points you to [Injecting credentials](credentials.md);
-- never sends a provider request on its own initiative. `ask doctor --live` and every query can incur provider cost, so the agent establishes authorization first or hands you the command;
+- never sends a provider request on its own initiative. `ask doctor --live`, `ask init` when the provider's key is available, and every query can incur provider cost, so the agent establishes authorization first or hands you the command;
 - reports offline results and live results separately. Passing offline checks show that the configuration is valid and the credential variable is set, not that the provider accepts the key or the model.
 
 ## Claude Code

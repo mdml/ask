@@ -5,10 +5,17 @@
 //! is written to stdout. End of input at any prompt cancels without writing.
 //! `init` never replaces an existing configuration; `ask configure apply`
 //! is the command that installs a replacement.
+//!
+//! A credential is taken from the environment or, on an attended terminal, a
+//! hidden prompt. It is used only to list models and verify the setup during
+//! `init`, and is never written or shown.
+
+mod model;
+mod provider;
 
 use std::{
-    collections::BTreeMap,
-    fmt,
+    collections::{BTreeMap, BTreeSet},
+    env, fmt,
     io::{self, BufRead, Write},
     path::Path,
 };
@@ -16,55 +23,13 @@ use std::{
 use crate::{
     config::{Config, ProfileConfig, ProviderConfig},
     configure::{self, WriteError},
-    validate::{self, Value},
+    validate::Value,
 };
 
 const DEFAULT_PROFILE_NAME: &str = "default";
-const CUSTOM_OPTION: usize = 5;
 
-struct Preset {
-    menu_label: &'static str,
-    kind: &'static str,
-    name: &'static str,
-    base_url: &'static str,
-    api_key_env: &'static str,
-}
-
-const PRESETS: [Preset; 4] = [
-    Preset {
-        menu_label: "OpenAI",
-        kind: "openai",
-        name: "openai",
-        base_url: "https://api.openai.com/v1",
-        api_key_env: "OPENAI_API_KEY",
-    },
-    Preset {
-        menu_label: "Anthropic",
-        kind: "anthropic",
-        name: "anthropic",
-        base_url: "https://api.anthropic.com",
-        api_key_env: "ANTHROPIC_API_KEY",
-    },
-    Preset {
-        menu_label: "Gemini",
-        kind: "gemini",
-        name: "gemini",
-        base_url: "https://generativelanguage.googleapis.com",
-        api_key_env: "GEMINI_API_KEY",
-    },
-    Preset {
-        menu_label: "OpenRouter",
-        kind: "openrouter",
-        name: "openrouter",
-        base_url: "https://openrouter.ai/api/v1",
-        api_key_env: "OPENROUTER_API_KEY",
-    },
-];
-
-enum ProviderChoice {
-    Preset(usize),
-    Custom,
-}
+/// Reads one environment variable, as [`env::var`] does.
+type Lookup = fn(&str) -> Result<String, env::VarError>;
 
 #[derive(Debug)]
 pub enum InitError {
@@ -92,29 +57,41 @@ impl From<io::Error> for InitError {
     }
 }
 
+/// Where the dialogue reads and writes, and what the terminal supports.
+pub struct Console<'a, R, W> {
+    pub input: &'a mut R,
+    pub output: &'a mut W,
+    /// Selection menus are available: stdin and stderr are terminals and
+    /// `TERM` is usable.
+    pub menus: bool,
+    /// Stdin and stderr are terminals, so a key may be read at a hidden prompt.
+    pub attended: bool,
+}
+
 struct Dialogue<'a, R, W> {
-    input: &'a mut R,
-    output: &'a mut W,
-    interactive_terminal: bool,
+    console: Console<'a, R, W>,
+    lookup: Lookup,
 }
 
 /// Creates `path` from answers read on `input`. Refuses to touch an existing file.
-pub fn run<R: BufRead, W: Write>(
+pub async fn run<R: BufRead, W: Write>(
     path: &Path,
-    input: &mut R,
-    output: &mut W,
-    interactive_terminal: bool,
+    console: Console<'_, R, W>,
+) -> Result<(), InitError> {
+    start(path, console, |name| env::var(name)).await
+}
+
+async fn start<R: BufRead, W: Write>(
+    path: &Path,
+    console: Console<'_, R, W>,
+    lookup: Lookup,
 ) -> Result<(), InitError> {
     if std::fs::symlink_metadata(path).is_ok() {
         return Err(InitError::Exists(path.display().to_string()));
     }
-    let mut dialogue = Dialogue {
-        input,
-        output,
-        interactive_terminal,
-    };
+    let mut dialogue = Dialogue { console, lookup };
     dialogue.say(&format!("Creating '{}'.", path.display()))?;
-    let config = dialogue.collect()?;
+    let config = dialogue.collect().await?;
     let rendered = config
         .to_toml()
         .map_err(|error| InitError::Failed(error.to_string()))?;
@@ -124,7 +101,8 @@ pub fn run<R: BufRead, W: Write>(
         return Err(InitError::Cancelled);
     }
     configure::create_new(path, rendered.as_bytes()).map_err(|error| failed(path, &error))?;
-    dialogue.say(&format!("Wrote '{}'.", path.display()))
+    dialogue.say(&format!("Wrote '{}'.", path.display()))?;
+    dialogue.next_steps(&config)
 }
 
 fn failed(path: &Path, error: &WriteError) -> InitError {
@@ -134,149 +112,102 @@ fn failed(path: &Path, error: &WriteError) -> InitError {
     }
 }
 
+/// The variable a provider's credential is read from.
+fn credential_variable(provider: &ProviderConfig) -> &str {
+    &provider.api_key_env
+}
+
+/// Collapses a diagnostic to one line of printable text.
+fn one_line(text: &str) -> String {
+    text.split(|character: char| character.is_whitespace() || character.is_control())
+        .filter(|word| !word.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
-    fn collect(&mut self) -> Result<Config, InitError> {
+    async fn collect(&mut self) -> Result<Config, InitError> {
         self.introduction()?;
-        let choice = self.select_provider()?;
-        let (provider_name, provider) = match choice {
-            ProviderChoice::Preset(index) => self.preset_provider(&PRESETS[index])?,
-            ProviderChoice::Custom => self.custom_provider()?,
+        let mut config = Config {
+            default_profile: String::new(),
+            expire_history: false,
+            history_days: None,
+            providers: BTreeMap::new(),
+            profiles: BTreeMap::new(),
         };
-        self.credential_instructions(&provider.api_key_env)?;
-        let model = self.required(
-            "Model identifier (free text sent to the provider): ",
-            validate::non_empty,
-        )?;
+        loop {
+            self.add_target(&mut config).await?;
+            if !self.confirm("\nAdd another provider? [y/N]: ")? {
+                return Ok(config);
+            }
+        }
+    }
+
+    /// Adds one provider and the one profile that uses it.
+    async fn add_target(&mut self, config: &mut Config) -> Result<(), InitError> {
+        let (provider_name, provider) = self.provider(&config.providers)?;
+        let key = self.credential(credential_variable(&provider))?;
+        let model = self.model(&provider, key.as_ref()).await?;
         let system_prompt = self.optional_prompt()?;
-        let profile_name = self
-            .optional(&format!("Profile name [{DEFAULT_PROFILE_NAME}]: "))?
-            .unwrap_or_else(|| DEFAULT_PROFILE_NAME.to_string());
+        let profile_name = self.profile_name(config, &provider_name)?;
+        if config.default_profile.is_empty() {
+            config.default_profile.clone_from(&profile_name);
+        }
         let profile = ProfileConfig {
             provider: provider_name.clone(),
             model,
             system_prompt,
             max_output_tokens: None,
         };
-        Ok(Config {
-            default_profile: profile_name.clone(),
-            expire_history: false,
-            history_days: None,
-            providers: BTreeMap::from([(provider_name, provider)]),
-            profiles: BTreeMap::from([(profile_name, profile)]),
-        })
+        config.providers.insert(provider_name, provider);
+        config.profiles.insert(profile_name.clone(), profile);
+        match key {
+            Some(key) => self.verify(config, &profile_name, &key).await,
+            None => Ok(()),
+        }
     }
 
     fn introduction(&mut self) -> Result<(), InitError> {
-        self.say(
-            "ask stores provider settings in configuration and reads credentials from environment variables only.",
-        )?;
-        self.say("Export credentials only for the ask process, not in shell profiles or command history.")?;
-        self.say(
-            "Use a hidden prompt or your existing credential manager to inject the key at launch.",
-        )?;
-        self.say("See the README and docs/guides/credentials.md for recipes.")?;
+        self.say("ask stores provider settings in configuration and reads credentials from environment variables only.")?;
+        self.say("During init, a key from the environment or a hidden prompt lists models and verifies the setup; it is never written.")?;
         self.say("")
     }
 
-    fn credential_instructions(&mut self, variable: &str) -> Result<(), InitError> {
-        self.say("After init succeeds, this bash/zsh command prompts invisibly for your key and asks a first question:")?;
-        self.say(&format!(
-            "  ( printf 'API key: ' >&2; IFS= read -rs {variable} </dev/tty || exit; printf '\\n' >&2; export {variable}; exec ask 'what is 2+2' )"
-        ))?;
-        self.say("Paste the key only at that hidden prompt; it stays out of shell history and your parent shell.")
-    }
-
-    fn select_provider(&mut self) -> Result<ProviderChoice, InitError> {
-        if self.interactive_terminal {
-            return Self::select_provider_terminal();
-        }
-        self.select_provider_line()
-    }
-
-    fn select_provider_terminal() -> Result<ProviderChoice, InitError> {
-        let mut labels = PRESETS
-            .iter()
-            .map(|preset| preset.menu_label.to_string())
-            .collect::<Vec<_>>();
-        labels.push("Custom OpenAI-compatible endpoint".to_string());
-        match crate::terminal::select(
-            "Select a provider (arrow keys, Enter; Esc cancels):",
-            &labels,
-        )? {
-            Some(index) if index < PRESETS.len() => Ok(ProviderChoice::Preset(index)),
-            Some(_) => Ok(ProviderChoice::Custom),
-            None => Err(InitError::Cancelled),
-        }
-    }
-
-    fn select_provider_line(&mut self) -> Result<ProviderChoice, InitError> {
-        self.say("Select a provider:")?;
-        for (index, preset) in PRESETS.iter().enumerate() {
-            self.say(&format!(" {}. {}", index + 1, preset.menu_label))?;
-        }
-        self.say(&format!(
-            " {CUSTOM_OPTION}. Custom OpenAI-compatible endpoint"
-        ))?;
+    fn profile_name(&mut self, config: &Config, provider_name: &str) -> Result<String, InitError> {
+        let suggestion = if config.profiles.is_empty() {
+            DEFAULT_PROFILE_NAME
+        } else {
+            provider_name
+        };
+        let prompt = format!("Profile name [{suggestion}]: ");
         loop {
-            let answer = self.ask("Select a provider [1-5]: ")?;
-            match answer.parse::<usize>() {
-                Ok(number) if (1..=PRESETS.len()).contains(&number) => {
-                    return Ok(ProviderChoice::Preset(number - 1));
-                }
-                Ok(number) if number == CUSTOM_OPTION => return Ok(ProviderChoice::Custom),
-                _ => self.say("Enter a number from 1 to 5.")?,
+            let name = self
+                .optional(&prompt)?
+                .unwrap_or_else(|| suggestion.to_string());
+            if !config.profiles.contains_key(&name) {
+                return Ok(name);
             }
+            self.say("That profile name is already used; choose another.")?;
         }
     }
 
-    fn preset_provider(&mut self, preset: &Preset) -> Result<(String, ProviderConfig), InitError> {
+    fn next_steps(&mut self, config: &Config) -> Result<(), InitError> {
+        let variables: BTreeSet<&str> =
+            config.providers.values().map(credential_variable).collect();
+        let default = &config.profiles[&config.default_profile].provider;
+        let variable = credential_variable(&config.providers[default]);
+        self.say("\nNext steps:")?;
         self.say(&format!(
-            "\nProvider: {} (kind {})",
-            preset.menu_label, preset.kind
+            "  Supply {} only to the ask process; docs/guides/credentials.md shows how without a shell-wide export.",
+            variables.into_iter().collect::<Vec<_>>().join(", ")
         ))?;
-        self.say(&format!("Endpoint: {}", preset.base_url))?;
+        self.say("  For example, this bash/zsh command prompts invisibly for the key and asks a first question:")?;
         self.say(&format!(
-            "Credential variable: {} (value is never read during init)",
-            preset.api_key_env
+            "    ( printf 'API key: ' >&2; IFS= read -rs {variable} </dev/tty || exit; printf '\\n' >&2; export {variable}; exec ask 'what is 2+2' )"
         ))?;
-        self.say(&format!(
-            "Before your first query, export {} only for the ask process using the credential recipe in the README.",
-            preset.api_key_env
-        ))?;
-        Ok((
-            preset.name.to_string(),
-            ProviderConfig {
-                kind: preset.kind.to_string(),
-                base_url: preset.base_url.to_string(),
-                api_key_env: preset.api_key_env.to_string(),
-                timeout_ms: crate::config::DEFAULT_TIMEOUT_MS,
-            },
-        ))
-    }
-
-    fn custom_provider(&mut self) -> Result<(String, ProviderConfig), InitError> {
-        self.say("\nCustom OpenAI-compatible endpoint (kind openai-compatible).")?;
-        let provider_name = self.required(
-            "Provider name (used in configuration tables): ",
-            validate::non_empty,
-        )?;
-        let base_url = self.required(
-            "Endpoint base URL (http:// or https://): ",
-            validate::endpoint,
-        )?;
-        let api_key_env = self.required(
-            "Credential environment variable name (value is never read): ",
-            validate::env_var_name,
-        )?;
-        Ok((
-            provider_name,
-            ProviderConfig {
-                kind: validate::PROVIDER_KIND.to_string(),
-                base_url,
-                api_key_env,
-                timeout_ms: crate::config::DEFAULT_TIMEOUT_MS,
-            },
-        ))
+        self.say(
+            "  With the key already in the environment, ask a first question: ask 'what is 2+2'",
+        )
     }
 
     fn optional_prompt(&mut self) -> Result<Option<String>, InitError> {
@@ -285,6 +216,22 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
             crate::DEFAULT_SYSTEM_PROMPT
         ))?;
         self.optional("Replacement system prompt (empty keeps the default): ")
+    }
+
+    /// Offers numbered `labels` and returns the chosen position.
+    fn numbered(&mut self, title: &str, labels: &[String]) -> Result<usize, InitError> {
+        self.say(&format!("{title}:"))?;
+        for (index, label) in labels.iter().enumerate() {
+            self.say(&format!(" {}. {label}", index + 1))?;
+        }
+        let count = labels.len();
+        loop {
+            let answer = self.ask(&format!("{title} [1-{count}]: "))?;
+            match answer.parse::<usize>() {
+                Ok(number) if (1..=count).contains(&number) => return Ok(number - 1),
+                _ => self.say(&format!("Enter a number from 1 to {count}."))?,
+            }
+        }
     }
 
     fn required(
@@ -312,22 +259,22 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
     }
 
     fn ask(&mut self, prompt: &str) -> Result<String, InitError> {
-        if self.interactive_terminal {
-            write!(self.output, "? {prompt}")?;
+        if self.console.menus {
+            write!(self.console.output, "? {prompt}")?;
         } else {
-            write!(self.output, "{prompt}")?;
+            write!(self.console.output, "{prompt}")?;
         }
-        self.output.flush()?;
+        self.console.output.flush()?;
         let mut line = String::new();
-        if self.input.read_line(&mut line)? == 0 {
-            writeln!(self.output)?;
+        if self.console.input.read_line(&mut line)? == 0 {
+            writeln!(self.console.output)?;
             return Err(InitError::Cancelled);
         }
         Ok(line.trim().to_string())
     }
 
     fn say(&mut self, text: &str) -> Result<(), InitError> {
-        writeln!(self.output, "{text}")?;
+        writeln!(self.console.output, "{text}")?;
         Ok(())
     }
 }
