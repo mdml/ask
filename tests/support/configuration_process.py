@@ -90,6 +90,23 @@ elif scenario == 'init_interaction':
     init.stdin = None
     assert b'already exists' in finish(init, 1)
     assert destination.read_bytes() == candidate
+elif scenario == 'edit_changed':
+    destination.write_bytes(candidate)
+    init = start('init', stdin=subprocess.PIPE)
+    # The flushed confirmation prompt proves the file was read before this edit.
+    init.stdin.write(b'4\n1\n')
+    init.stdin.flush()
+    transcript = b''
+    while not transcript.endswith(b'Write this configuration? [y/N]: '):
+        byte = init.stderr.read(1)
+        assert byte
+        transcript += byte
+    destination.write_bytes(candidate + b'# edited elsewhere\n')
+    init.stdin.write(b'y\n')
+    init.stdin.close()
+    init.stdin = None
+    assert b'changed after init read it; nothing was written' in finish(init, 1)
+    assert destination.read_bytes() == candidate + b'# edited elsewhere\n'
 elif scenario == 'utf8':
     for action in ('check', 'apply'):
         destination.write_bytes(candidate)

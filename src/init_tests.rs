@@ -306,14 +306,13 @@ fn invalid_answers_are_explained_and_asked_again() {
 }
 
 #[test]
-fn existing_file_is_refused_before_any_prompt() {
+fn a_destination_that_is_not_a_regular_file_is_refused_before_any_prompt() {
     let path = fresh_path();
-    fs::create_dir_all(path.parent().unwrap()).unwrap();
-    fs::write(&path, "original").unwrap();
+    fs::create_dir_all(&path).unwrap();
     let (result, transcript) = drive(&path, COMPLETE);
     assert!(matches!(result, Err(InitError::Exists(_))));
     assert!(transcript.is_empty());
-    assert_eq!(fs::read_to_string(&path).unwrap(), "original");
+    assert!(path.is_dir());
 }
 
 #[test]

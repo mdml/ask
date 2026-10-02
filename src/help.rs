@@ -31,8 +31,10 @@ is rejected.
 Prompt words join with single spaces; without them, stdin supplies the prompt.
 
 Initialization:
-  ask init creates the first configuration interactively. Supported providers
-  supply endpoint and credential-variable defaults; model identifiers are free text.
+  ask init creates the first configuration interactively or changes an existing
+  one: add a provider or profile, change a profile's model, or set the default.
+  Supported providers and local model servers supply connection defaults, and
+  models are chosen from the provider's list or typed.
   Credentials are read from environment variables only, scoped to the ask process.
   Use a hidden prompt or your existing credential manager to inject them only when
   launching ask. See the README and docs/guides/credentials.md for recipes.
