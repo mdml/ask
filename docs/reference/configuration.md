@@ -10,7 +10,7 @@
 | History and statistics database | `$ASK_HOME/data/ask.sqlite3` | `ask.sqlite3` in the platform-standard data directory |
 | Cache | `$ASK_HOME/cache` | the platform-standard cache directory |
 
-`ask doctor` prints every resolved path. Environment variables are used only for credentials and for the `ASK_HOME` path override; no environment variable changes any other setting.
+`ask doctor` prints every resolved path. Environment variables are used only for credentials, for the `ASK_HOME` path override, and for `ASK_MODEL_LIST_URL`, which `ask init` alone reads to override the location of the [published model list](providers.md#published-model-list) (an empty value disables it); no environment variable changes any other setting.
 
 ## Example
 

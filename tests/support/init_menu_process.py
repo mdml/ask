@@ -15,6 +15,8 @@ signal.alarm(20)
 binary, home, scenario, *rest = sys.argv[1:]
 base_url = rest[0] if rest else 'http://localhost/v1'
 os.environ['ASK_HOME'] = home
+# The published model list is disabled unless the scenario supplies a fake's URL.
+os.environ['ASK_MODEL_LIST_URL'] = rest[1] if len(rest) > 1 else ''
 os.environ['TERM'] = 'xterm-256color'
 # Only the scenario's own credential variable may reach init.
 for variable in ('OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'OPENROUTER_API_KEY',
@@ -154,6 +156,14 @@ def finish_written(transcript):
     return config, transcript
 
 
+def send_key(transcript, key, redraw):
+    """Sends one key in raw mode and waits for the redraw it causes."""
+    transcript = wait_for_raw(transcript)
+    sent = len(transcript)
+    os.write(master, key)
+    return transcript[:sent] + wait_for_prompt(transcript[sent:], redraw)
+
+
 def cancelled(transcript):
     out, transcript = finish(transcript)
     assert child.returncode == 1, (child.returncode, transcript)
@@ -281,7 +291,7 @@ try:
         transcript = write_after(transcript, b'Model identifier', b'm\n')
         config, transcript = finish_written(transcript)
         assert b'kind = "openai-compatible"' in config, config
-        assert b'No key entered; skipping the model list' in transcript, transcript
+        assert b'No key entered; continuing without a key' in transcript, transcript
     elif scenario == 'filter':
         assert environment_key
         transcript = custom_endpoint(transcript)
@@ -334,6 +344,26 @@ try:
         config, transcript = finish_written(transcript)
         assert b'model = "typed-model"' in config, config
         assert b'Verified: the provider answered a minimal request.' in transcript
+    elif scenario == 'published':
+        assert not environment_key and os.environ['ASK_MODEL_LIST_URL']
+        os.write(master, b'\r')
+        transcript = at_raw_prompt(transcript, b'API key (hidden; Enter skips): ')
+        os.write(master, b'\r')
+        transcript = at_raw_prompt(transcript, b'Select a model')
+        assert b'; no credentials are sent.' in transcript, transcript
+        assert b'Published model list generated 2026-10-01' in transcript, transcript
+        typed = b''
+        for key in (b'o', b't', b'h', b'e', b'r'):
+            typed += key
+            transcript = send_key(transcript, key, b'Filter: ' + typed + b'\r\n')
+        transcript = send_key(transcript, b'\x1b[B', b'> 2. other-mini')
+        transcript = wait_for_raw(transcript)
+        os.write(master, b'\r')
+        transcript = wait_for_prompt(transcript, b'Model: other-mini')
+        config, transcript = finish_written(transcript)
+        assert b'kind = "openai"' in config and b'model = "other-mini"' in config, config
+        assert b'[2Jevil' not in transcript, transcript
+        assert b'live check' not in transcript and b'Verified' not in transcript, transcript
     elif scenario == 'model-escape':
         assert environment_key
         transcript = custom_endpoint(transcript)

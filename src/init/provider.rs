@@ -121,6 +121,19 @@ pub(super) const LOCAL_PRESETS: [LocalPreset; 3] = [
     },
 ];
 
+/// The name of the hosted preset whose kind, endpoint, and credential
+/// variable `provider` has, if any.
+pub(super) fn hosted_preset(provider: &ProviderConfig) -> Option<&'static str> {
+    PRESETS
+        .iter()
+        .find(|preset| {
+            provider.kind == preset.kind
+                && provider.base_url == preset.base_url
+                && provider.api_key_env.as_deref() == Some(preset.api_key_env)
+        })
+        .map(|preset| preset.name)
+}
+
 type Providers = BTreeMap<String, ProviderConfig>;
 
 impl<R: BufRead, W: Write> Dialogue<'_, R, W> {

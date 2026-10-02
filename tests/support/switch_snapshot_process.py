@@ -19,6 +19,8 @@ with sqlite3.connect(database) as connection:
     )
 
 os.environ['ASK_HOME'] = home
+# No proof contacts the project's published model list.
+os.environ['ASK_MODEL_LIST_URL'] = ''
 os.environ['TERM'] = 'xterm-256color'
 master, slave = pty.openpty()
 child = subprocess.Popen(

@@ -18,6 +18,7 @@
 mod edit;
 mod model;
 mod provider;
+mod published;
 
 use std::{
     collections::{BTreeMap, BTreeSet},

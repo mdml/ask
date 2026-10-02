@@ -18,6 +18,8 @@ if not __debug__:
 binary, home, mode = sys.argv[1:]
 home = pathlib.Path(home)
 os.environ['ASK_HOME'] = str(home)
+# No proof contacts the project's published model list.
+os.environ['ASK_MODEL_LIST_URL'] = ''
 source = home / 'candidate.toml'
 destination = home / 'config.toml'
 original = b'original\n'

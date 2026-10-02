@@ -113,7 +113,7 @@ fn changing_a_model_keeps_the_rest_and_says_threads_keep_their_profile() {
         written,
         EXISTING.replace("model = \"fake-model\"", "model = \"new-model\"")
     );
-    assert!(transcript.contains("LOCAL_API_KEY is not set; skipping"));
+    assert!(transcript.contains("LOCAL_API_KEY is not set; continuing without a key"));
     assert!(transcript.contains(NEW_THREADS_ONLY));
 }
 

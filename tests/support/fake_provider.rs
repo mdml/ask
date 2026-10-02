@@ -36,7 +36,16 @@ pub enum Scenario {
     SseChunks(&'static [&'static str]),
     /// A JSON error body with the given status.
     Status(u16, &'static str),
+    /// A published model list whose body exceeds the 1 MiB `ask init` reads.
+    OversizedList,
+    /// Accepts the request and answers nothing for six seconds, longer than
+    /// the published-list timeout.
+    Silent,
 }
+
+/// A version 1 published model list. Its `openai` entries include a dated
+/// snapshot listed first and an identifier that would clear the screen.
+pub const PUBLISHED: &str = r#"{"version": 1, "generated_at": "2026-10-01T06:00:00Z", "providers": {"openai": ["fake-model-2024-08-06", "fake-model", "other-model", "\u001b[2Jevil", "other-mini"], "anthropic": ["claude-fake"]}}"#;
 
 #[derive(Clone, Debug)]
 pub struct RecordedRequest {
@@ -158,6 +167,11 @@ impl FakeProvider {
 
     pub fn base_url(&self) -> String {
         format!("http://{}/v1", self.address)
+    }
+
+    /// Where `ASK_MODEL_LIST_URL` points to fetch a published list from this fake.
+    pub fn published_url(&self) -> String {
+        format!("http://{}/models/v1/models.json", self.address)
     }
 
     /// The number of connections accepted so far.
@@ -367,6 +381,16 @@ fn respond(stream: &mut TcpStream, scenario: Scenario) {
             let _ = stream.write_all(b"0\r\n\r\n");
         }
         Scenario::Status(status, body) => fixed(stream, status, "application/json", body),
+        Scenario::OversizedList => {
+            let padding = " ".repeat(1024 * 1024);
+            fixed(
+                stream,
+                200,
+                "application/json",
+                &format!("{PUBLISHED}{padding}"),
+            );
+        }
+        Scenario::Silent => thread::sleep(Duration::from_secs(6)),
     }
 }
 

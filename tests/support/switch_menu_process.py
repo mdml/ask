@@ -15,6 +15,8 @@ if not __debug__:
 signal.alarm(20)
 binary, home, scenario = sys.argv[1:]
 os.environ['ASK_HOME'] = home
+# No proof contacts the project's published model list.
+os.environ['ASK_MODEL_LIST_URL'] = ''
 os.environ['TERM'] = 'dumb' if scenario == 'dumb' else 'xterm-256color'
 master, slave = pty.openpty()
 termios.tcsetwinsize(slave, (6, 24) if scenario == 'viewport' else

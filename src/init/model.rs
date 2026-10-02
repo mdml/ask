@@ -58,7 +58,7 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
         }
         if !self.console.attended {
             self.say(&format!(
-                "{variable} is not set; skipping the model list and verification."
+                "{variable} is not set; continuing without a key, so the setup will not be verified."
             ))?;
             return Ok(None);
         }
@@ -77,14 +77,17 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
         let key = crate::terminal::read_hidden(prompt)?.ok_or(InitError::Cancelled)?;
         let key = key.trim();
         if key.is_empty() {
-            self.say("No key entered; skipping the model list and verification.")?;
+            self.say(
+                "No key entered; continuing without a key, so the setup will not be verified.",
+            )?;
             return Ok(None);
         }
         Ok(Some(Secret(key.to_string())))
     }
 
     /// A model identifier chosen from the provider's list when a key is
-    /// available or the provider needs none, otherwise entered as free text.
+    /// available or the provider needs none, otherwise from the published
+    /// list for a hosted preset, otherwise entered as free text.
     pub(super) async fn model(
         &mut self,
         provider: &ProviderConfig,
@@ -95,7 +98,7 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
         let credential = match key {
             Some(key) => key.0.as_str(),
             None if keyless => provider::NO_KEY_PLACEHOLDER,
-            None => return self.manual_model(),
+            None => return self.published_model(provider).await,
         };
         let Some(kind) = Kind::parse(&provider.kind) else {
             return self.manual_model();
@@ -123,7 +126,7 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
         self.manual_model()
     }
 
-    fn pick_model(&mut self, ids: Vec<String>) -> Result<String, InitError> {
+    pub(super) fn pick_model(&mut self, ids: Vec<String>) -> Result<String, InitError> {
         let mut labels = ids;
         labels.push(MANUAL_ENTRY.to_string());
         let choice = if self.console.menus {
@@ -146,7 +149,7 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
         }
     }
 
-    fn manual_model(&mut self) -> Result<String, InitError> {
+    pub(super) fn manual_model(&mut self) -> Result<String, InitError> {
         self.required(
             "Model identifier (free text sent to the provider): ",
             validate::non_empty,

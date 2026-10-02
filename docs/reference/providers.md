@@ -1,6 +1,6 @@
 # Provider reference
 
-A provider table's `kind` selects the HTTP API that `ask` speaks to the endpoint in `base_url`. The provider set is compiled into `ask`; model identifiers are free text, which `ask init` can choose from the provider's own [model list](#model-lists). Configuration keys are in the [configuration reference](configuration.md#providers).
+A provider table's `kind` selects the HTTP API that `ask` speaks to the endpoint in `base_url`. The provider set is compiled into `ask`; model identifiers are free text, which `ask init` can choose from the provider's own model list or the list the `ask` project publishes; see [model lists](#model-lists). Configuration keys are in the [configuration reference](configuration.md#providers).
 
 ## Provider kinds
 
@@ -46,6 +46,16 @@ The last menu entry, a custom OpenAI-compatible endpoint, writes `kind = "openai
 
 ## Model lists
 
+`ask init` offers model identifiers from the first available of these sources:
+
+1. With a key, or for a [keyless](#keyless-targets) provider, the selected provider's own model list, described below.
+2. Without a key, for the seven hosted [initialization presets](#initialization-presets) only, the [published model list](#published-model-list).
+3. Otherwise, or when the chosen source fails or lists nothing, free-text entry.
+
+Custom endpoints never use the published list. Whatever the source, the menu always ends with an entry for typing any identifier.
+
+### Provider model lists
+
 When a key is available, or the provider is [keyless](#keyless-targets), `ask init` requests the selected provider's model list to offer identifiers in a menu. The request goes only to the provider's `base_url`, carries the credential the same way queries do for that kind, never follows redirects, and times out after 10 seconds:
 
 | `kind` | Request | Credential sent as | Pagination |
@@ -57,6 +67,29 @@ When a key is available, or the provider is [keyless](#keyless-targets), `ask in
 `ask init` reads at most 10 pages of at most 8 MiB each and keeps at most 2,000 identifiers. It treats the response as untrusted: it drops identifiers that are empty, longer than 200 bytes, or contain control characters, and drops repeated identifiers. It also drops entries the API marks as unusable for text generation: Gemini models whose `supportedGenerationMethods` lacks `generateContent` (the `models/` prefix is removed from the rest), and entries whose `architecture.output_modalities` excludes `text`, as OpenRouter reports them. The remaining identifiers keep the provider's order, except that identifiers ending in a date-like snapshot suffix (`-YYYYMMDD`, `-YYYY-MM-DD`, `-MMDD`, or `-MM-DD`) follow the others. `ask` compiles in no model names or recommended defaults; the menu always includes an entry for typing any identifier. If the request fails, the dialogue shows the redacted reason and asks for the identifier as free text.
 
 For a keyless provider, the same `GET {base_url}/models` request carries the placeholder `Authorization: Bearer no-key` and no user credential, even when credential variables are set. If the server cannot be reached or lists nothing, the dialogue prints one line that names the endpoint and, for a local preset, how that server is usually started, then asks for the identifier as free text. It never starts a server. `ask init` then verifies a keyless target before writing with the same minimal request as `ask doctor --live`, saying that it is sending a minimal request to the local server and omitting the cost notice. On failure it asks whether to write anyway.
+
+### Published model list
+
+The `ask` project publishes a model list at `https://raw.githubusercontent.com/mdml/ask/models/v1/models.json`, the file `v1/models.json` on the repository's `models` branch. An operator regenerates it from each provider's own list as described in [Publishing the model list](../guides/model-list-publishing.md); nothing model-specific is compiled into `ask`.
+
+`ask init` requests it only for a hosted preset (OpenAI, Anthropic, Gemini, OpenRouter, Groq, Cerebras, or xAI) when no key is available for that provider. It first prints `Requesting the published model list from <URL>; no credentials are sent.` The request is a plain `GET` with no `Authorization`, `x-api-key`, or key parameter and no query content, even when credential variables for other providers are set. It never follows redirects, times out after 5 seconds, and reads at most 1 MiB. A provider target that `ask init` writes from a custom endpoint whose kind, `base_url`, and `api_key_env` all equal a hosted preset's is treated as that preset.
+
+The environment variable `ASK_MODEL_LIST_URL` overrides the location. An empty value disables the published list: `ask init` makes no request and asks for the identifier as free text.
+
+Version 1 of the document is a JSON object:
+
+```json
+{
+  "version": 1,
+  "generated_at": "2026-10-01T06:00:00Z",
+  "providers": {
+    "openai": ["model-a", "model-b"],
+    "anthropic": ["model-c"]
+  }
+}
+```
+
+`generated_at` is an RFC 3339 UTC time. `providers` maps preset provider names (`openai`, `anthropic`, `gemini`, `openrouter`, `groq`, `cerebras`, `xai`) to identifiers. `ask init` treats the response as untrusted. It accepts only `"version": 1` with a `generated_at` that begins with a `YYYY-MM-DD` date followed by `T`, and shows only that date: `Published model list generated <date>; any identifier can still be entered.` Identifiers are sanitized, de-duplicated, bounded to 2,000, and ordered exactly as a provider's own list is. A redirect, another HTTP status, a timeout, an oversized or invalid body, an unknown version, or no usable identifiers for the provider prints `Cannot use the published model list (<reason>); enter the identifier manually.` and continues with free-text entry; the published list never fails `ask init`. Without a key there is still no verification request.
 
 ## Model identifiers
 

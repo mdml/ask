@@ -238,7 +238,8 @@ def main():
         with tempfile.TemporaryDirectory(prefix="ask-offline-acceptance-") as temporary:
             home = pathlib.Path(temporary)
             env = {"PATH": os.defpath, "ASK_HOME": str(home),
-                   "LOCAL_API_KEY": "offline-fixture", "NO_PROXY": "127.0.0.1"}
+                   "LOCAL_API_KEY": "offline-fixture", "NO_PROXY": "127.0.0.1",
+                   "ASK_MODEL_LIST_URL": ""}
             if "LLVM_PROFILE_FILE" in os.environ:
                 env["LLVM_PROFILE_FILE"] = os.environ["LLVM_PROFILE_FILE"]
 
