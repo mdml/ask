@@ -1,10 +1,15 @@
 # `ask`
 
-intelligence in your terminal
+*intelligence in your terminal*
+
+[![CI](https://github.com/mdml/ask/actions/workflows/nightly-release.yml/badge.svg)](https://github.com/mdml/ask/actions/workflows/nightly-release.yml)
+[![Latest release](https://img.shields.io/github/v/release/mdml/ask?label=release)](https://github.com/mdml/ask/releases)
+[![License: Apache-2.0](https://img.shields.io/github/license/mdml/ask)](LICENSE)
+[![Platforms: macOS | Linux](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux-blue)](#install)
 
 `ask` is a fast, opinionated terminal lookup tool for asking language models quick questions without starting an agent session. Query answers go to stdout as plain Markdown; prompts and diagnostics go to stderr, so `ask` composes with pipes.
 
-![A terminal session piping input into ask, replying, and viewing the thread.](docs/assets/demo/demo.gif)
+![A terminal session asking a question, replying, viewing the thread, and piping text into ask.](docs/assets/demo/demo.gif)
 
 Recorded with local fixture responses; timings do not represent provider performance. [Text version](docs/assets/demo/demo.txt).
 
