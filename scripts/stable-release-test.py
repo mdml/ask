@@ -121,7 +121,8 @@ class StableReleaseTests(unittest.TestCase):
     def test_prepare_rejects_expired_disposition_and_wrong_checkout(self):
         output = self.root / "outputs"
         for sha, date, message in [
-            (SHA, datetime.datetime(2026, 9, 30, tzinfo=datetime.timezone.utc), "disposition expired"),
+            (SHA, datetime.datetime.combine(release.ACTION_REVIEW_DEADLINE + datetime.timedelta(days=1),
+                                            datetime.time(), datetime.timezone.utc), "disposition expired"),
             ("b" * 40, datetime.datetime(2026, 9, 15, tzinfo=datetime.timezone.utc), "checkout SHA mismatch"),
         ]:
             with self.subTest(sha=sha, date=date):

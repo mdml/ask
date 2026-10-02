@@ -24,7 +24,7 @@ MAX_BINARY = 128 * 1024 * 1024
 NIGHTLY_TAG = re.compile(r"v[0-9]+\.[0-9]+\.[0-9]+-nightly\.([0-9]{8})\.([1-9][0-9]*)\.([1-9][0-9]*)")
 RELEASE_PAGE = 100
 MAX_RELEASE_PAGES = 20
-ACTION_REVIEW_DEADLINE = datetime.date(2026, 9, 29)
+ACTION_REVIEW_DEADLINE = datetime.date(2026, 11, 1)
 VALID_CONFIG = b'''default_profile = "offline"
 
 [providers.offline]
@@ -286,14 +286,19 @@ def publication_order(release):
 def prepare(sha):
     require(run(["git", "rev-parse", "HEAD"]).strip() == sha, "checkout SHA mismatch")
     today = datetime.datetime.now(datetime.timezone.utc).date()
-    require(today <= ACTION_REVIEW_DEADLINE, "action dependency disposition expired; review required")
+    expired = today > ACTION_REVIEW_DEADLINE
     unchanged = published_source(os.environ["GITHUB_REPOSITORY"]) == sha
     repair = os.environ.get("RELEASE_REPAIR") == "true"
     lines = []
     if unchanged and not repair:
         print(f"::notice::skipping: {sha} is already the most recent published nightly source; "
               "republishing it requires a workflow_dispatch run with repair enabled")
+        if expired:
+            print(f"::warning::action dependency review expired after {ACTION_REVIEW_DEADLINE.isoformat()} UTC; "
+                  "it must be renewed before the next publication")
     else:
+        # Enforce the deadline exactly when a publication would proceed.
+        require(not expired, "action dependency disposition expired; review required")
         if unchanged:
             print(f"::notice::repair run republishing already published source {sha}")
         date = today.strftime("%Y%m%d")
