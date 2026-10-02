@@ -246,10 +246,13 @@ with tempfile.TemporaryDirectory(prefix="ask-demo-test-") as temporary:
     assert all(len(event) == 3 and event[1] == "o" for event in events)
     assert all(events[index][0] <= events[index + 1][0] for index in range(len(events) - 1))
     transcript = (output / "demo.txt").read_text(encoding="utf-8")
-    for expected in ("Report the median latency", "The median latency is 100 ms.",
-                     "Which request was faster?", "The 80 ms request was faster.",
-                     "ask thread", "Deterministic local fixture"):
+    for expected in ('ask "who was u.s. president in 1846"', "James K. Polk",
+                     'ask r "who came next?"', "Zachary Taylor, inaugurated in March 1849.",
+                     "ask thread", "remove blockquoting from this text",
+                     "first line\nsecond line", "demo-model"):
         assert expected in transcript, expected
+    assert "Deterministic local fixture" not in transcript
+    assert "> first line\n" not in transcript
     assert "\x1b" not in transcript
     assert str(pathlib.Path.home()) not in transcript
 print("demo recorder: passed")
