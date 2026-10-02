@@ -22,7 +22,8 @@ for variable in ('OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'OPENR
     os.environ.pop(variable, None)
 environment_key = os.environ.get('LOCAL_API_KEY', '').encode()
 PASTED = b'pasted-secret-never-print'
-CUSTOM = b'\x1b[B' * 7 + b'\r'
+LOCAL = b'\x1b[B' * 7 + b'\r'
+CUSTOM = b'\x1b[B' * 8 + b'\r'
 master, slave = pty.openpty()
 before = termios.tcgetattr(slave)
 child = subprocess.Popen([binary, 'init'], stdin=slave, stdout=subprocess.PIPE,
@@ -101,6 +102,28 @@ def custom_endpoint(transcript, variable=b'LOCAL_API_KEY'):
     return transcript
 
 
+def local_server(transcript, downs):
+    """Selects the local model server entry, then the server `downs` rows down."""
+    os.write(master, LOCAL)
+    transcript = at_raw_prompt(transcript, b'Select a local model server')
+    for _ in range(downs):
+        os.write(master, b'\x1b[B')
+        transcript = wait_for_raw(transcript)
+    return transcript
+
+
+def type_filter(transcript, text):
+    """Types `text` into the model filter one key at a time."""
+    typed = b''
+    for key in text:
+        typed += bytes([key])
+        transcript = wait_for_raw(transcript)
+        sent = len(transcript)
+        os.write(master, bytes([key]))
+        transcript = transcript[:sent] + wait_for_prompt(transcript[sent:], b'Filter: ' + typed)
+    return wait_for_raw(transcript)
+
+
 def at_raw_prompt(transcript, prompt):
     """Waits for `prompt`, then for the raw mode that reads its keys."""
     return wait_for_raw(wait_for_prompt(transcript, prompt))
@@ -170,6 +193,27 @@ try:
         assert b'model = "other-mini"' in config, config
         assert b'Using LOCAL_API_KEY from the environment (value not shown).' in transcript
         assert b'Verified: the provider answered a minimal request.' in transcript
+    elif scenario == 'local':
+        assert environment_key
+        transcript = local_server(transcript, 1)
+        os.write(master, b'\r')
+        transcript = write_after(transcript, b'Endpoint base URL [http://localhost:1234/v1]',
+                                 base_url.encode() + b'\n')
+        transcript = at_raw_prompt(transcript, b'Select a model')
+        transcript = type_filter(transcript, b'mini')
+        os.write(master, b'\r')
+        transcript = wait_for_prompt(transcript, b'Model: other-mini')
+        config, transcript = finish_written(transcript)
+        assert b'[providers.lmstudio]' in config, config
+        assert b'timeout_ms = 120000' in config, config
+        assert b'api_key_env' not in config, config
+        assert b'model = "other-mini"' in config, config
+        assert b'Sending a minimal request to the local server' in transcript, transcript
+        assert b'Verified: the provider answered a minimal request.' in transcript
+    elif scenario == 'local-escape':
+        transcript = local_server(transcript, 0)
+        os.write(master, b'\x1b')
+        cancelled(transcript)
     elif scenario == 'hidden':
         assert not environment_key
         transcript = custom_endpoint(transcript)

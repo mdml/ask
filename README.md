@@ -13,7 +13,7 @@
 
 Recorded with local fixture responses; timings do not represent provider performance. [Text version](docs/assets/demo/demo.txt).
 
-**Status: beta.** `v0.1.0` is the current stable release. Interfaces may change during 0.x. `ask` works with OpenAI, Anthropic, Gemini, OpenRouter, Groq, Cerebras, xAI, and custom OpenAI-compatible endpoints on macOS and Linux (arm64 and x86-64).
+**Status: beta.** `v0.1.0` is the current stable release. Interfaces may change during 0.x. `ask` works with OpenAI, Anthropic, Gemini, OpenRouter, Groq, Cerebras, xAI, local model servers (Ollama, LM Studio, llama.cpp), and custom OpenAI-compatible endpoints on macOS and Linux (arm64 and x86-64).
 
 ## Install
 

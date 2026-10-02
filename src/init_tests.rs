@@ -13,7 +13,7 @@ static CASE_ID: AtomicUsize = AtomicUsize::new(0);
 /// A key only the `keyed` lookup returns; it must never reach a transcript.
 const UNIT_SECRET: &str = "unit-secret-never-print";
 
-const COMPLETE: &str = "8\nlocal\nhttp://127.0.0.1:1/v1\nLOCAL_API_KEY\nfake-model\n\n\nn\ny\n";
+const COMPLETE: &str = "9\nlocal\nhttp://127.0.0.1:1/v1\nLOCAL_API_KEY\nfake-model\n\n\nn\ny\n";
 
 fn fresh_path() -> PathBuf {
     let id = CASE_ID.fetch_add(1, Ordering::SeqCst);
@@ -99,7 +99,7 @@ fn assert_preset_contents(contents: &str, fields: [&str; 4]) {
 
 fn assert_invalid_answer_explanations(transcript: &str) {
     for (message, count) in [
-        ("Enter a number from 1 to 8.", 1),
+        ("Enter a number from 1 to 9.", 1),
         ("That value must not be empty.", 1),
         (
             "That value must be an http:// or https:// URL with a host, no embedded credentials, and no query or fragment component.",
@@ -191,7 +191,7 @@ fn presets_supply_endpoint_and_credential_defaults() {
 #[test]
 fn replacement_prompt_and_profile_name_are_recorded() {
     let path = fresh_path();
-    let answers = "8\nlocal\nhttps://example.test/v1\nKEY\nm\nBe terse.\nterse\nn\nyes\n";
+    let answers = "9\nlocal\nhttps://example.test/v1\nKEY\nm\nBe terse.\nterse\nn\nyes\n";
     drive(&path, answers).0.unwrap();
     let contents = fs::read_to_string(&path).unwrap();
     assert!(contents.contains("default_profile = \"terse\""));
@@ -235,7 +235,7 @@ fn a_later_profile_defaults_to_the_provider_name() {
 #[test]
 fn an_environment_key_lists_models_and_verifies_without_being_shown() {
     let path = fresh_path();
-    let answers = "8\nlocal\nhttp://127.0.0.1:1/v1\nKEY\nfake-model\n\n\nyes\nn\ny\n";
+    let answers = "9\nlocal\nhttp://127.0.0.1:1/v1\nKEY\nfake-model\n\n\nyes\nn\ny\n";
     let (result, transcript) = drive_with(&path, answers, keyed);
     result.unwrap();
     for expected in [
@@ -255,7 +255,7 @@ fn an_environment_key_lists_models_and_verifies_without_being_shown() {
 #[test]
 fn declining_after_a_failed_verification_writes_nothing() {
     let path = fresh_path();
-    let answers = "8\nlocal\nhttp://127.0.0.1:1/v1\nKEY\nfake-model\n\n\nn\n";
+    let answers = "9\nlocal\nhttp://127.0.0.1:1/v1\nKEY\nfake-model\n\n\nn\n";
     let (result, transcript) = drive_with(&path, answers, keyed);
     assert!(matches!(result, Err(InitError::Cancelled)), "{transcript}");
     assert!(!path.exists());
@@ -296,7 +296,7 @@ fn declining_confirmation_cancels_without_writing() {
 fn invalid_answers_are_explained_and_asked_again() {
     let path = fresh_path();
     let answers = COMPLETE
-        .replacen("8\n", "0\n8\n", 1)
+        .replacen("9\n", "0\n9\n", 1)
         .replacen("local\n", "\nlocal\n", 1)
         .replacen("http://", "ftp://x\nhttp:// spaced\nhttp://\nhttp://", 1)
         .replacen("LOCAL_API_KEY\n", "1KEY\nBAD-NAME\nLOCAL_API_KEY\n", 1);
@@ -350,7 +350,7 @@ fn errors_have_stable_messages() {
 #[test]
 fn an_empty_credential_answer_means_no_credential() {
     let path = fresh_path();
-    let answers = "8\nlocal\nhttp://127.0.0.1:1/v1\n\nfake-model\n\n\nn\ny\n";
+    let answers = "9\nlocal\nhttp://127.0.0.1:1/v1\n\nfake-model\n\n\ny\nn\ny\n";
     let (result, transcript) = drive(&path, answers);
     result.unwrap();
     let contents = fs::read_to_string(&path).unwrap();
@@ -359,4 +359,110 @@ fn an_empty_credential_answer_means_no_credential() {
     assert_eq!(target.api_key_env, None);
     assert!(transcript.contains("empty means no credential"));
     assert!(!transcript.contains("read -rs"));
+}
+
+/// Answers for a local preset at an unreachable endpoint: the list fails, the
+/// model is typed, verification fails and is accepted, then the file is written.
+fn local_answers(choice: &str, endpoint: &str) -> String {
+    format!("8\n{choice}\n{endpoint}\ntyped-model\n\n\ny\nn\ny\n")
+}
+
+#[test]
+fn local_presets_write_a_keyless_target_with_a_long_timeout() {
+    for (choice, name, url) in [
+        ("1", "ollama", "http://localhost:11434/v1"),
+        ("2", "lmstudio", "http://localhost:1234/v1"),
+        ("3", "llamacpp", "http://localhost:8080/v1"),
+    ] {
+        let path = fresh_path();
+        let answers = local_answers(choice, "http://127.0.0.1:1/v1");
+        let (result, transcript) = drive(&path, &answers);
+        result.unwrap();
+        assert!(transcript.contains(&format!("[{url}]: ")), "{transcript}");
+        let contents = fs::read_to_string(&path).unwrap();
+        assert!(
+            contents.contains(&format!("[providers.{name}]")),
+            "{contents}"
+        );
+        assert!(!contents.contains("api_key_env"), "{contents}");
+        let target = validate::document(&contents).unwrap().resolve().unwrap();
+        assert_eq!(target.kind, "openai-compatible");
+        assert_eq!(target.timeout_ms, 120_000);
+        assert_eq!(target.base_url, "http://127.0.0.1:1/v1");
+    }
+}
+
+#[test]
+fn an_unreachable_local_server_names_the_endpoint_and_how_to_start_it() {
+    let path = fresh_path();
+    let (result, transcript) = drive(&path, &local_answers("1", "http://127.0.0.1:1/v1"));
+    result.unwrap();
+    for expected in [
+        "Cannot list models from http://127.0.0.1:1/v1 (",
+        "Ollama is usually started with `ollama serve`. Enter the identifier manually.",
+        "Sending a minimal request to the local server to verify it.",
+        "Verification failed: ",
+        "Write the configuration anyway? [y/N]: ",
+    ] {
+        assert!(transcript.contains(expected), "{expected}: {transcript}");
+    }
+    assert!(!transcript.contains("incur cost"), "{transcript}");
+}
+
+#[test]
+fn a_keyless_custom_endpoint_gets_no_start_hint() {
+    let notice = model::keyless_notice("http://x/v1", None, None);
+    assert_eq!(
+        notice,
+        "Cannot list models from http://x/v1 (the server listed no models). Enter the identifier manually."
+    );
+}
+
+#[test]
+fn a_local_preset_name_in_use_asks_for_another() {
+    let path = fresh_path();
+    let answers = "8\n1\nhttp://127.0.0.1:1/v1\nm\n\n\ny\ny\n8\n1\nhttp://127.0.0.1:1/v1\nollama\nsecond\nm\n\n\ny\nn\ny\n";
+    let (result, transcript) = drive(&path, answers);
+    result.unwrap();
+    assert!(transcript.contains("A provider named 'ollama' is already configured."));
+    assert!(transcript.contains("That provider name is already used; choose another."));
+    let contents = fs::read_to_string(&path).unwrap();
+    assert!(contents.contains("[providers.second]"), "{contents}");
+}
+
+#[test]
+fn the_local_endpoint_question_takes_enter_as_the_default_and_validates_typed_urls() {
+    let mut input = Cursor::new(b"\nftp://x\nhttp://example.test/v1\n".to_vec());
+    let mut output = Vec::new();
+    let console = Console {
+        input: &mut input,
+        output: &mut output,
+        menus: false,
+        attended: false,
+    };
+    let mut dialogue = Dialogue {
+        console,
+        lookup: unset,
+    };
+    assert_eq!(
+        dialogue.endpoint_or("? ", "http://d/v1").unwrap(),
+        "http://d/v1"
+    );
+    assert_eq!(
+        dialogue.endpoint_or("? ", "http://d/v1").unwrap(),
+        "http://example.test/v1"
+    );
+    assert!(
+        String::from_utf8(output)
+            .unwrap()
+            .contains("That value must be an http://")
+    );
+}
+
+#[test]
+fn end_of_input_at_the_local_server_menu_writes_nothing() {
+    let path = fresh_path();
+    let (result, _) = drive(&path, "8\n");
+    assert!(matches!(result, Err(InitError::Cancelled)));
+    assert!(!path.exists());
 }

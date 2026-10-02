@@ -40,7 +40,7 @@ If the user has selected another exact release from <https://github.com/mdml/ask
 
 ## Configure without losing existing settings
 
-`ask init` creates a first configuration interactively and refuses to overwrite one. When the provider's key is set or pasted at its hidden prompt, it requests the provider's model list and sends one minimal verification request that may incur cost. For agent-managed setup or updates, use a complete TOML candidate:
+`ask init` creates a first configuration interactively and refuses to overwrite one. When the provider's key is set or pasted at its hidden prompt, it requests the provider's model list and sends one minimal verification request that may incur cost. A local model server (Ollama, LM Studio, llama.cpp server) is offered under `Local model server`; it needs no key, and `ask init` lists and verifies it without a credential. For agent-managed setup or updates, use a complete TOML candidate:
 
 1. Locate the configuration through `ask doctor`. Start from the existing document when present, preserving unrelated profiles, providers, and comments. Configuration is intended to contain credential-variable names, never key values; do not echo sensitive contents encountered in a user-edited file.
 2. Make the requested change in a scratch copy. Read the installed version's configuration reference for fields and provider conventions. Model identifiers are free text; use the user's choice or resolve that choice with them.

@@ -17,7 +17,7 @@ use std::{
 
 use support::{
     CREDENTIAL, command,
-    fake_provider::{FakeProvider, Scenario},
+    fake_provider::{FakeProvider, RecordedRequest, Scenario},
     fresh_home,
 };
 
@@ -70,7 +70,13 @@ fn terminal_init(scenario: &str, fake: Option<&FakeProvider>, with_credential: b
 #[cfg(unix)]
 #[test]
 fn terminal_init_handles_selection_escape_and_keyboard_interrupt_and_restores_the_terminal() {
-    for scenario in ["select", "escape", "ctrl-c", "hidden-escape"] {
+    for scenario in [
+        "select",
+        "escape",
+        "ctrl-c",
+        "hidden-escape",
+        "local-escape",
+    ] {
         terminal_init(scenario, None, false);
     }
 }
@@ -91,6 +97,29 @@ fn terminal_init_filters_the_listed_models_and_verifies_the_choice() {
         requests[1].messages.last().unwrap().1,
         ask::doctor::LIVE_PROMPT
     );
+}
+
+#[cfg(unix)]
+#[test]
+fn terminal_init_selects_a_local_server_and_filters_its_models_without_a_key() {
+    let fake = FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Stream]);
+    terminal_init("local", Some(&fake), true);
+    let requests = fake.requests(2);
+    assert_eq!(requests[0].path, "/v1/models");
+    assert_eq!(requests[1].model, "other-mini");
+    assert_placeholder_only(&requests);
+}
+
+/// Every request carried the fixed placeholder and no environment credential.
+fn assert_placeholder_only(requests: &[RecordedRequest]) {
+    for request in requests {
+        assert_eq!(request.header("authorization"), Some("Bearer no-key"));
+        let wire = format!("{:?}{}", request.headers, request.body);
+        assert!(
+            !wire.contains(CREDENTIAL) && !wire.contains("OPENAI-ENV"),
+            "{wire}"
+        );
+    }
 }
 
 #[cfg(unix)]
@@ -120,7 +149,7 @@ fn init_then_query_answers_through_the_fake_provider() {
     let fake = FakeProvider::start(Scenario::Stream);
     let home = fresh_home();
     let answers = format!(
-        "8\nlocal\n{}\nLOCAL_API_KEY\nfake-model\nUse terse tables.\n\nn\ny\n",
+        "9\nlocal\n{}\nLOCAL_API_KEY\nfake-model\nUse terse tables.\n\nn\ny\n",
         fake.base_url()
     );
     let transcript = succeeded(&interactive(&home, "init", &answers));
@@ -156,7 +185,7 @@ fn init_offers_the_listed_models_and_verifies_with_the_environment_key() {
     let fake = FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Stream]);
     let home = fresh_home();
     let answers = format!(
-        "8\nlocal\n{}\nLOCAL_API_KEY\n0\n2\n\n\nn\ny\n",
+        "9\nlocal\n{}\nLOCAL_API_KEY\n0\n2\n\n\nn\ny\n",
         fake.base_url()
     );
     let transcript = succeeded(&keyed(&home, &answers));
@@ -187,6 +216,162 @@ fn init_offers_the_listed_models_and_verifies_with_the_environment_key() {
     assert_eq!(requests[1].model, "other-model");
 }
 
+/// Answers for a local server: preset `choice`, endpoint `url`, then the
+/// listed model number, defaults for the prompt and profile, and write.
+fn local_answers(choice: usize, url: &str, tail: &str) -> String {
+    format!("8\n{choice}\n{url}\n{tail}")
+}
+
+/// Runs `ask init` with unrelated credential variables set.
+fn keyed_elsewhere(home: &Path, answers: &str) -> Output {
+    drive(
+        command(home, true)
+            .env("OPENAI_API_KEY", "OPENAI-ENV-SECRET")
+            .arg("init"),
+        answers,
+    )
+}
+
+#[test]
+fn init_writes_each_local_preset_and_verifies_it_without_a_key() {
+    for (choice, name, default_url) in [
+        (1, "ollama", "http://localhost:11434/v1"),
+        (2, "lmstudio", "http://localhost:1234/v1"),
+        (3, "llamacpp", "http://localhost:8080/v1"),
+    ] {
+        let fake = FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Stream]);
+        let home = fresh_home();
+        let answers = local_answers(choice, &fake.base_url(), "2\n\n\nn\ny\n");
+        let transcript = succeeded(&keyed_elsewhere(&home, &answers));
+        for expected in [
+            format!("Endpoint base URL [{default_url}]: "),
+            "Requesting the model list from".to_string(),
+            "Sending a minimal request to the local server to verify it.".to_string(),
+            "Verified: the provider answered a minimal request.".to_string(),
+        ] {
+            assert!(transcript.contains(&expected), "{expected}: {transcript}");
+        }
+        assert!(!transcript.contains("incur cost"), "{transcript}");
+        assert!(!transcript.contains("Credential variable"), "{transcript}");
+        let expected = format!(
+            "[providers.{name}]\nkind = \"openai-compatible\"\nbase_url = \"{}\"\ntimeout_ms = 120000\n",
+            fake.base_url()
+        );
+        let written = fs::read_to_string(home.join("config.toml")).unwrap();
+        assert!(written.contains(&expected), "{written}");
+        assert!(!written.contains("api_key_env"), "{written}");
+        let requests = fake.requests(2);
+        assert_eq!(requests[0].path, "/v1/models");
+        assert_eq!(requests[1].model, "other-model");
+        assert_placeholder_only(&requests);
+    }
+}
+
+#[test]
+fn a_query_after_local_init_works_with_no_key() {
+    let fake = FakeProvider::sequence(vec![
+        Scenario::Status(200, MODELS),
+        Scenario::Stream,
+        Scenario::Stream,
+    ]);
+    let home = fresh_home();
+    let answers = local_answers(1, &fake.base_url(), "1\n\n\nn\ny\n");
+    succeeded(&interactive(&home, "init", &answers));
+    let query = command(&home, false).arg("what").output().unwrap();
+    assert!(query.status.success(), "{}", stderr(&query));
+    assert_eq!(query.stdout, b"**4**\n");
+    let requests = fake.requests(3);
+    assert_eq!(requests[2].model, "fake-model");
+    assert_placeholder_only(&requests);
+}
+
+#[test]
+fn an_unreachable_local_server_falls_back_to_manual_entry_with_the_start_hint() {
+    let url = "http://127.0.0.1:1/v1";
+    for (choice, hint) in [
+        (1, "`ollama serve`"),
+        (2, "`lms server start`"),
+        (3, "`llama-server -m <model.gguf>`"),
+    ] {
+        let home = fresh_home();
+        let answers = local_answers(choice, url, "typed-model\n\n\ny\nn\ny\n");
+        let transcript = succeeded(&interactive(&home, "init", &answers));
+        let notice = format!("Cannot list models from {url} (");
+        assert!(transcript.contains(&notice), "{transcript}");
+        assert!(transcript.contains(hint), "{transcript}");
+        assert!(transcript.contains("Model identifier (free text sent to the provider): "));
+        let written = fs::read_to_string(home.join("config.toml")).unwrap();
+        assert!(written.contains("model = \"typed-model\""), "{written}");
+    }
+}
+
+#[test]
+fn a_keyless_custom_endpoint_lists_models_and_verifies_too() {
+    let fake = FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Stream]);
+    let home = fresh_home();
+    let answers = format!("9\nlocal\n{}\n\n1\n\n\nn\ny\n", fake.base_url());
+    let transcript = succeeded(&keyed_elsewhere(&home, &answers));
+    assert!(
+        transcript.contains("Verified: the provider answered"),
+        "{transcript}"
+    );
+    assert_placeholder_only(&fake.requests(2));
+}
+
+#[test]
+fn an_empty_local_model_list_falls_back_to_manual_entry() {
+    let fake = FakeProvider::sequence(vec![
+        Scenario::Status(200, r#"{"object":"list","data":[]}"#),
+        Scenario::Stream,
+    ]);
+    let home = fresh_home();
+    let answers = local_answers(3, &fake.base_url(), "typed-model\n\n\nn\ny\n");
+    let transcript = succeeded(&interactive(&home, "init", &answers));
+    assert!(
+        transcript.contains("the server listed no models"),
+        "{transcript}"
+    );
+    assert!(
+        transcript.contains("`llama-server -m <model.gguf>`"),
+        "{transcript}"
+    );
+}
+
+#[test]
+fn a_failed_local_verification_asks_before_writing() {
+    for (decision, written) in [("n\n", false), ("y\nn\ny\n", true)] {
+        let fake =
+            FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Unauthorized]);
+        let home = fresh_home();
+        let answers = local_answers(1, &fake.base_url(), &format!("1\n\n\n{decision}"));
+        let output = interactive(&home, "init", &answers);
+        let transcript = stderr(&output);
+        assert!(transcript.contains("Verification failed: "), "{transcript}");
+        assert!(transcript.contains("Write the configuration anyway? [y/N]: "));
+        assert_eq!(output.status.success(), written, "{transcript}");
+        assert_eq!(home.join("config.toml").exists(), written);
+    }
+}
+
+#[test]
+fn init_end_of_input_cancels_at_every_local_prompt_without_writing() {
+    let mut prefix = String::new();
+    let answers = "8\n2\n{url}\n1\n\n\n";
+    for line in answers.split_inclusive('\n').chain(["unused\n"]) {
+        let fake =
+            FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Unauthorized]);
+        let home = fresh_home();
+        let transcript = failed(&interactive(
+            &home,
+            "init",
+            &prefix.replace("{url}", &fake.base_url()),
+        ));
+        assert!(transcript.ends_with(CANCELLED), "{prefix:?}: {transcript}");
+        assert!(!home.join("config.toml").exists());
+        prefix.push_str(line);
+    }
+}
+
 #[test]
 fn init_falls_back_to_manual_entry_when_the_list_fails() {
     let fake = FakeProvider::sequence(vec![
@@ -195,7 +380,7 @@ fn init_falls_back_to_manual_entry_when_the_list_fails() {
     ]);
     let home = fresh_home();
     let answers = format!(
-        "8\nlocal\n{}\nLOCAL_API_KEY\ntyped-model\n\n\nn\ny\n",
+        "9\nlocal\n{}\nLOCAL_API_KEY\ntyped-model\n\n\nn\ny\n",
         fake.base_url()
     );
     let transcript = succeeded(&keyed(&home, &answers));
@@ -214,7 +399,7 @@ fn init_asks_before_writing_after_a_failed_verification() {
             FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Unauthorized]);
         let home = fresh_home();
         let answers = format!(
-            "8\nlocal\n{}\nLOCAL_API_KEY\n1\n\n\n{decision}",
+            "9\nlocal\n{}\nLOCAL_API_KEY\n1\n\n\n{decision}",
             fake.base_url()
         );
         let output = keyed(&home, &answers);
@@ -238,7 +423,7 @@ fn init_adds_a_second_provider_with_its_own_profile() {
     let home = fresh_home();
     let url = fake.base_url();
     let answers = format!(
-        "8\nlocal\n{url}\nLOCAL_API_KEY\n1\n\n\ny\n8\nlocal\nsecond\n{url}\nLOCAL_API_KEY\n3\n\n\nn\ny\n"
+        "9\nlocal\n{url}\nLOCAL_API_KEY\n1\n\n\ny\n9\nlocal\nsecond\n{url}\nLOCAL_API_KEY\n3\n\n\nn\ny\n"
     );
     let transcript = succeeded(&keyed(&home, &answers));
     assert!(transcript.contains("That provider name is already used; choose another."));
@@ -258,7 +443,7 @@ fn init_adds_a_second_provider_with_its_own_profile() {
 
 #[test]
 fn init_end_of_input_cancels_at_every_keyed_prompt_without_writing() {
-    let answers = "8\nlocal\n{url}\nLOCAL_API_KEY\n1\n\n\n";
+    let answers = "9\nlocal\n{url}\nLOCAL_API_KEY\n1\n\n\n";
     let mut prefix = String::new();
     // The trailing entry makes the complete answers the last prefix tried.
     for line in answers.split_inclusive('\n').chain(["unused\n"]) {
@@ -276,7 +461,7 @@ fn init_end_of_input_cancels_at_every_keyed_prompt_without_writing() {
 #[test]
 fn init_alias_i_creates_the_same_file() {
     let home = fresh_home();
-    let answers = "8\nlocal\nhttp://127.0.0.1:1/v1\nLOCAL_API_KEY\nfake-model\n\n\nn\ny\n";
+    let answers = "9\nlocal\nhttp://127.0.0.1:1/v1\nLOCAL_API_KEY\nfake-model\n\n\nn\ny\n";
     succeeded(&interactive(&home, "i", answers));
     let written = fs::read_to_string(home.join("config.toml")).unwrap();
     assert!(written.contains("default_profile = \"default\""));
@@ -286,7 +471,7 @@ fn init_alias_i_creates_the_same_file() {
 #[test]
 fn init_keeps_the_default_system_prompt_when_the_answer_is_empty() {
     let home = fresh_home();
-    let answers = "8\nlocal\nhttp://127.0.0.1:1/v1\nLOCAL_API_KEY\nfake-model\n\n\nn\ny\n";
+    let answers = "9\nlocal\nhttp://127.0.0.1:1/v1\nLOCAL_API_KEY\nfake-model\n\n\nn\ny\n";
     assert!(interactive(&home, "init", answers).status.success());
     let written = fs::read_to_string(home.join("config.toml")).unwrap();
     assert!(!written.contains("system_prompt"), "{written}");
@@ -303,7 +488,7 @@ fn init_has_no_all_default_mode() {
 #[test]
 fn init_end_of_input_cancels_with_nothing_written() {
     let home = fresh_home();
-    let answers = "8\nlocal\nhttp://127.0.0.1:1/v1\n";
+    let answers = "9\nlocal\nhttp://127.0.0.1:1/v1\n";
     let transcript = failed(&interactive(&home, "init", answers));
     assert!(transcript.ends_with(CANCELLED), "{transcript}");
     assert!(!home.join("config.toml").exists());
@@ -313,7 +498,7 @@ fn init_end_of_input_cancels_with_nothing_written() {
 fn init_asks_again_after_an_invalid_answer() {
     let home = fresh_home();
     let answers =
-        "8\nlocal\nnot-a-url\nhttp://127.0.0.1:1/v1\n9KEY\nLOCAL_API_KEY\nfake-model\n\n\nn\ny\n";
+        "9\nlocal\nnot-a-url\nhttp://127.0.0.1:1/v1\n9KEY\nLOCAL_API_KEY\nfake-model\n\n\nn\ny\n";
     let transcript = succeeded(&interactive(&home, "init", answers));
     assert!(transcript.contains(
         "That value must be an http:// or https:// URL with a host, no embedded credentials, and no query or fragment component."
@@ -399,7 +584,7 @@ fn symlink_destinations_are_refused_before_initialization_prompts() {
 fn init_failed_disk_write_leaves_no_config_and_allows_retry() {
     let home = fresh_home();
     let answers = format!(
-        "8\nlocal\nhttp://127.0.0.1:1/v1\nLOCAL_API_KEY\nfake-model\n{}\n\nn\ny\n",
+        "9\nlocal\nhttp://127.0.0.1:1/v1\nLOCAL_API_KEY\nfake-model\n{}\n\nn\ny\n",
         "x".repeat(4096)
     );
     let transcript = failed(&drive(&mut write_limited(&home, &["init"]), &answers));

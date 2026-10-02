@@ -32,12 +32,12 @@ ask init
 
 `ask init` (alias `ask i`) is a dialogue on stderr. It:
 
-1. Offers a provider menu: OpenAI, Anthropic, Gemini, OpenRouter, Groq, Cerebras, xAI, or a custom OpenAI-compatible endpoint. For the named providers, `ask init` supplies the endpoint and the credential environment-variable name, which are listed in the [provider reference](../reference/providers.md#initialization-presets). For a custom endpoint, you enter a provider name, an endpoint base URL, and a credential variable name.
+1. Offers a provider menu: OpenAI, Anthropic, Gemini, OpenRouter, Groq, Cerebras, xAI, a local model server, or a custom OpenAI-compatible endpoint. For the named providers, `ask init` supplies the endpoint and the credential environment-variable name, which are listed in the [provider reference](../reference/providers.md#initialization-presets). For a custom endpoint, you enter a provider name, an endpoint base URL, and a credential variable name. A local model server is covered in [Use a local model server](#use-a-local-model-server).
 2. Looks for the key. If the provider's variable is set, `ask init` uses it and says so without showing the value. Otherwise, on an attended terminal, it offers a hidden prompt where you can paste the key; nothing you type is echoed, and Enter skips. The key is used only during `ask init`, to list models and verify the setup, and is never written anywhere.
 3. With a key, requests the provider's model list and offers it as a menu. Type to narrow the list (case-insensitive), Backspace to edit, arrow keys to move, and Enter to choose; the last entry lets you type an identifier instead. Without a key, or if the list is unavailable, `ask init` says why and asks for the model identifier as free text.
 4. Shows the default system prompt and accepts an optional one-line replacement. An empty answer keeps the default.
 5. Asks for a profile name, defaulting to `default`. This first profile becomes the default profile.
-6. With a key, verifies the setup with one minimal request, the same one `ask doctor --live` sends, after a cost notice. If verification fails, `ask init` shows the reason and asks whether to write the configuration anyway.
+6. With a key, verifies the setup with one minimal request, the same one `ask doctor --live` sends, after a cost notice; a keyless target is verified the same way without the notice. If verification fails, `ask init` shows the reason and asks whether to write the configuration anyway.
 7. Asks whether to add another provider. Each additional provider repeats these steps and gets one profile, named after the provider by default.
 8. Shows the exact TOML it will write and asks for confirmation. Only `y` or `yes` writes the file. It then prints next steps: how to supply the key and a first question to ask.
 
@@ -46,6 +46,12 @@ On an attended terminal, choose the provider with the arrow keys and Enter; Esc 
 `ask init` prints the path it writes. The file is `$ASK_HOME/config.toml` when `ASK_HOME` is set, and otherwise `config.toml` in the platform-standard configuration directory for an application named `ask`. `ask doctor` shows every resolved path.
 
 `ask init` has no noninteractive all-default mode, because a provider target cannot be inferred. To set up `ask` without a dialogue, such as from a script or an agent, write a complete TOML document and install it with `ask configure apply`; see [Configuring profiles and providers](configuration.md).
+
+## Use a local model server
+
+`ask` connects to a server you already run: Ollama, LM Studio, or a llama.cpp server. It does not start servers or download models. Start the server and load a model first, then run `ask init`, choose `Local model server`, and choose your server. Press Enter to accept its default endpoint (Ollama `http://localhost:11434/v1`, LM Studio `http://localhost:1234/v1`, llama.cpp `http://localhost:8080/v1`) or type another base URL.
+
+No key is involved. `ask init` asks the server for its models, offers them in the menu, and verifies the choice with one minimal request. If the server is unreachable, it says so, names how that server is usually started (for example `ollama serve`), and asks for the model identifier as free text. The profile uses a 120-second timeout because the first request often waits for the model to load. Then ask a question as usual; no credential setup is needed.
 
 ## Supply a credential and ask a question
 

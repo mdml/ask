@@ -17,6 +17,15 @@ use support::{
 };
 
 const PLACEHOLDER: &str = "Bearer no-key";
+/// A local reasoning model's stream: thinking arrives in `reasoning` and
+/// `reasoning_content` beside `content`, with an inline `<think>` block too.
+const THINKING_STREAM: &str = concat!(
+    "data: {\"id\":\"c\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning\":\"THINK-ONE\"},\"finish_reason\":null}]}\n\n",
+    "data: {\"id\":\"c\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"THINK-TWO\"},\"finish_reason\":null}]}\n\n",
+    "data: {\"id\":\"c\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning\":\"THINK-THREE\",\"content\":\"**4**\"},\"finish_reason\":null}]}\n\n",
+    "data: {\"id\":\"c\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":12,\"completion_tokens\":3,\"total_tokens\":15}}\n\n",
+    "data: [DONE]\n\n",
+);
 const KEYLESS_CONFIG: &str = "default_profile = \"default\"\n\n[providers.local]\nkind = \"openai-compatible\"\nbase_url = \"{URL}\"\n\n[profiles.default]\nprovider = \"local\"\nmodel = \"fake-model\"\n";
 
 #[test]
@@ -89,6 +98,20 @@ fn live_doctor_checks_a_keyless_target_with_the_placeholder() {
     assert!(output.status.success(), "{}", stderr(&output));
     assert!(String::from_utf8_lossy(&output.stdout).contains("live: ok"));
     assert_placeholder_only(&fake.recorded().unwrap());
+}
+
+#[test]
+fn reasoning_fields_reach_neither_stdout_nor_the_recorded_turn() {
+    let fake = FakeProvider::sequence(vec![Scenario::Sse(THINKING_STREAM), Scenario::Stream]);
+    let home = keyless_home(&fake);
+    let output = ask(&home, &["question"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert_eq!(output.stdout, b"**4**\n");
+    assert!(!stderr(&output).contains("THINK"), "{}", stderr(&output));
+    assert!(ask(&home, &["reply", "again"]).status.success());
+    let replay = fake.requests(2)[1].body.to_string();
+    assert!(replay.contains("**4**"), "{replay}");
+    assert!(!replay.contains("THINK"), "{replay}");
 }
 
 fn assert_placeholder_only(request: &RecordedRequest) {

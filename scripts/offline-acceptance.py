@@ -247,7 +247,7 @@ def main():
                 init_answers = (f"local\nhttp://127.0.0.1:{provider.server_port}/v1\n"
                                 "LOCAL_API_KEY\nterse-model\nBe terse.\n\nn\ny\n").encode()
                 init_stdout, init_transcript = terminal_menu(binary, init_env, ("init",),
-                                                             b"\x1b[B" * 7 + b"\r",
+                                                             b"\x1b[B" * 8 + b"\r",
                                                              init_answers)
                 assert not init_stdout
                 assert b"Verified: the provider answered" in init_transcript
@@ -255,7 +255,7 @@ def main():
                 init_config = pathlib.Path(init_temporary, "config.toml").read_text()
                 assert 'kind = "openai-compatible"' in init_config
 
-            answers = (f"8\nlocal\nhttp://127.0.0.1:{provider.server_port}/v1\n"
+            answers = (f"9\nlocal\nhttp://127.0.0.1:{provider.server_port}/v1\n"
                        "LOCAL_API_KEY\nterse-model\nBe terse.\n\nn\ny\n").encode()
             initialized = run(binary, env, "init", stdin=answers)
             assert not initialized.stdout
