@@ -52,7 +52,7 @@ Each `[providers.NAME]` table configures one endpoint. `NAME` must not be empty.
 |:--|:--|:--|:--|
 | `kind` | string | yes | One of `openai`, `anthropic`, `gemini`, `openrouter`, or `openai-compatible`; see the [provider reference](providers.md). |
 | `base_url` | string | yes | The prefix to which `ask` appends the API path. It must be an `http://` or `https://` URL with a host, no embedded username or password, and no query or fragment component, including an empty trailing `?` or `#`. |
-| `api_key_env` | string | yes | The name of the environment variable that supplies the credential: letters, digits, and underscores, not starting with a digit. `ask` never stores credential values. |
+| `api_key_env` | string | yes, except for `openai-compatible` | The name of the environment variable that supplies the credential: letters, digits, and underscores, not starting with a digit. An empty string is invalid, not absent. Only `kind = "openai-compatible"` may omit it, for a user-operated server that needs no key; a target without it reads no environment variable and sends the placeholder described in [keyless targets](providers.md#keyless-targets). `ask` never stores credential values. |
 | `timeout_ms` | positive integer | no | Request timeout in milliseconds. Defaults to `30000` (30 seconds). |
 
 ## Profiles
@@ -79,6 +79,7 @@ Display settings are not implemented.
 - rejects any key that is not part of the schema, at every level of the document;
 - validates every provider and every profile, not only the ones the default profile selects;
 - requires every profile to reference a configured provider, and `default_profile` to name a configured profile;
+- requires `api_key_env` on every provider whose `kind` is not `openai-compatible`;
 - enforces the type, range, and format rules in the tables above.
 
 Validation diagnostics contain only schema field names and error categories, with one-based entry and key indexes in sorted key order. They never echo candidate-controlled keys, provider or profile names, reference values, or parser messages. Invalid TOML syntax reports a one-based line and column instead.

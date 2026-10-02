@@ -9,7 +9,7 @@ use std::{
 use super::{Dialogue, InitError};
 use crate::{
     config::{DEFAULT_TIMEOUT_MS, ProviderConfig},
-    validate,
+    validate::{self, Value},
 };
 
 pub(super) struct Preset {
@@ -141,7 +141,7 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
             ProviderConfig {
                 kind: preset.kind.to_string(),
                 base_url: preset.base_url.to_string(),
-                api_key_env: preset.api_key_env.to_string(),
+                api_key_env: Some(preset.api_key_env.to_string()),
                 timeout_ms: DEFAULT_TIMEOUT_MS,
             },
         ))
@@ -157,10 +157,7 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
             "Endpoint base URL (http:// or https://): ",
             validate::endpoint,
         )?;
-        let api_key_env = self.required(
-            "Credential environment variable name: ",
-            validate::env_var_name,
-        )?;
+        let api_key_env = self.custom_credential_variable()?;
         Ok((
             provider_name,
             ProviderConfig {
@@ -170,6 +167,19 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
                 timeout_ms: DEFAULT_TIMEOUT_MS,
             },
         ))
+    }
+
+    /// The credential variable for a custom endpoint; an empty answer means none.
+    fn custom_credential_variable(&mut self) -> Result<Option<String>, InitError> {
+        let prompt = "Credential environment variable name (empty means no credential): ";
+        loop {
+            let answer = self.ask(prompt)?;
+            match validate::env_var_name(Value(&answer)) {
+                _ if answer.is_empty() => return Ok(None),
+                Ok(()) => return Ok(Some(answer)),
+                Err(rule) => self.say(&format!("That value {rule}."))?,
+            }
+        }
     }
 
     fn provider_name(&mut self, existing: &Providers) -> Result<String, InitError> {

@@ -112,7 +112,12 @@ fn configure(action: &cli::Action, stderr: &mut impl io::Write) -> ExitCode {
     }
 }
 
-fn credential(name: &str) -> Result<String, String> {
+/// Reads the credential variable; a target with none reads no environment.
+fn credential(name: Option<&str>) -> Result<Option<String>, String> {
+    name.map(read_credential).transpose()
+}
+
+fn read_credential(name: &str) -> Result<String, String> {
     env::var(name).map_err(|error| match error {
         env::VarError::NotPresent => format!("credential environment variable '{name}' is not set"),
         env::VarError::NotUnicode(_) => {

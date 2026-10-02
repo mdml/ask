@@ -120,16 +120,21 @@ impl Kind {
     }
 }
 
+/// The bearer value sent for a target with no credential. Rig always sends an
+/// `Authorization` header, so a keyless target sends this fixed, non-secret
+/// placeholder, which servers that need no key ignore.
+pub const NO_KEY_PLACEHOLDER: &str = "no-key";
+
 pub struct RigProvider {
     kind: Option<Kind>,
     base_url: String,
-    credential: String,
+    credential: Option<String>,
     model: String,
     max_output_tokens: Option<u64>,
 }
 
 impl RigProvider {
-    pub fn new(target: &Target, credential: String) -> Self {
+    pub fn new(target: &Target, credential: Option<String>) -> Self {
         Self {
             kind: Kind::parse(&target.kind),
             base_url: target.base_url.clone(),
@@ -139,8 +144,13 @@ impl RigProvider {
         }
     }
 
+    /// The text to redact from diagnostics: empty, so nothing, without a credential.
+    fn secret(&self) -> &str {
+        self.credential.as_deref().unwrap_or_default()
+    }
+
     fn error(&self, error: impl std::fmt::Display) -> ProviderError {
-        redact(error, &self.credential)
+        redact(error, self.secret())
     }
 
     async fn open(
@@ -149,7 +159,8 @@ impl RigProvider {
         request: Request<'_>,
     ) -> Result<StreamingCompletionResponse, ProviderError> {
         let http = http_client().map_err(|error| self.error(error))?;
-        let (key, url) = (self.credential.as_str(), self.base_url.as_str());
+        let key = self.credential.as_deref().unwrap_or(NO_KEY_PLACEHOLDER);
+        let url = self.base_url.as_str();
         let limit = kind.max_output_tokens(self.max_output_tokens);
         let result = match kind {
             Kind::OpenAi => {
@@ -205,7 +216,7 @@ impl PromptProvider for RigProvider {
                 return self.gemini(request).await;
             }
             let stream = self.open(kind, request).await?;
-            let credential = self.credential.clone();
+            let credential = self.secret().to_string();
             Ok(Box::pin(stream.map(move |item| {
                 item.map_err(|error| redact(error, &credential))
                     .and_then(event)
@@ -223,7 +234,7 @@ impl RigProvider {
             "{}/v1beta/models/{}:streamGenerateContent?alt=sse&key={}",
             self.base_url.trim_end_matches('/'),
             path_segment(&self.model),
-            path_segment(&self.credential)
+            path_segment(self.secret())
         );
         let response = client
             .post(url)
@@ -237,7 +248,7 @@ impl RigProvider {
                 response.status()
             )));
         }
-        let credential = self.credential.clone();
+        let credential = self.secret().to_string();
         let events = response
             .bytes_stream()
             .map(Some)
@@ -698,13 +709,13 @@ mod tests {
             profile: "default".to_string(),
             kind: "retired-kind".to_string(),
             base_url: "http://127.0.0.1:1/v1".to_string(),
-            api_key_env: "KEY".to_string(),
+            api_key_env: Some("KEY".to_string()),
             timeout_ms: 1,
             model: "m".to_string(),
             system_prompt: String::new(),
             max_output_tokens: None,
         };
-        let provider = RigProvider::new(&target, "secret".to_string());
+        let provider = RigProvider::new(&target, Some("secret".to_string()));
         let request = Request {
             prompt: "q",
             system_prompt: "",
@@ -712,6 +723,26 @@ mod tests {
         };
         let error = provider.start(request).await.err().unwrap();
         assert_eq!(error.to_string(), "unsupported provider kind");
+    }
+
+    #[test]
+    fn the_keyless_placeholder_is_not_redacted() {
+        let provider = RigProvider::new(&keyless_target(), None);
+        let error = provider.error(format!("sent Bearer {NO_KEY_PLACEHOLDER}"));
+        assert_eq!(error.to_string(), "sent Bearer no-key");
+    }
+
+    fn keyless_target() -> Target {
+        Target {
+            profile: "default".to_string(),
+            kind: "openai-compatible".to_string(),
+            base_url: "http://127.0.0.1:1/v1".to_string(),
+            api_key_env: None,
+            timeout_ms: 1,
+            model: "m".to_string(),
+            system_prompt: String::new(),
+            max_output_tokens: None,
+        }
     }
 
     #[test]

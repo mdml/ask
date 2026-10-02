@@ -42,6 +42,7 @@ struct TargetReport {
 }
 
 enum CredentialState {
+    NotRequired,
     Present,
     Missing,
     InvalidUnicode,
@@ -121,7 +122,7 @@ fn target_reports(
     let reports = targets
         .into_iter()
         .map(|target| TargetReport {
-            credential: credential_state(&target.api_key_env),
+            credential: credential_state(target.api_key_env.as_deref()),
             history: histories.get(&identity(&target)).cloned(),
             live: None,
             target,
@@ -336,7 +337,10 @@ fn identity(target: &Target) -> (String, String, String) {
     )
 }
 
-fn credential_state(name: &str) -> CredentialState {
+fn credential_state(name: Option<&str>) -> CredentialState {
+    let Some(name) = name else {
+        return CredentialState::NotRequired;
+    };
     match env::var(name) {
         Ok(_) => CredentialState::Present,
         Err(env::VarError::NotPresent) => CredentialState::Missing,
@@ -352,7 +356,7 @@ async fn live_checks(
 ) {
     let mut store = open_store_for_live(data_path, diagnosis, stderr);
     for entry in targets {
-        let credential = match credential(&entry.target.api_key_env) {
+        let credential = match credential(entry.target.api_key_env.as_deref()) {
             Ok(value) => value,
             Err(message) => {
                 entry.live = Some(Err(message));
@@ -360,7 +364,7 @@ async fn live_checks(
             }
         };
         let _started = Instant::now();
-        let result = live_request(&entry.target, &credential).await;
+        let result = live_request(&entry.target, credential).await;
         if let Some(store) = store.as_mut() {
             let saved = record_live_health(store, &entry.target, &result);
             report_live_persistence(saved, diagnosis, stderr);
@@ -420,11 +424,14 @@ fn report_live_persistence(
     }
 }
 
-pub(crate) async fn live_request(target: &Target, credential: &str) -> Result<(), String> {
+pub(crate) async fn live_request(
+    target: &Target,
+    credential: Option<String>,
+) -> Result<(), String> {
     let mut live_target = target.clone();
     live_target.system_prompt = LIVE_SYSTEM_PROMPT.to_string();
     live_target.max_output_tokens = Some(LIVE_MAX_OUTPUT_TOKENS);
-    let provider = RigProvider::new(&live_target, credential.to_string());
+    let provider = RigProvider::new(&live_target, credential);
     let request = Request {
         prompt: LIVE_PROMPT,
         system_prompt: &live_target.system_prompt,
@@ -572,13 +579,7 @@ fn display_home(home: Option<&Path>) -> String {
 }
 
 fn target_line(entry: &TargetReport) -> String {
-    let credential = match entry.credential {
-        CredentialState::Present => format!("credential {}: present", entry.target.api_key_env),
-        CredentialState::Missing => format!("credential {}: missing", entry.target.api_key_env),
-        CredentialState::InvalidUnicode => {
-            format!("credential {}: not valid Unicode", entry.target.api_key_env)
-        }
-    };
+    let credential = credential_line(entry);
     let history = entry
         .history
         .as_ref()
@@ -604,6 +605,16 @@ fn target_line(entry: &TargetReport) -> String {
         lines.push(format!("  {live}"));
     }
     lines.join("\n")
+}
+
+fn credential_line(entry: &TargetReport) -> String {
+    let name = entry.target.api_key_env.as_deref().unwrap_or_default();
+    match entry.credential {
+        CredentialState::NotRequired => "credential: not required".to_string(),
+        CredentialState::Present => format!("credential {name}: present"),
+        CredentialState::Missing => format!("credential {name}: missing"),
+        CredentialState::InvalidUnicode => format!("credential {name}: not valid Unicode"),
+    }
 }
 
 fn render_health(health: &TargetHealth) -> String {

@@ -30,7 +30,8 @@ pub struct Config {
 pub(crate) struct ProviderConfig {
     pub(crate) kind: String,
     pub(crate) base_url: String,
-    pub(crate) api_key_env: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) api_key_env: Option<String>,
     #[serde(
         default = "default_timeout_ms",
         skip_serializing_if = "is_default_timeout"
@@ -54,7 +55,8 @@ pub struct Target {
     pub profile: String,
     pub kind: String,
     pub base_url: String,
-    pub api_key_env: String,
+    /// The credential variable, or `None` for a target that needs no key.
+    pub api_key_env: Option<String>,
     pub timeout_ms: u64,
     pub model: String,
     pub system_prompt: String,

@@ -140,7 +140,7 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
             .resolve_named(profile)
             .map_err(|error| InitError::Failed(error.to_string()))?;
         self.say(&format!("warning: {}", crate::doctor::COST_NOTICE))?;
-        let Err(reason) = crate::doctor::live_request(&target, &key.0).await else {
+        let Err(reason) = crate::doctor::live_request(&target, Some(key.0.clone())).await else {
             return self.say("Verified: the provider answered a minimal request.");
         };
         let reason = one_line(&provider::redact(reason, &key.0).to_string());

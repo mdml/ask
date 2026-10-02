@@ -52,7 +52,7 @@ Another `ask new` or `ask reply` that applies expiry while a reply is streaming 
 
 ## Schema versions
 
-The database schema is version 4. A database from an earlier `ask` is upgraded in place, in one transaction, when `ask new`, `ask reply`, `ask thread`, `ask switch`, `ask stats`, or `ask doctor --live` opens it:
+The database schema is version 5. A database from an earlier `ask` is upgraded in place, in one transaction, when `ask new`, `ask reply`, `ask thread`, `ask switch`, `ask stats`, or `ask doctor --live` opens it:
 
 | Version | Added |
 |:--|:--|
@@ -60,5 +60,6 @@ The database schema is version 4. A database from an earlier `ask` is upgraded i
 | 2 | History expiry. |
 | 3 | Output-token limits in profile snapshots. |
 | 4 | Provider-health observation sources: nullable `last_success_source` and `last_failure_source` columns. |
+| 5 | Thread snapshots of a target with no credential variable: `threads.api_key_env` becomes nullable. The upgrade rebuilds the `threads` table with foreign keys off, keeping every thread, turn, and the current thread. |
 
 Offline `ask doctor` never migrates storage; it reports an older schema as a limited check. A schema version newer than this `ask` supports is refused. An unpublished prototype layout that marked version 2 with only an output-token column is also refused.
