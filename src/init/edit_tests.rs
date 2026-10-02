@@ -7,7 +7,7 @@ use std::{
 };
 
 use super::*;
-use crate::init::{Console, start};
+use crate::init::{Console, Lookup, published, start};
 
 static CASE_ID: AtomicUsize = AtomicUsize::new(0);
 
@@ -50,9 +50,12 @@ fn existing(contents: &[u8]) -> PathBuf {
     path
 }
 
-fn unset(_: &str) -> Result<String, env::VarError> {
-    Err(env::VarError::NotPresent)
-}
+/// Every variable is unset except the published-list override, which is
+/// empty so no unit test requests the published list.
+const UNSET: Lookup = |name| match name {
+    published::URL_VARIABLE => Ok(String::new()),
+    _ => Err(env::VarError::NotPresent),
+};
 
 fn drive(path: &Path, answers: &str) -> (Result<(), InitError>, String) {
     let mut input = Cursor::new(answers.as_bytes().to_vec());
@@ -67,7 +70,7 @@ fn drive(path: &Path, answers: &str) -> (Result<(), InitError>, String) {
         .enable_all()
         .build()
         .unwrap();
-    let result = runtime.block_on(start(path, console, unset));
+    let result = runtime.block_on(start(path, console, UNSET));
     (result, String::from_utf8(output).unwrap())
 }
 
