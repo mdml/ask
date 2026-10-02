@@ -1,10 +1,11 @@
-//! Interactive creation of a fresh configuration file.
+//! Interactive creation of a fresh configuration file, or one change to an
+//! existing one.
 //!
 //! The dialogue uses terminal selection menus or a line-oriented fallback for
 //! redirected stdin. Every prompt and diagnostic goes to `stderr`; nothing
 //! is written to stdout. End of input at any prompt cancels without writing.
-//! `init` never replaces an existing configuration; `ask configure apply`
-//! is the command that installs a replacement.
+//! A new file is published without ever overwriting one; a change replaces
+//! the file it read through the same path as `ask configure apply`.
 //!
 //! A provider with no credential variable, such as a local model server,
 //! needs no key: init lists its models and verifies the setup with the fixed
@@ -14,12 +15,13 @@
 //! hidden prompt. It is used only to list models and verify the setup during
 //! `init`, and is never written or shown.
 
+mod edit;
 mod model;
 mod provider;
 
 use std::{
     collections::{BTreeMap, BTreeSet},
-    env, fmt,
+    env, fmt, fs,
     io::{self, BufRead, Write},
     path::Path,
 };
@@ -27,8 +29,10 @@ use std::{
 use crate::{
     config::{Config, ProfileConfig, ProviderConfig},
     configure::{self, WriteError},
-    validate::Value,
+    validate::{self, Value},
 };
+
+use model::Secret;
 
 const DEFAULT_PROFILE_NAME: &str = "default";
 
@@ -85,7 +89,8 @@ struct Dialogue<'a, R, W> {
     lookup: Lookup,
 }
 
-/// Creates `path` from answers read on `input`. Refuses to touch an existing file.
+/// Creates `path` from answers read on `input`, or changes the regular file
+/// already there. Refuses any other existing destination.
 pub async fn run<R: BufRead, W: Write>(
     path: &Path,
     console: Console<'_, R, W>,
@@ -98,23 +103,25 @@ async fn start<R: BufRead, W: Write>(
     console: Console<'_, R, W>,
     lookup: Lookup,
 ) -> Result<(), InitError> {
-    if std::fs::symlink_metadata(path).is_ok() {
-        return Err(InitError::Exists(path.display().to_string()));
-    }
     let mut dialogue = Dialogue { console, lookup };
-    dialogue.say(&format!("Creating '{}'.", path.display()))?;
-    let config = dialogue.collect().await?;
-    let rendered = config
+    match fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.is_file() => dialogue.edit(path).await,
+        Ok(_) => Err(InitError::Exists(path.display().to_string())),
+        Err(_) => dialogue.create(path).await,
+    }
+}
+
+/// Renders `config` and confirms that the shared validator accepts the result.
+fn rendered(config: &Config) -> Result<String, InitError> {
+    let text = config
         .to_toml()
         .map_err(|error| InitError::Failed(error.to_string()))?;
-    dialogue.say("\nConfiguration to write:\n")?;
-    dialogue.say(&rendered)?;
-    if !dialogue.confirm("Write this configuration? [y/N]: ")? {
-        return Err(InitError::Cancelled);
-    }
-    configure::create_new(path, rendered.as_bytes()).map_err(|error| failed(path, &error))?;
-    dialogue.say(&format!("Wrote '{}'.", path.display()))?;
-    dialogue.next_steps(&config)
+    validate::document(&text).map_err(|problem| {
+        InitError::Failed(format!(
+            "internal error: the resulting configuration is invalid ({problem}); nothing was written"
+        ))
+    })?;
+    Ok(text)
 }
 
 fn failed(path: &Path, error: &WriteError) -> InitError {
@@ -138,6 +145,24 @@ fn one_line(text: &str) -> String {
 }
 
 impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
+    async fn create(&mut self, path: &Path) -> Result<(), InitError> {
+        self.say(&format!("Creating '{}'.", path.display()))?;
+        let config = self.collect().await?;
+        let rendered = rendered(&config)?;
+        self.preview(&rendered)?;
+        if !self.confirm("Write this configuration? [y/N]: ")? {
+            return Err(InitError::Cancelled);
+        }
+        configure::create_new(path, rendered.as_bytes()).map_err(|error| failed(path, &error))?;
+        self.say(&format!("Wrote '{}'.", path.display()))?;
+        self.next_steps(&config)
+    }
+
+    fn preview(&mut self, rendered: &str) -> Result<(), InitError> {
+        self.say("\nConfiguration to write:\n")?;
+        self.say(rendered)
+    }
+
     async fn collect(&mut self) -> Result<Config, InitError> {
         self.introduction()?;
         let mut config = Config {
@@ -162,30 +187,56 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
             provider,
             start_hint,
         } = self.provider(&config.providers)?;
-        let keyless = credential_variable(&provider).is_none();
-        let key = match credential_variable(&provider) {
-            Some(variable) => self.credential(variable)?,
-            None => None,
-        };
-        let model = self.model(&provider, key.as_ref(), start_hint).await?;
+        config.providers.insert(provider_name.clone(), provider);
+        self.add_profile(config, &provider_name, start_hint).await
+    }
+
+    /// Adds one profile on the configured provider `provider_name`.
+    /// `start_hint` says how a local server is usually started.
+    async fn add_profile(
+        &mut self,
+        config: &mut Config,
+        provider_name: &str,
+        start_hint: Option<&str>,
+    ) -> Result<(), InitError> {
+        let provider = &config.providers[provider_name];
+        let key = self.key_for(provider)?;
+        let model = self.model(provider, key.as_ref(), start_hint).await?;
         let system_prompt = self.optional_prompt()?;
-        let profile_name = self.profile_name(config, &provider_name)?;
+        let profile_name = self.profile_name(config, provider_name)?;
         if config.default_profile.is_empty() {
             config.default_profile.clone_from(&profile_name);
         }
         let profile = ProfileConfig {
-            provider: provider_name.clone(),
+            provider: provider_name.to_string(),
             model,
             system_prompt,
             max_output_tokens: None,
         };
-        config.providers.insert(provider_name, provider);
         config.profiles.insert(profile_name.clone(), profile);
-        if key.is_some() || keyless {
-            self.verify(config, &profile_name, key.as_ref()).await
-        } else {
-            Ok(())
+        self.check_target(config, &profile_name, key.as_ref()).await
+    }
+
+    /// The key for `provider`, unless it needs none.
+    fn key_for(&mut self, provider: &ProviderConfig) -> Result<Option<Secret>, InitError> {
+        match credential_variable(provider) {
+            Some(variable) => self.credential(variable),
+            None => Ok(None),
         }
+    }
+
+    /// Verifies `profile`'s target when a key is available or it needs none.
+    async fn check_target(
+        &mut self,
+        config: &Config,
+        profile: &str,
+        key: Option<&Secret>,
+    ) -> Result<(), InitError> {
+        let provider = &config.providers[&config.profiles[profile].provider];
+        if key.is_none() && credential_variable(provider).is_some() {
+            return Ok(());
+        }
+        self.verify(config, profile, key).await
     }
 
     fn introduction(&mut self) -> Result<(), InitError> {

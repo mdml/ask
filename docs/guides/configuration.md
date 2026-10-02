@@ -1,8 +1,21 @@
 # Configuring profiles and providers
 
-`ask init` creates a first configuration and never changes an existing one. Every later change, and any setup without a dialogue, works on the complete TOML document: edit a copy, validate it with `ask configure check`, and install it with `ask configure apply`. `ask` has no commands that change individual fields. The [configuration reference](../reference/configuration.md) lists every key and validation rule.
+The quickest way to change a configuration is to run `ask init` again. Every other change, and any setup without a dialogue, works on the complete TOML document: edit a copy, validate it with `ask configure check`, and install it with `ask configure apply`. Apart from `ask init`, `ask` has no commands that change individual fields. The [configuration reference](../reference/configuration.md) lists every key and validation rule.
+
+## Change the configuration with `ask init`
+
+Run `ask init` with a configuration already installed. It validates the file, shows the default profile and each profile with its provider and model, and offers one change:
+
+- **Add a provider**: choose a provider and model as in first-time setup, which adds the provider and one profile that uses it.
+- **Add a profile on an existing provider**: choose the provider, then a model, an optional system prompt, and a profile name.
+- **Change a profile's model**: choose the profile, then the model. Existing threads keep the model they were created with; new threads use the new one.
+- **Set the default profile**: choose one of the existing profiles.
+
+As in first-time setup, the key comes from the environment or a hidden prompt and is used only to list models and verify the result. New provider and profile names must differ from existing ones. `ask init` then shows the complete resulting document and installs it only after you confirm; Esc, end of input, or any other answer leaves the file unchanged. Everything else in the file keeps its value, but the document is rewritten from its parsed contents, so comments, key order, and spacing in a hand-edited file are lost; `ask init` warns before asking when that would happen. If the installed file is invalid, `ask init` reports the problem and changes nothing; fix it by hand as described below.
 
 ## Change the installed configuration
+
+For any other change, such as output limits, history expiry, timeouts, or a multiline system prompt, or to keep comments and formatting, edit the complete document:
 
 1. Find the installed file. `ask doctor` prints its path on the `config:` line.
 2. Copy it and edit the copy. In this example the copy is `candidate.toml`.

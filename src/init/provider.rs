@@ -141,7 +141,7 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
     }
 
     /// The position of the chosen label, from a menu or a numbered list.
-    fn choose(&mut self, title: &str, labels: &[String]) -> Result<usize, InitError> {
+    pub(super) fn choose(&mut self, title: &str, labels: &[String]) -> Result<usize, InitError> {
         if !self.console.menus {
             return self.numbered(title, labels);
         }

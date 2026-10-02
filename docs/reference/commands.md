@@ -26,7 +26,7 @@ ask version
 | `ask switch` | `ask s` | Select the current thread. |
 | `ask stats` | none | Show local query and provider-health statistics. |
 | `ask doctor` | `ask d` | Diagnose the installed system. |
-| `ask init` | `ask i` | Create the first configuration interactively. |
+| `ask init` | `ask i` | Create the first configuration interactively, or make one change to an existing one. |
 | `ask configure` | `ask c` | Validate or install a complete configuration document. |
 | `ask help` | `ask --help`, `ask -h` | Print the command summary. |
 | `ask version` | `ask --version`, `ask -V` | Print `ask <version>`. |
@@ -149,7 +149,7 @@ A missing database file is reported as absent and is not a problem. An existing 
 
 ## `ask init`
 
-`ask init` and `ask i` create the configuration file through a dialogue. Every prompt and diagnostic is written to stderr, and stdout stays empty. Answers may come from a terminal or from redirected stdin, one answer per line; redirected stdin still requires an answer for every prompt. On an attended terminal, the provider and model are chosen from arrow-key menus (Up, Down, Enter; Esc cancels) and each typed prompt begins with `? `; otherwise every menu is numbered and answered by number. `ask init` has no noninteractive all-default mode, because a provider target cannot be inferred.
+`ask init` and `ask i` create the configuration file through a dialogue or, when it already exists, make one change to it. Every prompt and diagnostic is written to stderr, and stdout stays empty. Answers may come from a terminal or from redirected stdin, one answer per line; redirected stdin still requires an answer for every prompt. On an attended terminal, the provider and model are chosen from arrow-key menus (Up, Down, Enter; Esc cancels) and each typed prompt begins with `? `; otherwise every menu is numbered and answered by number. `ask init` has no noninteractive all-default mode, because a provider target cannot be inferred.
 
 For each provider, the dialogue:
 
@@ -165,7 +165,20 @@ Answers are trimmed and limited to one line. For a multiline system prompt, an e
 
 An invalid answer prints an explanation and asks again. The dialogue then shows the exact TOML it will write and asks for confirmation. Only `y` or `yes` writes the file; any other answer, Esc at a menu or the hidden prompt, or end of input at any prompt cancels without writing and exits 1. The written document omits `timeout_ms`, `system_prompt`, and the other optional keys when the defaults apply. After writing, the dialogue prints next steps: the credential variables to supply when `ask` runs, a pointer to [Injecting credentials](../guides/credentials.md), a hidden-prompt command that supplies the default profile's key to a first query, and an example first question.
 
-`ask init` refuses to run when the configuration file already exists and leaves it unchanged; use `ask configure apply` to replace a regular file. It publishes the fully written file with a hard link, so a configuration that appears during the dialogue is never overwritten. It shares the locking, permission, and destination rules of [`ask configure apply`](#installation-procedure). `ask init` never opens the database.
+When no configuration file exists, `ask init` publishes the fully written file with a hard link, so a configuration that appears during the dialogue is never overwritten. It shares the locking, permission, and destination rules of [`ask configure apply`](#installation-procedure). `ask init` refuses a destination that is a symlink, including a dangling one, or another nonregular file, before any prompt. `ask init` never opens the database.
+
+### Changing an existing configuration
+
+When the configuration file is a regular file, `ask init` reads it and validates it with the same [validation rules](configuration.md#validation) as `ask configure check`. If the file cannot be read or is invalid, it prints the diagnostic followed by `nothing was changed; correct the file and validate it with 'ask configure check'`, exits 1, and leaves the file untouched; it never repairs a file. Otherwise it prints the default profile and each profile with its provider and model, and offers one change per run:
+
+1. Add a provider: the provider, key, model, system-prompt, profile-name, and verification steps above, adding one provider and one profile that uses it. Provider and profile names must not collide with existing ones; a colliding name is refused and asked again.
+2. Add a profile on an existing provider: choose the provider, then the key, model, system-prompt, profile-name, and verification steps above.
+3. Change a profile's model: choose the profile, then the key and model steps above, followed by verification. The dialogue says that the change applies to new threads only, because a thread keeps the profile it was created with.
+4. Set the default profile: choose one of the existing profiles.
+
+Everything the change does not touch keeps its value, including `expire_history`, `history_days`, `timeout_ms`, `max_output_tokens`, system prompts, and every other provider and profile. The document is rendered again from the parsed configuration, so comments, key order, and spacing in a hand-edited file are not kept. When rendering the unchanged configuration would not reproduce the file's bytes, the dialogue prints `warning: comments and formatting in the existing file will not be preserved; 'ask configure apply' keeps them.` after the preview and before the confirmation question. To keep them, edit the document and use `ask configure apply`.
+
+The dialogue shows the complete resulting TOML and asks for confirmation as it does for a new file; Esc, end of input, or any answer other than `y` or `yes` cancels without writing and exits 1. A confirmed change replaces the file through the [installation procedure](#installation-procedure) of `ask configure apply`, keeping its permission bits. If the file changed on disk after `ask init` read it, nothing is written: the dialogue reports `'<path>' changed after init read it; nothing was written` and exits 1.
 
 ## `ask configure`
 
@@ -179,7 +192,7 @@ Both commands exit 0 on success with a one-line message on stderr, and exit 1 wi
 
 ### Installation procedure
 
-1. `apply` acquires an exclusive advisory lock on `.ask-config.lock` in the configuration directory, then snapshots the destination before reading the candidate. A competing `ask` writer fails promptly with a lock diagnostic. `ask init` takes the same lock when publishing its confirmed document.
+1. `apply` acquires an exclusive advisory lock on `.ask-config.lock` in the configuration directory, then snapshots the destination before reading the candidate. A competing `ask` writer fails promptly with a lock diagnostic. `ask init` takes the same lock when publishing its confirmed document, and when replacing a configuration it compares the destination with the snapshot taken when it read the file rather than when it acquired the lock.
 2. It validates the candidate, then writes and syncs a temporary file in that directory. New files use owner-only permissions (`0600`, subject to umask); replacements retain the destination's Unix read/write/execute permission bits.
 3. It checks the destination's contents, device and inode identity, permissions, and change timestamp against the snapshot. A detected change aborts publication.
 4. It atomically renames the temporary file over an existing destination, or hard-links it to an absent destination without overwriting a file that appeared concurrently. Readers see a complete old or new document.

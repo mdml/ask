@@ -205,7 +205,7 @@ fn entry(thread: &ThreadSummary) -> String {
 /// Replaces control characters, which could move the cursor or restyle the
 /// terminal, and invisible format characters, which could reorder or hide
 /// what the entry shows, with spaces.
-fn printable(text: &str) -> String {
+pub(crate) fn printable(text: &str) -> String {
     text.chars()
         .map(|character| {
             if character.is_control() || is_invisible_format(character) {

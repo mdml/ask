@@ -24,6 +24,10 @@ environment_key = os.environ.get('LOCAL_API_KEY', '').encode()
 PASTED = b'pasted-secret-never-print'
 LOCAL = b'\x1b[B' * 7 + b'\r'
 CUSTOM = b'\x1b[B' * 8 + b'\r'
+DOWN = b'\x1b[B'
+config_path = os.path.join(home, 'config.toml')
+# An existing configuration makes init change it; cancellation must leave it as is.
+original = open(config_path, 'rb').read() if os.path.exists(config_path) else None
 master, slave = pty.openpty()
 before = termios.tcgetattr(slave)
 child = subprocess.Popen([binary, 'init'], stdin=slave, stdout=subprocess.PIPE,
@@ -155,12 +159,117 @@ def cancelled(transcript):
     assert child.returncode == 1, (child.returncode, transcript)
     assert out == b'', out
     assert b'configuration cancelled; nothing was written' in transcript, transcript
-    assert not os.path.exists(os.path.join(home, 'config.toml'))
+    if original is None:
+        assert not os.path.exists(config_path)
+    else:
+        assert open(config_path, 'rb').read() == original
+
+
+def press(transcript, key, redraw):
+    """Sends one key in raw mode and waits for the redraw it causes."""
+    transcript = wait_for_raw(transcript)
+    sent = len(transcript)
+    os.write(master, key)
+    return transcript[:sent] + wait_for_prompt(transcript[sent:], redraw)
+
+
+def pick(transcript, title, position):
+    """Waits for the menu `title`, moves down to `position` one key at a time,
+    and chooses it."""
+    transcript = at_raw_prompt(transcript, title)
+    for number in range(2, position + 1):
+        transcript = press(transcript, DOWN, b'> %d. ' % number)
+    transcript = wait_for_raw(transcript)
+    os.write(master, b'\r')
+    return transcript
+
+
+def escape_at(transcript, title):
+    transcript = at_raw_prompt(transcript, title)
+    os.write(master, b'\x1b')
+    cancelled(transcript)
+
+
+def confirm_edit(transcript):
+    """Confirms the previewed change and returns the replaced file."""
+    transcript = write_after(transcript, b'Write this configuration', b'y\n')
+    out, transcript = finish(transcript)
+    assert child.returncode == 0, (child.returncode, transcript)
+    assert out == b'', out
+    assert b'warning: comments and formatting' not in transcript, transcript
+    config = open(config_path, 'rb').read()
+    for secret in (PASTED, environment_key):
+        assert not secret or secret not in transcript + out + config, secret
+    return config, transcript
+
+
+def edit_scenario(transcript):
+    """Drives one change to the existing configuration."""
+    if scenario == 'edit-provider':
+        transcript = pick(transcript, b'Choose a change', 1)
+        transcript = pick(transcript, b'Select a provider', 1)
+        transcript = write_after(transcript, b'Provider name', b'openai\n')
+        transcript = write_after(transcript, b'already used', b'work\n')
+        transcript = at_raw_prompt(transcript, b'API key (hidden; Enter skips): ')
+        os.write(master, b'\r')
+        transcript = write_after(transcript, b'Model identifier', b'typed-model\n')
+        transcript = write_after(transcript, b'Replacement system prompt', b'\n')
+        transcript = write_after(transcript, b'Profile name [work]', b'\n')
+        config, transcript = confirm_edit(transcript)
+        assert b'[providers.work]\nkind = "openai"' in config, config
+        assert b'[profiles.work]\nprovider = "work"\nmodel = "typed-model"' in config, config
+    elif scenario == 'edit-profile':
+        transcript = pick(transcript, b'Choose a change', 2)
+        transcript = pick(transcript, b'Select a provider', 1)
+        transcript = pick(transcript, b'Select a model', 1)
+        transcript = write_after(transcript, b'Replacement system prompt', b'\n')
+        transcript = write_after(transcript, b'Profile name [local]', b'default\n')
+        transcript = write_after(transcript, b'already used', b'work\n')
+        config, transcript = confirm_edit(transcript)
+        assert b'[profiles.work]\nprovider = "local"\nmodel = "fake-model"' in config, config
+        assert b'Verified: the provider answered a minimal request.' in transcript
+    elif scenario == 'edit-model':
+        transcript = pick(transcript, b'Choose a change', 3)
+        transcript = pick(transcript, b'Select a profile', 1)
+        transcript = pick(transcript, b'Select a model', 2)
+        transcript = wait_for_prompt(transcript, b'new threads only')
+        config, transcript = confirm_edit(transcript)
+        assert b'model = "other-model"' in config, config
+        assert b'Verified: the provider answered a minimal request.' in transcript
+    elif scenario == 'edit-default':
+        transcript = pick(transcript, b'Choose a change', 4)
+        transcript = pick(transcript, b'Select the default profile', 2)
+        config, _ = confirm_edit(transcript)
+        assert config.startswith(b'default_profile = "spare"\n'), config
+    elif scenario == 'edit-escape-action':
+        escape_at(transcript, b'Choose a change')
+    elif scenario == 'edit-escape-model':
+        transcript = pick(transcript, b'Choose a change', 3)
+        transcript = pick(transcript, b'Select a profile', 1)
+        escape_at(transcript, b'Select a model')
+    elif scenario == 'edit-escape-hidden':
+        transcript = pick(transcript, b'Choose a change', 3)
+        transcript = pick(transcript, b'Select a profile', 2)
+        escape_at(transcript, b'API key (hidden; Enter skips): ')
+    else:
+        action, title = EDIT_MENUS[scenario]
+        transcript = pick(transcript, b'Choose a change', action)
+        escape_at(transcript, title)
+
+
+EDIT_MENUS = {
+    'edit-escape-preset': (1, b'Select a provider'),
+    'edit-escape-provider': (2, b'Select a provider'),
+    'edit-escape-profile': (3, b'Select a profile'),
+    'edit-escape-default': (4, b'Select the default profile'),
+}
 
 
 try:
     transcript = wait_for_raw(b'')
-    if scenario == 'select':
+    if scenario.startswith('edit-'):
+        edit_scenario(transcript)
+    elif scenario == 'select':
         redraws = int(os.environ.get('ASK_PTY_STRESS_REDRAWS', '0'))
         for _ in range(redraws):
             os.write(master, b'\x1b[B\x1b[A')

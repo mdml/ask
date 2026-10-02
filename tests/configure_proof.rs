@@ -1,6 +1,7 @@
 //! End-to-end proof of the configuration commands through the real binary.
 //!
-//! `ask init` creates a first configuration interactively. `ask configure check`
+//! `ask init` creates a first configuration interactively or makes one change
+//! to an existing one. `ask configure check`
 //! validates a complete candidate document without writing, and
 //! `ask configure apply` installs one. Every case here drives the installed
 //! binary using redirected input, a PTY, or synchronized OS boundaries. Only
@@ -50,12 +51,21 @@ const PASTED: &str = "pasted-secret-never-print";
 /// with `LOCAL_API_KEY` set to the fixture credential.
 #[cfg(unix)]
 fn terminal_init(scenario: &str, fake: Option<&FakeProvider>, with_credential: bool) -> Output {
-    let home = fresh_home();
+    terminal_run(&fresh_home(), scenario, fake, with_credential)
+}
+
+#[cfg(unix)]
+fn terminal_run(
+    home: &Path,
+    scenario: &str,
+    fake: Option<&FakeProvider>,
+    with_credential: bool,
+) -> Output {
     let mut helper = Command::new("python3");
     helper
         .arg("tests/support/init_menu_process.py")
         .arg(env!("CARGO_BIN_EXE_ask"))
-        .arg(&home)
+        .arg(home)
         .arg(scenario)
         .args(fake.map(FakeProvider::base_url))
         .env_remove("LOCAL_API_KEY");
@@ -535,7 +545,7 @@ fn help_and_version_run_without_configuration() {
     assert!(
         String::from_utf8(help.stdout)
             .unwrap()
-            .contains("ask init creates the first configuration")
+            .contains("ask init creates the first configuration interactively or changes")
     );
     assert!(String::from_utf8_lossy(&help.stderr).is_empty());
 
@@ -545,19 +555,310 @@ fn help_and_version_run_without_configuration() {
     assert!(String::from_utf8_lossy(&version.stderr).is_empty());
 }
 
+// -- ask init on an existing configuration ---------------------------------
+
+/// An existing configuration exactly as `ask init` renders it, carrying every
+/// value `init` does not manage. `{url}` is replaced with the fake provider.
+const EXISTING: &str = r#"default_profile = "default"
+expire_history = true
+history_days = 30
+
+[providers.local]
+kind = "openai-compatible"
+base_url = "{url}"
+api_key_env = "LOCAL_API_KEY"
+timeout_ms = 41000
+
+[providers.openai]
+kind = "openai"
+base_url = "https://api.openai.com/v1"
+api_key_env = "OPENAI_API_KEY"
+
+[profiles.default]
+provider = "local"
+model = "fake-model"
+system_prompt = "Use terse tables."
+max_output_tokens = 77
+
+[profiles.spare]
+provider = "openai"
+model = "spare-model"
+system_prompt = ""
+"#;
+
+const REFORMAT_WARNING: &str = "warning: comments and formatting in the existing file will not be preserved; 'ask configure apply' keeps them.";
+
+/// Matches no block of [`EXISTING`], for a change that only adds tables.
+const ADDED: &str = "\0";
+
+/// One redirected answer set per edit action, without a key in the
+/// environment, with the text of the block each one changes.
+const EDIT_ANSWERS: [(&str, &str); 4] = [
+    ("1\n2\nclaude-model\n\n\ny\n", ADDED),
+    ("2\n1\nm\n\nwork\ny\n", ADDED),
+    ("3\n1\nm\ny\n", "fake-model"),
+    ("4\n2\ny\n", "default_profile"),
+];
+
+/// [`EXISTING`] installed in a fresh home, pointing at a fake provider if any.
+struct Installed {
+    home: std::path::PathBuf,
+    original: String,
+}
+
+impl Installed {
+    fn new(fake: Option<&FakeProvider>) -> Self {
+        let home = fresh_home();
+        let url = fake.map_or_else(|| "http://127.0.0.1:1/v1".into(), FakeProvider::base_url);
+        let original = EXISTING.replace("{url}", &url);
+        fs::write(home.join("config.toml"), &original).unwrap();
+        Self { home, original }
+    }
+
+    fn written(&self) -> String {
+        fs::read_to_string(self.home.join("config.toml")).unwrap()
+    }
+
+    /// Asserts every block of the original survives except the one containing
+    /// `changed`, and returns the written file.
+    fn kept(&self, changed: &str) -> String {
+        let written = self.written();
+        for block in self
+            .original
+            .split("\n\n")
+            .filter(|block| !block.contains(changed))
+        {
+            assert!(written.contains(block.trim_end()), "{block}: {written}");
+        }
+        written
+    }
+}
+
+fn assert_mentions(transcript: &str, expected: &[&str]) {
+    for text in expected {
+        assert!(transcript.contains(text), "{text}: {transcript}");
+    }
+}
+
 #[test]
-fn init_refuses_an_existing_configuration_and_points_at_apply() {
-    let home = fresh_home();
-    let path = home.join("config.toml");
-    fs::write(&path, "original = true\n").unwrap();
-    let transcript = failed(&interactive(&home, "init", ""));
-    assert!(
-        transcript.starts_with("ask: configuration already exists at '")
-            && transcript.ends_with("'ask configure apply' replaces regular files only\n"),
-        "{transcript}"
+fn init_edit_sets_the_default_profile_without_a_reformat_warning() {
+    let installed = Installed::new(None);
+    let transcript = succeeded(&interactive(&installed.home, "init", EDIT_ANSWERS[3].0));
+    assert_mentions(
+        &transcript,
+        &[
+            "Default profile: default\nProfiles:\n  default (default): provider local, model fake-model\n  spare: provider openai, model spare-model\n",
+            "Choose a change [1-4]: ",
+            "Select the default profile [1-2]: ",
+            "Configuration to write:",
+        ],
     );
-    assert_eq!(transcript.lines().count(), 1);
-    assert_eq!(fs::read_to_string(&path).unwrap(), "original = true\n");
+    assert!(!transcript.contains(REFORMAT_WARNING), "{transcript}");
+    let expected = installed.original.replace(
+        "default_profile = \"default\"",
+        "default_profile = \"spare\"",
+    );
+    assert_eq!(installed.written(), expected);
+}
+
+#[test]
+fn init_edit_warns_that_comments_and_formatting_are_not_preserved() {
+    let home = fresh_home();
+    fs::write(home.join("config.toml"), CANDIDATE).unwrap();
+    let transcript = succeeded(&interactive(&home, "i", "4\n1\ny\n"));
+    let warning = format!("{REFORMAT_WARNING}\nWrite this configuration? [y/N]: ");
+    assert_mentions(&transcript, &[&warning]);
+    let written = fs::read_to_string(home.join("config.toml")).unwrap();
+    assert!(!written.contains('#'), "{written}");
+    assert_mentions(
+        &written,
+        &["timeout_ms = 41", "system_prompt = \"Use terse tables.\""],
+    );
+}
+
+#[test]
+fn init_edit_changes_a_model_from_the_list_and_verifies_it() {
+    let fake = FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Stream]);
+    let installed = Installed::new(Some(&fake));
+    let transcript = succeeded(&keyed(&installed.home, "3\n1\n2\ny\n"));
+    assert_mentions(
+        &transcript,
+        &[
+            "Using LOCAL_API_KEY from the environment (value not shown).",
+            "The new model applies to new threads only; existing threads keep the profile they were created with.",
+            "Verified: the provider answered a minimal request.",
+        ],
+    );
+    assert!(!transcript.contains(CREDENTIAL));
+    let expected = installed
+        .original
+        .replace("model = \"fake-model\"", "model = \"other-model\"");
+    assert_eq!(installed.written(), expected);
+    assert_eq!(fake.requests(2)[1].model, "other-model");
+}
+
+#[test]
+fn init_edit_adds_a_profile_on_an_existing_provider_with_an_unused_name() {
+    let fake = FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Stream]);
+    let installed = Installed::new(Some(&fake));
+    let answers = "2\n1\n3\nBe brief.\ndefault\nwork\ny\n";
+    let transcript = succeeded(&keyed(&installed.home, answers));
+    assert_mentions(
+        &transcript,
+        &[
+            "Profile name [local]: ",
+            "That profile name is already used; choose another.",
+            "Verified: the provider answered a minimal request.",
+        ],
+    );
+    let expected = format!(
+        "{}\n[profiles.work]\nprovider = \"local\"\nmodel = \"other-mini\"\nsystem_prompt = \"Be brief.\"\n",
+        installed.original
+    );
+    assert_eq!(installed.written(), expected);
+    assert_eq!(fake.requests(2)[1].model, "other-mini");
+}
+
+#[test]
+fn init_edit_adds_a_provider_with_an_unused_name_and_its_own_profile() {
+    let fake = FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Stream]);
+    let installed = Installed::new(Some(&fake));
+    let answers = format!(
+        "1\n9\nlocal\nsecond\n{}\nLOCAL_API_KEY\n1\n\n\ny\n",
+        fake.base_url()
+    );
+    let transcript = succeeded(&keyed(&installed.home, &answers));
+    assert_mentions(
+        &transcript,
+        &[
+            "That provider name is already used; choose another.",
+            "Profile name [second]: ",
+        ],
+    );
+    assert_mentions(
+        &installed.kept(ADDED),
+        &[
+            "[providers.second]\nkind = \"openai-compatible\"",
+            "[profiles.second]\nprovider = \"second\"\nmodel = \"fake-model\"",
+        ],
+    );
+    assert_eq!(fake.requests(2)[1].model, "fake-model");
+}
+
+#[test]
+fn init_edit_keeps_unmanaged_values_through_every_action() {
+    for (answers, changed) in EDIT_ANSWERS {
+        let installed = Installed::new(None);
+        succeeded(&interactive(&installed.home, "init", answers));
+        let written = installed.kept(changed);
+        assert_mentions(&written, &["max_output_tokens = 77", "history_days = 30"]);
+    }
+}
+
+#[test]
+fn init_edit_end_of_input_or_refusal_at_every_prompt_leaves_the_file_unchanged() {
+    for (answers, _) in EDIT_ANSWERS {
+        let mut prefix = String::new();
+        for line in answers.split_inclusive('\n') {
+            for input in [prefix.clone(), format!("{prefix}n\n")] {
+                let installed = Installed::new(None);
+                let transcript = failed(&interactive(&installed.home, "init", &input));
+                assert!(transcript.ends_with(CANCELLED), "{input:?}: {transcript}");
+                assert_eq!(installed.written(), installed.original);
+            }
+            prefix.push_str(line);
+        }
+    }
+}
+
+#[test]
+fn init_leaves_an_invalid_existing_configuration_byte_identical() {
+    let unchanged =
+        "; nothing was changed; correct the file and validate it with 'ask configure check'\n";
+    for contents in [&b"SECRET_SENTINEL = 1\n"[..], &b"\xffSECRET_SENTINEL"[..]] {
+        let home = fresh_home();
+        let path = home.join("config.toml");
+        fs::write(&path, contents).unwrap();
+        let transcript = failed(&interactive(&home, "init", EDIT_ANSWERS[3].0));
+        let one_safe_line = transcript.ends_with(unchanged)
+            && transcript.lines().count() == 1
+            && !transcript.contains("SECRET_SENTINEL");
+        assert!(one_safe_line, "{transcript}");
+        assert_eq!(fs::read(&path).unwrap(), contents);
+    }
+}
+
+/// Runs one `init_menu_process.py` edit scenario and returns the installed
+/// configuration it started from.
+#[cfg(unix)]
+fn terminal_edit(scenario: &str, fake: Option<&FakeProvider>, with_credential: bool) -> Installed {
+    let installed = Installed::new(fake);
+    terminal_run(&installed.home, scenario, fake, with_credential);
+    installed
+}
+
+#[cfg(unix)]
+#[test]
+fn terminal_init_edit_adds_a_provider_and_sets_the_default() {
+    for (scenario, changed) in [
+        ("edit-provider", ADDED),
+        ("edit-default", "default_profile"),
+    ] {
+        terminal_edit(scenario, None, false).kept(changed);
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn terminal_init_edit_adds_a_profile_and_changes_a_model_with_verification() {
+    for (scenario, changed) in [("edit-profile", ADDED), ("edit-model", "fake-model")] {
+        let fake = FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Stream]);
+        terminal_edit(scenario, Some(&fake), true).kept(changed);
+        let requests = fake.requests(2);
+        assert!(
+            requests
+                .iter()
+                .all(|request| request.authorization_is_fixture)
+        );
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn terminal_init_edit_escape_at_every_menu_leaves_the_file_unchanged() {
+    for scenario in [
+        "edit-escape-action",
+        "edit-escape-preset",
+        "edit-escape-provider",
+        "edit-escape-profile",
+        "edit-escape-default",
+        "edit-escape-hidden",
+    ] {
+        terminal_edit(scenario, None, false);
+    }
+    let fake = FakeProvider::start(Scenario::Status(200, MODELS));
+    terminal_edit("edit-escape-model", Some(&fake), true);
+    assert_eq!(fake.requests(1).len(), 1);
+}
+
+#[test]
+fn init_model_change_applies_to_new_threads_only() {
+    let fake = FakeProvider::sequence(vec![Scenario::Stream, Scenario::Stream, Scenario::Stream]);
+    let installed = Installed::new(Some(&fake));
+    let home = &installed.home;
+    let first = command(home, true).args(["new", "q1"]).output().unwrap();
+    assert!(first.status.success(), "{}", stderr(&first));
+    succeeded(&interactive(home, "init", "3\n1\nnew-model\ny\n"));
+    for arguments in [["reply", "q2"], ["new", "q3"]] {
+        let output = command(home, true).args(arguments).output().unwrap();
+        assert!(output.status.success(), "{}", stderr(&output));
+    }
+    let models: Vec<String> = fake
+        .requests(3)
+        .into_iter()
+        .map(|request| request.model)
+        .collect();
+    assert_eq!(models, ["fake-model", "fake-model", "new-model"]);
 }
 
 #[cfg(unix)]
@@ -987,6 +1288,7 @@ fn synchronized_configuration_process_proofs() {
         "appeared",
         "exclusion",
         "init_interaction",
+        "edit_changed",
         "utf8",
     ] {
         let home = fresh_home();
