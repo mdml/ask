@@ -114,7 +114,7 @@ def sampled(transcript, chunks, span=0.25):
     start = time.monotonic()
     pending = list(chunks)
     samples = 0
-    while pending or time.monotonic() - start < span:
+    while pending or time.monotonic() - start < span or samples < 50:
         local = termios.tcgetattr(slave)[3]
         assert not local & (termios.ECHO | termios.ICANON), (samples, local, transcript)
         assert child.poll() is None, ('sampling attributes', 'child exited', transcript)
@@ -124,7 +124,6 @@ def sampled(transcript, chunks, span=0.25):
             os.write(master, pending.pop(0))
         if select.select([master], [], [], 0.001)[0]:
             transcript += os.read(master, 4096)
-    assert samples >= 50, samples
     return transcript
 
 
