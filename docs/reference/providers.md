@@ -34,11 +34,19 @@ A provider of `kind = "openai-compatible"` may omit `api_key_env`; every other k
 | Cerebras | `cerebras` | `openai-compatible` | `https://api.cerebras.ai/v1` | `CEREBRAS_API_KEY` |
 | xAI | `xai` | `openai-compatible` | `https://api.x.ai/v1` | `XAI_API_KEY` |
 
+The menu then offers `Local model server`, which opens a second menu of servers you already run. `ask` connects to them; it does not start servers, download models, or manage accelerators. Each entry writes `kind = "openai-compatible"` with no `api_key_env` (a [keyless](#keyless-targets) target) and `timeout_ms = 120000`, because the first request often waits for the model to load. Hosted presets keep the default timeout. After you choose, Enter accepts the default endpoint, or you may type another base URL, which must satisfy the endpoint rule in the [configuration reference](configuration.md#providers):
+
+| Menu entry | Provider name | Default `base_url` | Usually started with |
+|:--|:--|:--|:--|
+| Ollama | `ollama` | `http://localhost:11434/v1` | `ollama serve` |
+| LM Studio | `lmstudio` | `http://localhost:1234/v1` | `lms server start` |
+| llama.cpp server | `llamacpp` | `http://localhost:8080/v1` | `llama-server -m <model.gguf>` |
+
 The last menu entry, a custom OpenAI-compatible endpoint, writes `kind = "openai-compatible"` with a provider name, `base_url`, and `api_key_env` that you enter. An empty answer to the credential-variable question omits `api_key_env`, which makes the target [keyless](#keyless-targets).
 
 ## Model lists
 
-When a key is available, `ask init` requests the selected provider's model list to offer identifiers in a menu. The request goes only to the provider's `base_url`, carries the credential the same way queries do for that kind, never follows redirects, and times out after 10 seconds:
+When a key is available, or the provider is [keyless](#keyless-targets), `ask init` requests the selected provider's model list to offer identifiers in a menu. The request goes only to the provider's `base_url`, carries the credential the same way queries do for that kind, never follows redirects, and times out after 10 seconds:
 
 | `kind` | Request | Credential sent as | Pagination |
 |:--|:--|:--|:--|
@@ -47,6 +55,8 @@ When a key is available, `ask init` requests the selected provider's model list 
 | `gemini` | `GET {base_url}/v1beta/models?pageSize=1000&key={credential}`, then with `&pageToken={nextPageToken}` | `key` URL query parameter | while `nextPageToken` is nonempty |
 
 `ask init` reads at most 10 pages of at most 8 MiB each and keeps at most 2,000 identifiers. It treats the response as untrusted: it drops identifiers that are empty, longer than 200 bytes, or contain control characters, and drops repeated identifiers. It also drops entries the API marks as unusable for text generation: Gemini models whose `supportedGenerationMethods` lacks `generateContent` (the `models/` prefix is removed from the rest), and entries whose `architecture.output_modalities` excludes `text`, as OpenRouter reports them. The remaining identifiers keep the provider's order, except that identifiers ending in a date-like snapshot suffix (`-YYYYMMDD`, `-YYYY-MM-DD`, `-MMDD`, or `-MM-DD`) follow the others. `ask` compiles in no model names or recommended defaults; the menu always includes an entry for typing any identifier. If the request fails, the dialogue shows the redacted reason and asks for the identifier as free text.
+
+For a keyless provider, the same `GET {base_url}/models` request carries the placeholder `Authorization: Bearer no-key` and no user credential, even when credential variables are set. If the server cannot be reached or lists nothing, the dialogue prints one line that names the endpoint and, for a local preset, how that server is usually started, then asks for the identifier as free text. It never starts a server. `ask init` then verifies a keyless target before writing with the same minimal request as `ask doctor --live`, saying that it is sending a minimal request to the local server and omitting the cost notice. On failure it asks whether to write anyway.
 
 ## Model identifiers
 
@@ -90,6 +100,10 @@ How each ending is recorded is specified in [query behavior](query-behavior.md#t
 ## Redirects
 
 `ask` does not follow HTTP redirects from the provider endpoint, whether they point to another origin or the same one. A redirect response is a provider failure: `ask` exits 1 with a diagnostic naming the status, the credential and query are not resent anywhere, no turn is recorded, and the failure is recorded in statistics and provider health.
+
+## Reasoning output
+
+Local reasoning models often stream their thinking in a separate field of the chat-completions delta, `reasoning` or `reasoning_content`, beside `content`. For `openai-compatible` targets, text in those fields is never written to stdout and is not recorded in the turn. Text that arrives inside `content`, including inline `<think>...</think>` blocks, is part of the answer and is printed and recorded unchanged.
 
 ## Streaming implementation
 

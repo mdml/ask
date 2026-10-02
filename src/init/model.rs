@@ -5,13 +5,32 @@ use std::{
     io::{BufRead, Write},
 };
 
-use super::{Dialogue, InitError, one_line};
+use super::{Dialogue, InitError, credential_variable, one_line};
 use crate::{
     config::{Config, ProviderConfig},
     model_fetch::Listing,
     provider::{self, Kind},
     validate,
 };
+
+/// The one line shown before manual entry when a keyed provider has no list.
+fn keyed_notice(reason: Option<&str>) -> String {
+    match reason {
+        Some(reason) => format!("Cannot list models ({reason}); enter the identifier manually."),
+        None => "The provider listed no models; enter the identifier manually.".to_string(),
+    }
+}
+
+/// The one line shown before manual entry when a keyless server has no list.
+pub(super) fn keyless_notice(
+    base_url: &str,
+    reason: Option<&str>,
+    start_hint: Option<&str>,
+) -> String {
+    let reason = reason.unwrap_or("the server listed no models");
+    let hint = start_hint.map_or_else(String::new, |hint| format!(" {hint}."));
+    format!("Cannot list models from {base_url} ({reason}).{hint} Enter the identifier manually.")
+}
 
 const MANUAL_ENTRY: &str = "Enter a model identifier manually";
 
@@ -65,13 +84,20 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
     }
 
     /// A model identifier chosen from the provider's list when a key is
-    /// available, otherwise entered as free text.
+    /// available or the provider needs none, otherwise entered as free text.
     pub(super) async fn model(
         &mut self,
         provider: &ProviderConfig,
         key: Option<&Secret>,
+        start_hint: Option<&str>,
     ) -> Result<String, InitError> {
-        let (Some(key), Some(kind)) = (key, Kind::parse(&provider.kind)) else {
+        let keyless = credential_variable(provider).is_none();
+        let credential = match key {
+            Some(key) => key.0.as_str(),
+            None if keyless => provider::NO_KEY_PLACEHOLDER,
+            None => return self.manual_model(),
+        };
+        let Some(kind) = Kind::parse(&provider.kind) else {
             return self.manual_model();
         };
         self.say(&format!(
@@ -81,22 +107,20 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
         let listing = Listing {
             kind,
             base_url: &provider.base_url,
-            credential: &key.0,
+            credential,
         };
-        match listing.fetch().await {
-            Ok(ids) if !ids.is_empty() => self.pick_model(ids),
-            Ok(_) => {
-                self.say("The provider listed no models; enter the identifier manually.")?;
-                self.manual_model()
-            }
-            Err(reason) => {
-                self.say(&format!(
-                    "Cannot list models ({}); enter the identifier manually.",
-                    one_line(&reason)
-                ))?;
-                self.manual_model()
-            }
-        }
+        let reason = match listing.fetch().await {
+            Ok(ids) if !ids.is_empty() => return self.pick_model(ids),
+            Ok(_) => None,
+            Err(reason) => Some(one_line(&reason)),
+        };
+        let notice = if keyless {
+            keyless_notice(&provider.base_url, reason.as_deref(), start_hint)
+        } else {
+            keyed_notice(reason.as_deref())
+        };
+        self.say(&notice)?;
+        self.manual_model()
     }
 
     fn pick_model(&mut self, ids: Vec<String>) -> Result<String, InitError> {
@@ -130,20 +154,26 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
     }
 
     /// Sends the `ask doctor --live` request to the new profile's target.
+    /// Without a `key` the target is keyless and no cost is possible.
     pub(super) async fn verify(
         &mut self,
         config: &Config,
         profile: &str,
-        key: &Secret,
+        key: Option<&Secret>,
     ) -> Result<(), InitError> {
         let target = config
             .resolve_named(profile)
             .map_err(|error| InitError::Failed(error.to_string()))?;
-        self.say(&format!("warning: {}", crate::doctor::COST_NOTICE))?;
-        let Err(reason) = crate::doctor::live_request(&target, Some(key.0.clone())).await else {
+        match key {
+            Some(_) => self.say(&format!("warning: {}", crate::doctor::COST_NOTICE))?,
+            None => self.say("Sending a minimal request to the local server to verify it.")?,
+        }
+        let secret = key.map(|key| key.0.clone());
+        let Err(reason) = crate::doctor::live_request(&target, secret.clone()).await else {
             return self.say("Verified: the provider answered a minimal request.");
         };
-        let reason = one_line(&provider::redact(reason, &key.0).to_string());
+        let reason =
+            one_line(&provider::redact(reason, secret.as_deref().unwrap_or_default()).to_string());
         self.say(&format!("Verification failed: {reason}"))?;
         if self.confirm("Write the configuration anyway? [y/N]: ")? {
             return Ok(());

@@ -6,6 +6,10 @@
 //! `init` never replaces an existing configuration; `ask configure apply`
 //! is the command that installs a replacement.
 //!
+//! A provider with no credential variable, such as a local model server,
+//! needs no key: init lists its models and verifies the setup with the fixed
+//! placeholder queries send.
+//!
 //! A credential is taken from the environment or, on an attended terminal, a
 //! hidden prompt. It is used only to list models and verify the setup during
 //! `init`, and is never written or shown.
@@ -66,6 +70,14 @@ pub struct Console<'a, R, W> {
     pub menus: bool,
     /// Stdin and stderr are terminals, so a key may be read at a hidden prompt.
     pub attended: bool,
+}
+
+/// The provider chosen for one target.
+struct Selection {
+    name: String,
+    provider: ProviderConfig,
+    /// How a local server is usually started, shown when it cannot be reached.
+    start_hint: Option<&'static str>,
 }
 
 struct Dialogue<'a, R, W> {
@@ -145,12 +157,17 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
 
     /// Adds one provider and the one profile that uses it.
     async fn add_target(&mut self, config: &mut Config) -> Result<(), InitError> {
-        let (provider_name, provider) = self.provider(&config.providers)?;
+        let Selection {
+            name: provider_name,
+            provider,
+            start_hint,
+        } = self.provider(&config.providers)?;
+        let keyless = credential_variable(&provider).is_none();
         let key = match credential_variable(&provider) {
             Some(variable) => self.credential(variable)?,
             None => None,
         };
-        let model = self.model(&provider, key.as_ref()).await?;
+        let model = self.model(&provider, key.as_ref(), start_hint).await?;
         let system_prompt = self.optional_prompt()?;
         let profile_name = self.profile_name(config, &provider_name)?;
         if config.default_profile.is_empty() {
@@ -164,9 +181,10 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
         };
         config.providers.insert(provider_name, provider);
         config.profiles.insert(profile_name.clone(), profile);
-        match key {
-            Some(key) => self.verify(config, &profile_name, &key).await,
-            None => Ok(()),
+        if key.is_some() || keyless {
+            self.verify(config, &profile_name, key.as_ref()).await
+        } else {
+            Ok(())
         }
     }
 
