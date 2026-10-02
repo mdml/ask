@@ -34,7 +34,7 @@ The stable workflow mirrors [nightly releases](nightly-releases.md): read-only b
 
 Stable and nightly differ after a failed attempt. Nightly `prepare` mints a unique tag on each run, so a failed upload can retry on a fresh tag without touching a published release. Stable uses one tag per Cargo version (`v<Cargo version>`). Preparation fails closed when that tag already exists; publication uses `--verify-tag` and never repoints or deletes an existing tag. A failed stable run may therefore leave an unpublished git tag and/or draft release on GitHub. Inspect that state explicitly, recover or delete the leftover tag and draft by hand if appropriate, and only then rerun; never change a tag that already points at a published non-draft release.
 
-The [dated action dependency disposition](../reviews/nightly-actions-2026-09-16.md) expires after **2026-09-29 UTC**; stable preparation fails thereafter pending review. Stable jobs reuse the approved pinned actions from that disposition.
+The [dated action dependency review](../reviews/nightly-actions-2026-10-02.md) expires after **2026-11-01 UTC**; stable preparation, which always publishes, fails thereafter pending review. Stable jobs reuse the approved pinned actions from that disposition.
 
 ## Local verification
 
