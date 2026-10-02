@@ -12,6 +12,8 @@ if not __debug__:
 signal.alarm(20)
 binary, home, scenario, *args = sys.argv[1:]
 os.environ['ASK_HOME'] = home
+# No proof contacts the project's published model list.
+os.environ['ASK_MODEL_LIST_URL'] = ''
 master, slave = pty.openpty()
 try:
     # SIG_DFL for SIGINT in the child, even if the runner inherited SIG_IGN.

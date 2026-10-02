@@ -23,9 +23,20 @@ fn fresh_path() -> PathBuf {
     dir.join("config.toml")
 }
 
-fn unset(_: &str) -> Result<String, env::VarError> {
+/// Every variable is unset except the published-list override, which is
+/// empty so no unit test requests the published list.
+fn unset(name: &str) -> Result<String, env::VarError> {
+    if name == published::URL_VARIABLE {
+        return Ok(String::new());
+    }
     Err(env::VarError::NotPresent)
 }
+
+/// Like [`unset`], but the published list is at an unreachable address.
+const UNREACHABLE_LIST: Lookup = |name| match name {
+    published::URL_VARIABLE => Ok("http://127.0.0.1:1/v1/models.json".to_string()),
+    _ => Err(env::VarError::NotPresent),
+};
 
 fn keyed(_: &str) -> Result<String, env::VarError> {
     Ok(UNIT_SECRET.to_string())
@@ -78,7 +89,7 @@ fn assert_local_openai_compatible_target(target: &Target) {
 fn assert_complete_dialogue_transcript(transcript: &str) {
     for expected in [
         crate::DEFAULT_SYSTEM_PROMPT,
-        "LOCAL_API_KEY is not set; skipping the model list and verification.",
+        "LOCAL_API_KEY is not set; continuing without a key, so the setup will not be verified.",
         "read -rs LOCAL_API_KEY",
         "docs/guides/credentials.md",
         "ask 'what is 2+2'",
@@ -259,6 +270,54 @@ fn declining_after_a_failed_verification_writes_nothing() {
     let (result, transcript) = drive_with(&path, answers, keyed);
     assert!(matches!(result, Err(InitError::Cancelled)), "{transcript}");
     assert!(!path.exists());
+}
+
+#[test]
+fn unit_tests_never_request_the_published_list() {
+    assert_eq!(unset(published::URL_VARIABLE), Ok(String::new()));
+}
+
+#[test]
+fn a_hosted_preset_without_a_key_tries_the_published_list() {
+    let path = fresh_path();
+    let answers = "2\nsome-model\n\n\nn\ny\n";
+    let (result, transcript) = drive_with(&path, answers, UNREACHABLE_LIST);
+    result.unwrap();
+    for expected in [
+        "Requesting the published model list from http://127.0.0.1:1/v1/models.json; no credentials are sent.",
+        "Cannot use the published model list (",
+        "); enter the identifier manually.",
+    ] {
+        assert!(transcript.contains(expected), "{expected}: {transcript}");
+    }
+}
+
+#[test]
+fn custom_endpoints_and_disabled_lists_never_request_the_published_list() {
+    for (answers, lookup) in [
+        (COMPLETE, UNREACHABLE_LIST),
+        ("3\nsome-model\n\n\nn\ny\n", unset),
+        ("4\nsome-model\n\n\nn\ny\n", not_unicode),
+    ] {
+        let path = fresh_path();
+        let (result, transcript) = drive_with(&path, answers, lookup);
+        result.unwrap();
+        assert!(
+            !transcript.contains("published model list from"),
+            "{transcript}"
+        );
+    }
+}
+
+#[test]
+fn a_published_list_override_that_is_not_unicode_is_ignored() {
+    let path = fresh_path();
+    let (_, transcript) = drive_with(&path, "1\nm\n\n\nn\ny\n", not_unicode);
+    assert!(
+        transcript.contains(
+            "ASK_MODEL_LIST_URL is not valid Unicode; skipping the published model list."
+        )
+    );
 }
 
 #[test]

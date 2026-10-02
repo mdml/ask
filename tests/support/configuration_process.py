@@ -14,6 +14,8 @@ signal.alarm(20)
 binary, home, scenario = sys.argv[1:]
 home = pathlib.Path(home)
 os.environ['ASK_HOME'] = str(home)
+# No proof contacts the project's published model list.
+os.environ['ASK_MODEL_LIST_URL'] = ''
 os.environ.pop('KEY', None)
 candidate = (home / 'candidate.toml').read_bytes()
 destination = home / 'config.toml'

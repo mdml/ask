@@ -21,13 +21,21 @@ pub const PRESET_VARIABLES: [&str; 7] = [
     "CEREBRAS_API_KEY",
     "XAI_API_KEY",
 ];
+/// Selects the published model list `ask init` offers without a key. Every
+/// process the proofs start sets it, empty unless a case points it at a fake,
+/// so no proof contacts the project's published list.
+pub const MODEL_LIST_URL: &str = "ASK_MODEL_LIST_URL";
 static HOME_ID: AtomicUsize = AtomicUsize::new(0);
 
-/// Builds a command for the `ask` binary with `ASK_HOME` set to `home` and the
-/// credential variable either set to `CREDENTIAL` or removed.
+/// Builds a command for the `ask` binary with `ASK_HOME` set to `home`, the
+/// published model list disabled, and the credential variable either set to
+/// `CREDENTIAL` or removed.
 pub fn command(home: &Path, with_credential: bool) -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_ask"));
-    command.env("ASK_HOME", home).env_remove("LOCAL_API_KEY");
+    command
+        .env("ASK_HOME", home)
+        .env(MODEL_LIST_URL, "")
+        .env_remove("LOCAL_API_KEY");
     for variable in PRESET_VARIABLES {
         command.env_remove(variable);
     }

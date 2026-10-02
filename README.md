@@ -87,7 +87,7 @@ Reference, for exact behavior:
 - [Query behavior](docs/reference/query-behavior.md)
 - [Local storage](docs/reference/storage.md)
 
-Release operation: [nightly releases](docs/guides/nightly-releases.md), [stable releases](docs/guides/stable-releases.md), and [live-provider checks](docs/guides/live-provider-checks.md).
+Release operation: [nightly releases](docs/guides/nightly-releases.md), [stable releases](docs/guides/stable-releases.md), [live-provider checks](docs/guides/live-provider-checks.md), and [publishing the model list](docs/guides/model-list-publishing.md).
 
 ## Development
 

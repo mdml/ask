@@ -252,6 +252,7 @@ def record(binary, output_dir):
             (home / "config.toml").write_text(config, encoding="utf-8")
             env = {"PATH": f"{private_bin}:/usr/bin:/bin", "ASK_HOME": str(home),
                    "DEMO_API_KEY": "local-fixture", "NO_PROXY": "127.0.0.1",
+                   "ASK_MODEL_LIST_URL": "",
                    "HOME": temporary, "LANG": "C.UTF-8", "TERM": "xterm-256color",
                    "PS1": "$ "}
             if "LLVM_PROFILE_FILE" in os.environ:

@@ -21,6 +21,8 @@ NO_CURRENT = b'ask: no current thread; start one with `ask new`\n'
 signal.alarm(20)
 binary, home, scenario, *args = sys.argv[1:]
 os.environ['ASK_HOME'] = home
+# No proof contacts the project's published model list.
+os.environ['ASK_MODEL_LIST_URL'] = ''
 master, slave = pty.openpty()
 child = None
 try:
