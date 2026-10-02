@@ -24,7 +24,7 @@ import time
 
 AGG_SHA256 = "ddcbf6ca044c8ac3a434dcb9ee89fb9e3be87209982b7c2adb55f782e8f0f390"
 FONT = pathlib.Path("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
-FONT_SHA256 = "c805f9436dbc268644c1d9584f01a601a653e028e08fd74b9b949f6cf8304d88"
+FONT_SHA256 = "a54dca07c76d6289e717e75e0a58c0128f6d7269ef3faf76417c9d7d3bba37ab"
 COLS = 88
 ROWS = 24
 ANSI = re.compile(rb"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
