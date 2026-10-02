@@ -14,7 +14,7 @@ const ROOT: &[Field] = &[
 const PROVIDER: &[Field] = &[
     ("kind", Value::is_str, true),
     ("base_url", Value::is_str, true),
-    ("api_key_env", Value::is_str, true),
+    ("api_key_env", Value::is_str, false),
     ("timeout_ms", unsigned, false),
 ];
 const PROFILE: &[Field] = &[

@@ -88,14 +88,7 @@ fn check_provider(index: usize, name: &str, provider: &ProviderConfig) -> Result
         },
         endpoint(Value(&provider.base_url)),
     )?;
-    field(
-        Key {
-            table: "providers",
-            entry: index,
-            field: "api_key_env",
-        },
-        env_var_name(Value(&provider.api_key_env)),
-    )?;
+    check_credential(index, provider)?;
     field(
         Key {
             table: "providers",
@@ -104,6 +97,22 @@ fn check_provider(index: usize, name: &str, provider: &ProviderConfig) -> Result
         },
         positive(provider.timeout_ms),
     )
+}
+
+/// Only the `openai-compatible` kind may omit its credential variable.
+fn check_credential(index: usize, provider: &ProviderConfig) -> Result<(), String> {
+    let key = Key {
+        table: "providers",
+        entry: index,
+        field: "api_key_env",
+    };
+    match &provider.api_key_env {
+        Some(name) => field(key, env_var_name(Value(name))),
+        None if provider.kind == PROVIDER_KIND => Ok(()),
+        None => Err(format!(
+            "providers[{index}].api_key_env is required unless kind is '{PROVIDER_KIND}'"
+        )),
+    }
 }
 
 fn check_profile(

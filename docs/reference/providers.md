@@ -16,6 +16,10 @@ Each kind uses its provider's own HTTP API with streaming over server-sent event
 
 `ask` sends the credential and query content only to the configured endpoint. No kind follows HTTP redirects; see [redirects](#redirects).
 
+## Keyless targets
+
+A provider of `kind = "openai-compatible"` may omit `api_key_env`; every other kind requires it. Queries, replies, and `ask doctor --live` on such a target read no environment variable, so credential variables that happen to be set never reach the request. Because the client library always sends an `Authorization` header, a keyless target sends the fixed placeholder `Authorization: Bearer no-key`. The placeholder is not a secret and is never redacted from diagnostics. Servers that need no key ignore it; a server that requires a real key rejects the request, so configure `api_key_env` for it instead.
+
 ## Initialization presets
 
 `ask init` offers these presets and writes the listed values, so choosing one requires no endpoint or variable name:
@@ -30,7 +34,7 @@ Each kind uses its provider's own HTTP API with streaming over server-sent event
 | Cerebras | `cerebras` | `openai-compatible` | `https://api.cerebras.ai/v1` | `CEREBRAS_API_KEY` |
 | xAI | `xai` | `openai-compatible` | `https://api.x.ai/v1` | `XAI_API_KEY` |
 
-The last menu entry, a custom OpenAI-compatible endpoint, writes `kind = "openai-compatible"` with a provider name, `base_url`, and `api_key_env` that you enter.
+The last menu entry, a custom OpenAI-compatible endpoint, writes `kind = "openai-compatible"` with a provider name, `base_url`, and `api_key_env` that you enter. An empty answer to the credential-variable question omits `api_key_env`, which makes the target [keyless](#keyless-targets).
 
 ## Model lists
 

@@ -112,9 +112,9 @@ fn failed(path: &Path, error: &WriteError) -> InitError {
     }
 }
 
-/// The variable a provider's credential is read from.
-fn credential_variable(provider: &ProviderConfig) -> &str {
-    &provider.api_key_env
+/// The variable a provider's credential is read from, if it needs one.
+fn credential_variable(provider: &ProviderConfig) -> Option<&str> {
+    provider.api_key_env.as_deref()
 }
 
 /// Collapses a diagnostic to one line of printable text.
@@ -146,7 +146,10 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
     /// Adds one provider and the one profile that uses it.
     async fn add_target(&mut self, config: &mut Config) -> Result<(), InitError> {
         let (provider_name, provider) = self.provider(&config.providers)?;
-        let key = self.credential(credential_variable(&provider))?;
+        let key = match credential_variable(&provider) {
+            Some(variable) => self.credential(variable)?,
+            None => None,
+        };
         let model = self.model(&provider, key.as_ref()).await?;
         let system_prompt = self.optional_prompt()?;
         let profile_name = self.profile_name(config, &provider_name)?;
@@ -192,15 +195,22 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
     }
 
     fn next_steps(&mut self, config: &Config) -> Result<(), InitError> {
-        let variables: BTreeSet<&str> =
-            config.providers.values().map(credential_variable).collect();
+        let variables: BTreeSet<&str> = config
+            .providers
+            .values()
+            .filter_map(credential_variable)
+            .collect();
         let default = &config.profiles[&config.default_profile].provider;
-        let variable = credential_variable(&config.providers[default]);
         self.say("\nNext steps:")?;
-        self.say(&format!(
-            "  Supply {} only to the ask process; docs/guides/credentials.md shows how without a shell-wide export.",
-            variables.into_iter().collect::<Vec<_>>().join(", ")
-        ))?;
+        if !variables.is_empty() {
+            self.say(&format!(
+                "  Supply {} only to the ask process; docs/guides/credentials.md shows how without a shell-wide export.",
+                variables.into_iter().collect::<Vec<_>>().join(", ")
+            ))?;
+        }
+        let Some(variable) = credential_variable(&config.providers[default]) else {
+            return self.say("  Ask a first question: ask 'what is 2+2'");
+        };
         self.say("  For example, this bash/zsh command prompts invisibly for the key and asks a first question:")?;
         self.say(&format!(
             "    ( printf 'API key: ' >&2; IFS= read -rs {variable} </dev/tty || exit; printf '\\n' >&2; export {variable}; exec ask 'what is 2+2' )"

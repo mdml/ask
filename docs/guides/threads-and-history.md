@@ -11,7 +11,7 @@ ask "who was u.s. president in 1846"
 ask r "who succeeded him"
 ```
 
-A thread keeps the profile it was created with: provider, endpoint, model, system prompt, output-token limit, timeout, and the name of the credential variable. Replies use that captured profile even after the configuration changes, and they work when the installed configuration is missing or invalid. With no current thread, `ask reply` exits 1 with ``ask: no current thread; start one with `ask new` `` and sends nothing.
+A thread keeps the profile it was created with: provider, endpoint, model, system prompt, output-token limit, timeout, and the name of the credential variable (or that it has none). Replies use that captured profile even after the configuration changes, and they work when the installed configuration is missing or invalid. With no current thread, `ask reply` exits 1 with ``ask: no current thread; start one with `ask new` `` and sends nothing.
 
 The current thread is shared by every shell that uses the same data directory. When commands overlap, the last one to finish sets it.
 

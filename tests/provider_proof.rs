@@ -887,7 +887,7 @@ PRAGMA user_version = 1;
             &home,
             "SELECT (SELECT user_version FROM pragma_user_version) || ':' || count(*) FROM turns"
         ),
-        "4:2"
+        "5:2"
     );
 }
 

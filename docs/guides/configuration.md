@@ -71,6 +71,8 @@ api_key_env = "LOCAL_API_KEY"
 
 `api_key_env` names the environment variable that supplies the credential. `ask` never stores credential values; see [Injecting credentials](credentials.md).
 
+For a user-operated server that needs no key, omit `api_key_env`. Only `kind = "openai-compatible"` may omit it. `ask` then reads no credential variable and sends the placeholder `Authorization: Bearer no-key`, which such a server ignores; see [keyless targets](../reference/providers.md#keyless-targets).
+
 ## Limit answer length
 
 Set `max_output_tokens` in a profile to cap the answer. When the provider stops an answer at the limit, `ask` keeps the text received so far on stdout, warns on stderr, and exits 1. That turn is recorded as partial and is not sent as context for replies. Because threads keep their captured profile, start a new thread after raising the limit. Per-provider details are in the [provider reference](../reference/providers.md#output-token-limit).

@@ -61,7 +61,7 @@ fn assert_local_openai_compatible_target(target: &Target) {
         (
             target.base_url.as_str(),
             target.model.as_str(),
-            target.api_key_env.as_str(),
+            target.api_key_env.as_deref().unwrap(),
             target.kind.as_str(),
             target.system_prompt.as_str()
         ),
@@ -345,4 +345,18 @@ fn diagnostics_are_collapsed_to_one_printable_line() {
 #[test]
 fn errors_have_stable_messages() {
     assert_stable_init_error_messages();
+}
+
+#[test]
+fn an_empty_credential_answer_means_no_credential() {
+    let path = fresh_path();
+    let answers = "8\nlocal\nhttp://127.0.0.1:1/v1\n\nfake-model\n\n\nn\ny\n";
+    let (result, transcript) = drive(&path, answers);
+    result.unwrap();
+    let contents = fs::read_to_string(&path).unwrap();
+    assert!(!contents.contains("api_key_env"), "{contents}");
+    let target = validate::document(&contents).unwrap().resolve().unwrap();
+    assert_eq!(target.api_key_env, None);
+    assert!(transcript.contains("empty means no credential"));
+    assert!(!transcript.contains("read -rs"));
 }
