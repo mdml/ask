@@ -76,7 +76,19 @@ fn invalid_json_is_reported_without_repeating_the_body() {
 fn unsafe_identifiers_are_dropped() {
     let long = "x".repeat(MAX_IDENTIFIER_BYTES + 1);
     let edge = "y".repeat(MAX_IDENTIFIER_BYTES);
-    let ids = strings(&["", "\u{1b}[2J", "tab\tid", "new\nline", &long, &edge, "ok"]);
+    let reordered = "model\u{202e}txt";
+    let hidden = "mo\u{200b}del";
+    let ids = strings(&[
+        "",
+        "\u{1b}[2J",
+        "tab\tid",
+        "new\nline",
+        reordered,
+        hidden,
+        &long,
+        &edge,
+        "ok",
+    ]);
     assert_eq!(arrange(ids), vec![edge, "ok".to_string()]);
 }
 

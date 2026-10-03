@@ -222,7 +222,7 @@ pub(crate) fn printable(text: &str) -> String {
 /// annotation, and tag characters. The zero-width joiner and non-joiner
 /// (U+200C, U+200D) are kept because they shape emoji and scripts such as
 /// Persian.
-fn is_invisible_format(character: char) -> bool {
+pub(crate) fn is_invisible_format(character: char) -> bool {
     matches!(
         character,
         '\u{ad}'
