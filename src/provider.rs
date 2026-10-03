@@ -497,6 +497,40 @@ pub(crate) fn http_client() -> reqwest::Result<reqwest::Client> {
         .build()
 }
 
+/// Why a [`bounded_get`] returned no body; each caller words it.
+pub(crate) enum GetError {
+    Transport(reqwest::Error),
+    Status(reqwest::StatusCode),
+    TooLarge,
+}
+
+/// The body of a successful `GET url` with `headers`, within `timeout` per
+/// request and at most `max_bytes` long.
+pub(crate) async fn bounded_get(
+    client: &reqwest::Client,
+    url: &str,
+    headers: &[(&str, String)],
+    timeout: std::time::Duration,
+    max_bytes: usize,
+) -> Result<Vec<u8>, GetError> {
+    let mut builder = client.get(url).timeout(timeout);
+    for (name, value) in headers {
+        builder = builder.header(*name, value);
+    }
+    let mut response = builder.send().await.map_err(GetError::Transport)?;
+    if !response.status().is_success() {
+        return Err(GetError::Status(response.status()));
+    }
+    let mut body = Vec::new();
+    while let Some(chunk) = response.chunk().await.map_err(GetError::Transport)? {
+        if body.len() + chunk.len() > max_bytes {
+            return Err(GetError::TooLarge);
+        }
+        body.extend_from_slice(&chunk);
+    }
+    Ok(body)
+}
+
 /// Percent-encodes every byte outside RFC 3986's unreserved set, so a value
 /// stays one URL path segment or query value whatever characters it holds.
 pub(crate) fn path_segment(value: &str) -> String {

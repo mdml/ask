@@ -278,7 +278,10 @@ fn init_writes_each_local_preset_and_verifies_it_without_a_key() {
         for expected in [
             format!("Endpoint base URL [{default_url}]: "),
             "Requesting the model list from".to_string(),
-            "Sending a minimal request to the local server to verify it.".to_string(),
+            format!(
+                "Sending a minimal request to {} to verify it.",
+                fake.base_url()
+            ),
             "Verified: the provider answered a minimal request.".to_string(),
         ] {
             assert!(transcript.contains(&expected), "{expected}: {transcript}");

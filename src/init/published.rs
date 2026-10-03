@@ -15,7 +15,11 @@ use std::{
 use rig_core::serde_json::{self, Value};
 
 use super::{Dialogue, InitError, one_line, provider::hosted_preset};
-use crate::{config::ProviderConfig, model_list, provider};
+use crate::{
+    config::ProviderConfig,
+    model_list,
+    provider::{self, GetError},
+};
 
 pub(super) const DEFAULT_URL: &str =
     "https://raw.githubusercontent.com/mdml/ask/models/v1/models.json";
@@ -86,34 +90,23 @@ pub(super) async fn fetch(url: &str, provider: &str) -> Result<Published, String
 
 async fn download(url: &str) -> Result<Vec<u8>, String> {
     let client = provider::http_client().map_err(|error| error.to_string())?;
-    let mut response = client
-        .get(url)
-        .timeout(TIMEOUT)
-        .send()
+    provider::bounded_get(&client, url, &[], TIMEOUT, MAX_RESPONSE_BYTES)
         .await
-        .map_err(transport)?;
-    let status = response.status();
-    if status.is_redirection() {
-        return Err(format!("HTTP status {status}; redirects are not followed"));
-    }
-    if !status.is_success() {
-        return Err(format!("HTTP status {status}"));
-    }
-    let mut body = Vec::new();
-    while let Some(chunk) = response.chunk().await.map_err(transport)? {
-        if body.len() + chunk.len() > MAX_RESPONSE_BYTES {
-            return Err("the response is larger than 1 MiB".to_string());
-        }
-        body.extend_from_slice(&chunk);
-    }
-    Ok(body)
+        .map_err(failure)
 }
 
-fn transport(error: reqwest::Error) -> String {
-    if error.is_timeout() {
-        return format!("no complete response within {} seconds", TIMEOUT.as_secs());
+fn failure(error: GetError) -> String {
+    match error {
+        GetError::Transport(error) if error.is_timeout() => {
+            format!("no complete response within {} seconds", TIMEOUT.as_secs())
+        }
+        GetError::Transport(error) => error.to_string(),
+        GetError::Status(status) if status.is_redirection() => {
+            format!("HTTP status {status}; redirects are not followed")
+        }
+        GetError::Status(status) => format!("HTTP status {status}"),
+        GetError::TooLarge => "the response is larger than 1 MiB".to_string(),
     }
-    error.to_string()
 }
 
 /// Accepts only a version 1 document with a `generated_at` time and a

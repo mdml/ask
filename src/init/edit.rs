@@ -9,7 +9,7 @@ use std::{
     path::Path,
 };
 
-use super::{Dialogue, InitError, rendered};
+use super::{Dialogue, InitError, provider::local_start_hint, rendered};
 use crate::{
     config::{Config, ProviderConfig},
     configure,
@@ -87,15 +87,23 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
             .iter()
             .map(|(name, provider)| provider_label(name, provider))
             .collect();
-        let choice = self.choose("Select a provider", &labels)?;
-        self.add_profile(config, &names[choice], None).await
+        let name = &names[self.choose("Select a provider", &labels)?];
+        let start_hint = local_start_hint(name, &config.providers[name]);
+        self.add_profile(config, name, start_hint).await
     }
 
     async fn change_model(&mut self, config: &mut Config) -> Result<(), InitError> {
         let name = self.pick_profile(config, "Select a profile")?;
-        let provider = &config.providers[&config.profiles[&name].provider];
+        let provider_name = &config.profiles[&name].provider;
+        let provider = &config.providers[provider_name];
         let key = self.key_for(provider)?;
-        let model = self.model(provider, key.as_ref(), None).await?;
+        let model = self
+            .model(
+                provider,
+                key.as_ref(),
+                local_start_hint(provider_name, provider),
+            )
+            .await?;
         self.say(NEW_THREADS_ONLY)?;
         if let Some(profile) = config.profiles.get_mut(&name) {
             profile.model = model;

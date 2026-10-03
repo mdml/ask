@@ -419,7 +419,7 @@ try:
         assert b'timeout_ms = 120000' in config, config
         assert b'api_key_env' not in config, config
         assert b'model = "other-mini"' in config, config
-        assert b'Sending a minimal request to the local server' in transcript, transcript
+        assert b'Sending a minimal request to ' + base_url.encode() + b' to verify it.' in transcript, transcript
         assert b'Verified: the provider answered a minimal request.' in transcript
     elif scenario == 'local-escape':
         transcript = local_server(transcript, 0)

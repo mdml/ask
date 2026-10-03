@@ -111,4 +111,4 @@ ask configure apply candidate.toml
 ask doctor
 ```
 
-The only other environment variable `ask` reads, apart from credentials, is `ASK_MODEL_LIST_URL`. `ask init` uses it to override the location of the [published model list](../reference/providers.md#published-model-list) it offers when no key is available; an empty value disables that request.
+Apart from credentials, `ask` reads only `ASK_HOME`, which overrides its paths, `TERM`, which decides whether menus are used, and `ASK_MODEL_LIST_URL`. `ask init` uses `ASK_MODEL_LIST_URL` to override the location of the [published model list](../reference/providers.md#published-model-list) it offers when no key is available; an empty value disables that request.
