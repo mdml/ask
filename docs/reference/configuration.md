@@ -10,7 +10,7 @@
 | History and statistics database | `$ASK_HOME/data/ask.sqlite3` | `ask.sqlite3` in the platform-standard data directory |
 | Cache | `$ASK_HOME/cache` | the platform-standard cache directory |
 
-`ask doctor` prints every resolved path. Environment variables are used only for credentials, for the `ASK_HOME` path override, for `TERM`, which decides whether [menus](commands.md#synopsis) are used, and for `ASK_MODEL_LIST_URL`, which `ask init` alone reads to override the location of the [published model list](providers.md#published-model-list) (an empty value disables it); no environment variable changes any other setting.
+`ask doctor` prints every resolved path. On Linux, the platform-standard directories are `ask` beneath `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, and `XDG_CACHE_HOME` when each is set to an absolute path, and otherwise beneath `$HOME/.config`, `$HOME/.local/share`, and `$HOME/.cache`; on macOS they are beneath `HOME`. Environment variables are used only for credentials; for the `ASK_HOME` path override; for `HOME` and the `XDG_*` variables above when `ASK_HOME` is unset; for `TERM`, which decides whether [menus](commands.md#synopsis) are used; for `ASK_MODEL_LIST_URL`, which `ask init` alone reads to override the location of the [published model list](providers.md#published-model-list) (an empty value disables it); and for the standard proxy variables `HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY`, and `NO_PROXY`, or their lowercase forms, which route every request `ask` makes through a proxy (on macOS, the system proxy settings apply as well; see [providers](providers.md#provider-kinds)). No environment variable changes any other setting.
 
 ## Example
 

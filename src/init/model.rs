@@ -96,8 +96,8 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
     ) -> Result<String, InitError> {
         let keyless = credential_variable(provider).is_none();
         let credential = match key {
-            Some(key) => key.0.as_str(),
-            None if keyless => provider::NO_KEY_PLACEHOLDER,
+            Some(key) => Some(key.0.as_str()),
+            None if keyless => None,
             None => return self.published_model(provider).await,
         };
         let Some(kind) = Kind::parse(&provider.kind) else {

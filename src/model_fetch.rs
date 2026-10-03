@@ -24,11 +24,12 @@ pub struct PageRequest {
     pub headers: Vec<(&'static str, String)>,
 }
 
-/// The provider whose list is requested, with the credential for it.
+/// The provider whose list is requested, with the credential for it, or
+/// `None` for a target that needs none.
 pub struct Listing<'a> {
     pub kind: Kind,
     pub base_url: &'a str,
-    pub credential: &'a str,
+    pub credential: Option<&'a str>,
 }
 
 impl Listing<'_> {
@@ -71,8 +72,14 @@ impl Listing<'_> {
         })
     }
 
+    /// Redacts the credential; a keyless listing's placeholder is not secret.
     fn redact(&self, error: impl std::fmt::Display) -> String {
-        provider::redact(error, self.credential).to_string()
+        provider::redact(error, self.credential.unwrap_or_default()).to_string()
+    }
+
+    /// The credential sent: the placeholder when the target needs none.
+    fn key(&self) -> &str {
+        self.credential.unwrap_or(provider::NO_KEY_PLACEHOLDER)
     }
 
     const fn shape(&self) -> Shape {
@@ -94,7 +101,7 @@ impl Listing<'_> {
                     |after| format!("{base}/v1/models?after_id={after}"),
                 ),
                 headers: vec![
-                    ("x-api-key", self.credential.to_string()),
+                    ("x-api-key", self.key().to_string()),
                     ("anthropic-version", provider::ANTHROPIC_VERSION.to_string()),
                 ],
             },
@@ -102,13 +109,13 @@ impl Listing<'_> {
                 url: format!(
                     "{base}/v1beta/models?pageSize={GEMINI_PAGE_SIZE}{}&key={}",
                     encoded.map_or_else(String::new, |token| format!("&pageToken={token}")),
-                    provider::path_segment(self.credential)
+                    provider::path_segment(self.key())
                 ),
                 headers: Vec::new(),
             },
             Kind::OpenAi | Kind::OpenRouter | Kind::OpenAiCompatible => PageRequest {
                 url: format!("{base}/models"),
-                headers: vec![("authorization", format!("Bearer {}", self.credential))],
+                headers: vec![("authorization", format!("Bearer {}", self.key()))],
             },
         }
     }

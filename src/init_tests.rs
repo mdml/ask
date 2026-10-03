@@ -488,7 +488,28 @@ fn only_a_keyless_compatible_provider_with_a_local_name_or_endpoint_gets_a_start
 }
 
 #[test]
-fn a_keyless_custom_endpoint_gets_no_start_hint() {
+fn a_keyless_custom_endpoint_with_a_local_name_gets_its_start_hint() {
+    // A keyless custom endpoint with this name at an unreachable loopback address.
+    let keyless_custom = |name| {
+        let path = fresh_path();
+        let answers = format!("9\n{name}\n{UNREACHABLE}\n\ntyped-model\n\n\ny\nn\ny\n");
+        let (result, transcript) = drive(&path, &answers);
+        result.unwrap();
+        (transcript, fs::read_to_string(&path).unwrap())
+    };
+    let (transcript, contents) = keyless_custom("ollama");
+    let (other_transcript, other_contents) = keyless_custom("other");
+    let start = "Ollama is usually started with `ollama serve`. Enter the identifier manually.";
+    assert!(transcript.contains(start), "{transcript}");
+    assert!(
+        !other_transcript.contains("usually started"),
+        "{other_transcript}"
+    );
+    assert_eq!(contents.replace("ollama", "other"), other_contents);
+}
+
+#[test]
+fn a_keyless_endpoint_with_no_local_name_or_endpoint_gets_no_start_hint() {
     let notice = model::keyless_notice("http://x/v1", None, None);
     assert_eq!(
         notice,

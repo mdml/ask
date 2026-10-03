@@ -136,7 +136,11 @@ def list_models(shape, base_url, key):
 
 def usable(model):
     """Whether an identifier is safe to show in a terminal and write to TOML, as in `ask`."""
-    return (bool(model) and len(model.encode()) <= MAX_IDENTIFIER_BYTES
+    try:
+        size = len(model.encode())
+    except UnicodeEncodeError:  # a lone surrogate, which JSON allows but UTF-8 cannot carry
+        return False
+    return (bool(model) and size <= MAX_IDENTIFIER_BYTES
             and not any(unicodedata.category(character) == "Cc" or invisible_format(character)
                         for character in model))
 
