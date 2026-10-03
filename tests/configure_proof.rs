@@ -579,7 +579,7 @@ fn help_and_version_run_without_configuration() {
 
     let version = command(&home, false).args(["--version"]).output().unwrap();
     assert!(version.status.success(), "{}", stderr(&version));
-    assert_eq!(String::from_utf8(version.stdout).unwrap(), "ask 0.1.0\n");
+    assert_eq!(String::from_utf8(version.stdout).unwrap(), "ask 0.2.0\n");
     assert!(String::from_utf8_lossy(&version.stderr).is_empty());
 }
 
