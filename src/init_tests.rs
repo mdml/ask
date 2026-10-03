@@ -465,6 +465,29 @@ fn an_unreachable_local_server_names_the_endpoint_and_how_to_start_it() {
 }
 
 #[test]
+fn only_a_keyless_compatible_provider_with_a_local_name_or_endpoint_gets_a_start_hint() {
+    let local = |kind: &str, base_url: &str, variable: Option<&str>| ProviderConfig {
+        kind: kind.to_string(),
+        base_url: base_url.to_string(),
+        api_key_env: variable.map(str::to_string),
+        timeout_ms: 1,
+    };
+    let ollama = "http://localhost:11434/v1";
+    let hint = provider::local_start_hint;
+    assert!(hint("ollama", &local("openai-compatible", "http://x/v1", None)).is_some());
+    assert!(hint("other", &local("openai-compatible", ollama, None)).is_some());
+    assert_eq!(
+        hint("ollama", &local("openai-compatible", ollama, Some("KEY"))),
+        None
+    );
+    assert_eq!(hint("ollama", &local("openai", ollama, None)), None);
+    assert_eq!(
+        hint("other", &local("openai-compatible", "http://x/v1", None)),
+        None
+    );
+}
+
+#[test]
 fn a_keyless_custom_endpoint_gets_no_start_hint() {
     let notice = model::keyless_notice("http://x/v1", None, None);
     assert_eq!(

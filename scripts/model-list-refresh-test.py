@@ -194,6 +194,7 @@ class ModelListRefreshTests(unittest.TestCase):
                             ["dummy-xai-key"]),
             ["b", "d-20241301", "a-0101", "a-1231", "c-2024-02-30", "1231"],
         )
+        self.assertEqual(refresh.arrange(["ok", "model\u202etxt", "mo\u200bdel", "tab\tid", ""], []), ["ok"])
 
 
 if __name__ == "__main__":

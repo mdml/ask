@@ -8,6 +8,8 @@ use std::collections::BTreeSet;
 
 use rig_core::serde_json::{self, Value};
 
+use crate::recall::is_invisible_format;
+
 /// The longest identifier kept, in bytes.
 pub const MAX_IDENTIFIER_BYTES: usize = 200;
 /// The most identifiers kept across every page.
@@ -93,9 +95,12 @@ fn cursor(value: &Value) -> Option<String> {
         .map(str::to_string)
 }
 
-/// Whether an identifier is safe to show in a terminal and write to TOML.
+/// Whether an identifier is safe to show in a terminal and write to TOML:
+/// no control characters, and no invisible format characters that could
+/// reorder or hide what a menu shows.
 pub fn usable(id: &str) -> bool {
-    !id.is_empty() && id.len() <= MAX_IDENTIFIER_BYTES && !id.chars().any(char::is_control)
+    let hidden = |character: char| character.is_control() || is_invisible_format(character);
+    !id.is_empty() && id.len() <= MAX_IDENTIFIER_BYTES && !id.chars().any(hidden)
 }
 
 /// Keeps usable, distinct identifiers up to [`MAX_ENTRIES`], in the

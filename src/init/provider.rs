@@ -265,10 +265,11 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
             api_key_env,
             timeout_ms: DEFAULT_TIMEOUT_MS,
         };
+        let start_hint = local_start_hint(&provider_name, &provider);
         Ok(Selection {
             name: provider_name,
             provider,
-            start_hint: None,
+            start_hint,
         })
     }
 

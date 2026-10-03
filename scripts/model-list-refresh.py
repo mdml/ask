@@ -137,7 +137,18 @@ def list_models(shape, base_url, key):
 def usable(model):
     """Whether an identifier is safe to show in a terminal and write to TOML, as in `ask`."""
     return (bool(model) and len(model.encode()) <= MAX_IDENTIFIER_BYTES
-            and not any(unicodedata.category(character) == "Cc" for character in model))
+            and not any(unicodedata.category(character) == "Cc" or invisible_format(character)
+                        for character in model))
+
+
+# The invisible format characters `ask` rejects (src/recall.rs, is_invisible_format).
+INVISIBLE_FORMAT = ((0xAD, 0xAD), (0x61C, 0x61C), (0x180E, 0x180E), (0x200B, 0x200B),
+                    (0x200E, 0x200F), (0x202A, 0x202E), (0x2060, 0x2064), (0x2066, 0x206F),
+                    (0xFEFF, 0xFEFF), (0xFFF9, 0xFFFB), (0xE0001, 0xE0001), (0xE0020, 0xE007F))
+
+
+def invisible_format(character):
+    return any(low <= ord(character) <= high for low, high in INVISIBLE_FORMAT)
 
 
 def digits(text, count):
