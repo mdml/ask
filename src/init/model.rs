@@ -157,7 +157,8 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
     }
 
     /// Sends the `ask doctor --live` request to the new profile's target.
-    /// Without a `key` the target is keyless and no cost is possible.
+    /// Without a `key` the target is keyless, so no cost notice is shown,
+    /// although the endpoint may be a remote server.
     pub(super) async fn verify(
         &mut self,
         config: &Config,
@@ -169,7 +170,10 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
             .map_err(|error| InitError::Failed(error.to_string()))?;
         match key {
             Some(_) => self.say(&format!("warning: {}", crate::doctor::COST_NOTICE))?,
-            None => self.say("Sending a minimal request to the local server to verify it.")?,
+            None => self.say(&format!(
+                "Sending a minimal request to {} to verify it.",
+                target.base_url
+            ))?,
         }
         let secret = key.map(|key| key.0.clone());
         let Err(reason) = crate::doctor::live_request(&target, secret.clone()).await else {

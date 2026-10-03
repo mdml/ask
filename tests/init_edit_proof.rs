@@ -222,6 +222,23 @@ fn init_edit_adds_a_provider_with_an_unused_name_and_its_own_profile() {
 }
 
 #[test]
+fn init_edit_model_change_on_an_unreachable_ollama_names_how_it_is_started() {
+    let home = fresh_home();
+    let ollama = "default_profile = \"default\"\n\n[providers.ollama]\nkind = \"openai-compatible\"\nbase_url = \"http://127.0.0.1:1/v1\"\ntimeout_ms = 120000\n\n[profiles.default]\nprovider = \"ollama\"\nmodel = \"llama3\"\n";
+    fs::write(home.join("config.toml"), ollama).unwrap();
+    let transcript = succeeded(&interactive(&home, "init", "3\n1\nqwen3\ny\ny\n"));
+    assert_mentions(
+        &transcript,
+        &[
+            "Cannot list models from http://127.0.0.1:1/v1 (",
+            "). Ollama is usually started with `ollama serve`. Enter the identifier manually.",
+        ],
+    );
+    let written = fs::read_to_string(home.join("config.toml")).unwrap();
+    assert_mentions(&written, &["model = \"qwen3\""]);
+}
+
+#[test]
 fn init_edit_keeps_unmanaged_values_through_every_action() {
     for (answers, changed) in EDIT_ANSWERS {
         let installed = Installed::new(None);

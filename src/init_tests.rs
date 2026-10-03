@@ -455,7 +455,7 @@ fn an_unreachable_local_server_names_the_endpoint_and_how_to_start_it() {
     for expected in [
         "Cannot list models from http://127.0.0.1:1/v1 (",
         "Ollama is usually started with `ollama serve`. Enter the identifier manually.",
-        "Sending a minimal request to the local server to verify it.",
+        "Sending a minimal request to http://127.0.0.1:1/v1 to verify it.",
         "Verification failed: ",
         "Write the configuration anyway? [y/N]: ",
     ] {

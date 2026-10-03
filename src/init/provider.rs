@@ -134,6 +134,19 @@ pub(super) fn hosted_preset(provider: &ProviderConfig) -> Option<&'static str> {
         .map(|preset| preset.name)
 }
 
+/// How the local server behind `provider`, named `name`, is usually started:
+/// known for a keyless `openai-compatible` provider that carries a local
+/// preset's name or default endpoint.
+pub(super) fn local_start_hint(name: &str, provider: &ProviderConfig) -> Option<&'static str> {
+    if provider.kind != COMPATIBLE || provider.api_key_env.is_some() {
+        return None;
+    }
+    LOCAL_PRESETS
+        .iter()
+        .find(|preset| name == preset.name || provider.base_url == preset.base_url)
+        .map(|preset| preset.start_hint)
+}
+
 type Providers = BTreeMap<String, ProviderConfig>;
 
 impl<R: BufRead, W: Write> Dialogue<'_, R, W> {

@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use crate::{
     model_list::{self, MAX_ENTRIES, Shape},
-    provider::{self, Kind},
+    provider::{self, GetError, Kind},
 };
 
 const TIMEOUT: Duration = Duration::from_secs(10);
@@ -56,25 +56,19 @@ impl Listing<'_> {
         cursor: Option<&str>,
     ) -> Result<Vec<u8>, String> {
         let request = self.request(cursor);
-        let mut builder = client.get(&request.url).timeout(TIMEOUT);
-        for (name, value) in request.headers {
-            builder = builder.header(name, value);
-        }
-        let mut response = builder.send().await.map_err(|error| self.redact(error))?;
-        if !response.status().is_success() {
-            return Err(format!(
-                "provider returned HTTP status {}",
-                response.status()
-            ));
-        }
-        let mut body = Vec::new();
-        while let Some(chunk) = response.chunk().await.map_err(|error| self.redact(error))? {
-            if body.len() + chunk.len() > MAX_RESPONSE_BYTES {
-                return Err("the model list response is too large".to_string());
-            }
-            body.extend_from_slice(&chunk);
-        }
-        Ok(body)
+        provider::bounded_get(
+            client,
+            &request.url,
+            &request.headers,
+            TIMEOUT,
+            MAX_RESPONSE_BYTES,
+        )
+        .await
+        .map_err(|error| match error {
+            GetError::Transport(error) => self.redact(error),
+            GetError::Status(status) => format!("provider returned HTTP status {status}"),
+            GetError::TooLarge => "the model list response is too large".to_string(),
+        })
     }
 
     fn redact(&self, error: impl std::fmt::Display) -> String {
