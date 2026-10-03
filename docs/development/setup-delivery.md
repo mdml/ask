@@ -15,6 +15,8 @@ Internal delivery plan for the guided-setup release, version `0.2.0`, developed 
 | S7 | [#70](https://github.com/mdml/ask/pull/70) | Menus and the hidden prompt hold raw mode throughout; `libc` is a direct dependency and `src/terminal/attributes.rs` is the only `unsafe` code. |
 | S8 | [#61](https://github.com/mdml/ask/pull/61) | README header with slogan and badges; re-recorded demo. |
 | S9 | [#71](https://github.com/mdml/ask/pull/71) | Action dependency review renewed through 2026-11-01; an unchanged nightly skips when the review has expired. |
+| Release | [#72](https://github.com/mdml/ask/pull/72) | Version 0.2.0, this tracker, and the README demo re-recorded from a 0.2.0 release build. |
+| Promotion review fixes | [#73](https://github.com/mdml/ask/pull/73), [#74](https://github.com/mdml/ask/pull/74), and the pull request that adds this row | Findings from the independent reviews of the promotion candidate. |
 | Dependencies | [#59](https://github.com/mdml/ask/pull/59), [#60](https://github.com/mdml/ask/pull/60) | reqwest 0.13.5; install-action 2.87.18, later 2.87.22 in S9. |
 
 ## Named proofs

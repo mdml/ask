@@ -4,7 +4,7 @@ fn listing(kind: Kind, base_url: &str) -> Listing<'_> {
     Listing {
         kind,
         base_url,
-        credential: "k ey/+",
+        credential: Some("k ey/+"),
     }
 }
 
@@ -65,8 +65,22 @@ async fn transport_failures_are_reported_without_the_credential() {
     let gemini = Listing {
         kind: Kind::Gemini,
         base_url: "http://127.0.0.1:1",
-        credential: "secret-in-url",
+        credential: Some("secret-in-url"),
     };
     let error = gemini.fetch().await.unwrap_err();
     assert!(!error.contains("secret-in-url"), "{error}");
+}
+
+#[test]
+fn a_keyless_listing_sends_the_placeholder_and_never_redacts_it() {
+    let keyless = Listing {
+        kind: Kind::OpenAiCompatible,
+        base_url: "http://127.0.0.1:1/v1",
+        credential: None,
+    };
+    assert_eq!(
+        keyless.request(None).headers,
+        vec![("authorization", "Bearer no-key".to_string())]
+    );
+    assert_eq!(keyless.redact("sent Bearer no-key"), "sent Bearer no-key");
 }
