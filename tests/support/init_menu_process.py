@@ -17,6 +17,11 @@ base_url = rest[0] if rest else 'http://localhost/v1'
 os.environ['ASK_HOME'] = home
 # The published model list is disabled unless the scenario supplies a fake's URL.
 os.environ['ASK_MODEL_LIST_URL'] = rest[1] if len(rest) > 1 else ''
+# Proxy settings never reach ask, so requests to a loopback fake go direct.
+for variable in ('HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY'):
+    os.environ.pop(variable, None)
+    os.environ.pop(variable.lower(), None)
+os.environ['NO_PROXY'] = '127.0.0.1,localhost'
 os.environ['TERM'] = 'xterm-256color'
 # Only the scenario's own credential variable may reach init.
 for variable in ('OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'OPENROUTER_API_KEY',

@@ -120,7 +120,18 @@ def parse_page(shape, value):
         cursor = None
     if not isinstance(cursor, str) or not cursor:
         cursor = None
+    elif not encodable(cursor):
+        raise Failure("response has a malformed page cursor")
     return [model for model in ids if isinstance(model, str)], cursor
+
+
+def encodable(text):
+    """Whether `text` is valid UTF-8 text; JSON allows lone surrogates, which UTF-8 cannot carry."""
+    try:
+        text.encode()
+    except UnicodeEncodeError:
+        return False
+    return True
 
 
 def list_models(shape, base_url, key):

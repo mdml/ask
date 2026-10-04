@@ -14,6 +14,11 @@ binary, home, scenario, *args = sys.argv[1:]
 os.environ['ASK_HOME'] = home
 # No proof contacts the project's published model list.
 os.environ['ASK_MODEL_LIST_URL'] = ''
+# Proxy settings never reach ask, so requests to a loopback fake go direct.
+for variable in ('HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY'):
+    os.environ.pop(variable, None)
+    os.environ.pop(variable.lower(), None)
+os.environ['NO_PROXY'] = '127.0.0.1,localhost'
 master, slave = pty.openpty()
 try:
     # SIG_DFL for SIGINT in the child, even if the runner inherited SIG_IGN.

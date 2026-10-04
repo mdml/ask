@@ -53,6 +53,8 @@ On an attended terminal, choose the provider with the arrow keys and Enter; Esc 
 
 No key is involved. `ask init` asks the server for its models, offers them in the menu, and verifies the choice with one minimal request. If the server is unreachable, it says so, names how that server is usually started (for example `ollama serve`), and asks for the model identifier as free text. The provider uses a 120-second timeout (`timeout_ms = 120000`) because the first request often waits for the model to load. Then ask a question as usual; no credential setup is needed.
 
+If you use a proxy (through `HTTP_PROXY`, `HTTPS_PROXY`, or `ALL_PROXY`, or on macOS the system settings), requests to a local server go to the proxy too unless `NO_PROXY` covers its host; set `NO_PROXY=localhost,127.0.0.1` so they reach the server directly. The [provider reference](../reference/providers.md) describes what a proxy can see.
+
 ## Supply a credential and ask a question
 
 `ask` reads the provider key from the environment variable named in the configuration and never stores its value. A key pasted during `ask init` is not kept, so later commands need it again. `ask init` prints the variable name for your provider and this command in its next steps. In bash or zsh, this hidden prompt supplies the key to a single `ask` process, keeping it out of shell history and out of the parent shell:

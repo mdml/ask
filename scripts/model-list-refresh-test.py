@@ -66,6 +66,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
+        if behavior == "bad-cursor":
+            # A lone surrogate, which JSON allows but a URL cannot carry.
+            cursor = "after\ud800"
+            return self.reply(200, {"data": [{"id": "claude-a"}], "has_more": True, "last_id": cursor,
+                                    "models": GEMINI_PAGES[None]["models"], "nextPageToken": cursor})
         if behavior == "error":
             # The body echoes the request, credential included; it must never be shown.
             return self.reply(500, {"error": self.path, "headers": dict(self.headers)})
@@ -170,6 +175,20 @@ class ModelListRefreshTests(unittest.TestCase):
         self.assertEqual(len(self.requests_for("gemini")), 1)
         self.assertEqual(len(self.requests_for("groq")), 1)
         self.assertEqual(list(document["providers"]), ["openai"])
+
+    def test_a_cursor_that_is_not_valid_text_omits_only_that_provider(self):
+        self.server.behavior = {"anthropic": "bad-cursor", "gemini": "bad-cursor"}
+        code, report, document = self.run_refresh("--providers", "anthropic,gemini,openai")
+        self.assertEqual(code, 1)
+        self.assertIn("anthropic: omitted (response has a malformed page cursor)", report)
+        self.assertIn("gemini: omitted (response has a malformed page cursor)", report)
+        self.assertIn("omitted: anthropic, gemini; nothing was written", report)
+        self.assertIsNone(document)
+        code, report, document = self.run_refresh("--providers", "anthropic,gemini,openai", "--allow-partial")
+        self.assertEqual(code, 0, report)
+        self.assertEqual(list(document["providers"]), ["openai"])
+        self.assertEqual(len(self.requests_for("anthropic")), 2)
+        self.assertEqual(len(self.requests_for("gemini")), 2)
 
     def test_redirects_are_refused(self):
         self.server.behavior = {"anthropic": "redirect", "gemini": "redirect"}
