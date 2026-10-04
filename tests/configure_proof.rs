@@ -16,6 +16,8 @@ use std::{
     process::{Child, Command, Output, Stdio},
 };
 
+#[cfg(unix)]
+use support::write_limited;
 use support::{
     CREDENTIAL, MODEL_LIST_URL, command,
     fake_provider::{FakeProvider, RecordedRequest, Scenario},
@@ -877,27 +879,6 @@ fn keyed(home: &Path, answers: &str) -> Output {
 
 fn configure(home: &Path, arguments: &[&str], input: &str) -> Output {
     drive(command(home, false).args(arguments), input)
-}
-
-/// Runs the binary under a one-block file-size limit so any write beyond the
-/// first block fails. `SIGXFSZ` is ignored so the child reports the error itself.
-#[cfg(unix)]
-fn write_limited(home: &Path, arguments: &[&str]) -> Command {
-    let mut limited = Command::new("sh");
-    limited
-        .args([
-            "-c",
-            "trap '' XFSZ; ulimit -f 1; exec \"$@\"",
-            "write-limit",
-            env!("CARGO_BIN_EXE_ask"),
-        ])
-        .args(arguments)
-        .env("ASK_HOME", home)
-        .env(MODEL_LIST_URL, "")
-        .env_remove("LOCAL_API_KEY")
-        // The disk limit would also truncate this child's coverage profile.
-        .env("LLVM_PROFILE_FILE", "/dev/null");
-    limited
 }
 
 fn drive(command: &mut Command, input: &str) -> Output {

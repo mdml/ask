@@ -21,6 +21,10 @@ The project applies a higher-than-usual supply-chain bar because model-provider 
 
 The [nightly release workflow](.github/workflows/nightly-release.yml) and [stable release workflow](.github/workflows/stable-release.yml) produce checksummed archives with GitHub attestations after verification; see [docs/guides/stable-releases.md](docs/guides/stable-releases.md).
 
+## Network use
+
+- `ask` sends provider requests through a configured system proxy: the standard proxy variables or, on macOS, the system proxy settings. For an `https://` endpoint the proxy sees only the host it tunnels to; for an `http://` endpoint it sees the full request, including the credential and query content. Loopback addresses are not exempt unless `NO_PROXY` covers them; see [docs/reference/providers.md](docs/reference/providers.md).
+
 ## Dependency update process
 
 - **Review and merge.** Every dependency update, whether a Dependabot version or security update or a change made by hand, is reviewed and integrated by the managing agent as described in `CONTRIBUTING.md`. Nightly advisory checks report only; nothing merges unattended.

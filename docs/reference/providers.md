@@ -14,7 +14,7 @@ Each kind uses its provider's own HTTP API with streaming over server-sent event
 | `openrouter` | OpenRouter Chat Completions | `https://openrouter.ai/api/v1` | `/chat/completions` | `Authorization: Bearer` header |
 | `openai-compatible` | OpenAI Chat Completions | the server's OpenAI-compatible prefix, for example `http://127.0.0.1:PORT/v1` | `/chat/completions` | `Authorization: Bearer` header |
 
-`ask` sends the credential and query content only to the configured endpoint. When a proxy is configured through the standard proxy variables (or, on macOS, the system settings), it carries those requests: an `https://` endpoint is tunneled, so the proxy sees only its host, and an `http://` endpoint, including its credential and content, is visible to the proxy in full. No kind follows HTTP redirects; see [redirects](#redirects).
+`ask` sends the credential and query content only to the configured endpoint. When a proxy is configured through the standard proxy variables (or, on macOS, the system settings), it carries those requests: an `https://` endpoint is tunneled, so the proxy sees only its host, and an `http://` endpoint, including its credential and content, is visible to the proxy in full. There is no exemption for loopback addresses: with a proxy configured, a request to a local server such as `http://localhost:11434/v1` also goes to the proxy unless `NO_PROXY` covers the host, so set `NO_PROXY=localhost,127.0.0.1` when you use a local server behind a proxy. No kind follows HTTP redirects; see [redirects](#redirects).
 
 ## Keyless targets
 
@@ -74,7 +74,7 @@ The `ask` project publishes a model list at `https://raw.githubusercontent.com/m
 
 `ask init` requests it only for a hosted preset (OpenAI, Anthropic, Gemini, OpenRouter, Groq, Cerebras, or xAI) when no key is available for that provider. It first prints `Requesting the published model list from <URL>; no credentials are sent.` The request is a plain `GET` with no `Authorization`, `x-api-key`, or key parameter and no query content, even when credential variables for other providers are set. It never follows redirects, times out after 5 seconds, and reads at most 1 MiB. A provider target that `ask init` writes from a custom endpoint whose kind, `base_url`, and `api_key_env` all equal a hosted preset's is treated as that preset.
 
-The environment variable `ASK_MODEL_LIST_URL` overrides the location. An empty value disables the published list: `ask init` makes no request and asks for the identifier as free text.
+The environment variable `ASK_MODEL_LIST_URL` overrides the location. An empty value, or one that is not valid Unicode, disables the published list: `ask init` makes no request and asks for the identifier as free text. A value that is not valid Unicode is first reported as `ASK_MODEL_LIST_URL is not valid Unicode; skipping the published model list.`
 
 Version 1 of the document is a JSON object:
 

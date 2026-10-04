@@ -12,9 +12,9 @@ use std::{
 };
 
 use support::{
-    CREDENTIAL, MODEL_LIST_URL, PRESET_VARIABLES, command,
+    CREDENTIAL, LOOPBACK_HOSTS, MODEL_LIST_URL, PRESET_VARIABLES, PROXY_VARIABLES, command,
     fake_provider::{FakeProvider, PUBLISHED, RecordedRequest, Scenario},
-    fresh_home,
+    fresh_home, write_limited,
 };
 
 #[cfg(unix)]
@@ -228,15 +228,7 @@ fn every_process_the_proofs_start_disables_the_published_list() {
             .get_envs()
             .any(|entry| entry == (MODEL_LIST_URL.as_ref(), Some("".as_ref())))
     );
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let mut launchers: Vec<_> = fs::read_dir(root.join("tests/support"))
-        .unwrap()
-        .map(|entry| entry.unwrap().path())
-        .filter(|path| path.extension().is_some_and(|extension| extension == "py"))
-        .collect();
-    launchers
-        .extend(["scripts/offline-acceptance.py", "scripts/demo.py"].map(|path| root.join(path)));
-    for launcher in launchers {
+    for launcher in python_launchers() {
         let source = fs::read_to_string(&launcher).unwrap();
         assert!(
             source.contains("'ASK_MODEL_LIST_URL'] = ")
@@ -247,7 +239,62 @@ fn every_process_the_proofs_start_disables_the_published_list() {
     }
 }
 
+#[test]
+fn every_process_the_proofs_start_ignores_ambient_proxies() {
+    let home = fresh_home();
+    for launched in [command(&home, false), write_limited(&home, &["init"])] {
+        let mut proxies: Vec<_> = launched
+            .get_envs()
+            .filter(|(name, _)| PROXY_VARIABLES.iter().any(|variable| name == variable))
+            .map(|(name, value)| {
+                (
+                    name.to_str().unwrap(),
+                    value.and_then(|value| value.to_str()),
+                )
+            })
+            .collect();
+        proxies.sort_unstable();
+        let mut expected: Vec<_> = PROXY_VARIABLES
+            .map(|name| (name, (name == "NO_PROXY").then_some(LOOPBACK_HOSTS)))
+            .into();
+        expected.sort_unstable();
+        assert_eq!(proxies, expected);
+    }
+    // The support helpers clear proxies from their own environment, which ask
+    // inherits; the acceptance and demo scripts give ask a fresh environment.
+    for launcher in python_launchers() {
+        let source = fs::read_to_string(&launcher).unwrap();
+        assert!(
+            source.contains(PYTHON_PROXY_CLEARING)
+                || source.contains("\"NO_PROXY\": \"127.0.0.1\""),
+            "{} starts ask without clearing proxy variables",
+            launcher.display()
+        );
+    }
+}
+
 // -- helpers ----------------------------------------------------------------
+
+/// The lines with which each support helper clears proxy variables.
+const PYTHON_PROXY_CLEARING: &str =
+    "for variable in ('HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY'):
+    os.environ.pop(variable, None)
+    os.environ.pop(variable.lower(), None)
+os.environ['NO_PROXY'] = '127.0.0.1,localhost'
+";
+
+/// Every Python script that starts the binary.
+fn python_launchers() -> Vec<std::path::PathBuf> {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut launchers: Vec<_> = fs::read_dir(root.join("tests/support"))
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| path.extension().is_some_and(|extension| extension == "py"))
+        .collect();
+    launchers
+        .extend(["scripts/offline-acceptance.py", "scripts/demo.py"].map(|path| root.join(path)));
+    launchers
+}
 
 /// Runs one `init_menu_process.py` scenario with extra `arguments`: the
 /// fake's base URL and, when present, its published-list URL.
@@ -275,27 +322,6 @@ fn succeeded(output: &Output) -> String {
     assert!(output.status.success(), "{}", stderr(output));
     assert!(output.stdout.is_empty());
     stderr(output)
-}
-
-/// Runs the binary under a one-block file-size limit so any write beyond the
-/// first block fails. `SIGXFSZ` is ignored so the child reports the error itself.
-#[cfg(unix)]
-fn write_limited(home: &Path, arguments: &[&str]) -> Command {
-    let mut limited = Command::new("sh");
-    limited
-        .args([
-            "-c",
-            "trap '' XFSZ; ulimit -f 1; exec \"$@\"",
-            "write-limit",
-            env!("CARGO_BIN_EXE_ask"),
-        ])
-        .args(arguments)
-        .env("ASK_HOME", home)
-        .env(MODEL_LIST_URL, "")
-        .env_remove("LOCAL_API_KEY")
-        // The disk limit would also truncate this child's coverage profile.
-        .env("LLVM_PROFILE_FILE", "/dev/null");
-    limited
 }
 
 fn drive(command: &mut Command, input: &str) -> Output {
