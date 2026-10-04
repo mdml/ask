@@ -145,6 +145,8 @@ A missing database file is reported as absent and is not a problem. An existing 
 
 `ask doctor --live` additionally sends one fixed minimal request to the default profile's provider target: the prompt `Reply with exactly: ok`, the system prompt `Reply with exactly one word.`, and a 128-token output cap, regardless of profile settings. It may incur provider cost, and `ask` prints `ask: warning: live check sends a minimal provider request that may incur cost` on stderr before sending. The result appears in the report as `live: ok` or `live: failed (<cause>)`. Each live check, successful or failed, is recorded as a provider-health observation with the source `live-check`; to record it, live mode may create or migrate the database. If the observation cannot be recorded, `doctor` reports `ask: live health was not recorded: <cause>` and exits 3.
 
+A live check succeeds when the provider answers. That includes an answer that stops at the check's 128-token output limit, which a reasoning model can reach before it writes any answer text. `ask init` verification uses the same request and the same rule.
+
 `ask doctor --live --all` checks every distinct provider target across all profiles, and reports credential presence and historical health for each. `--all` without `--live` is a usage error.
 
 ## `ask init`

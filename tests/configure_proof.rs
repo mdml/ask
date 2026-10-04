@@ -378,6 +378,30 @@ const ASKED_BEFORE_WRITING: [&str; 2] = [
     "Write the configuration anyway? [y/N]: ",
 ];
 
+/// A reasoning model that spends the whole verification output budget
+/// thinking: reasoning deltas only, then an output-limit ending.
+const REASONING_HITS_THE_LIMIT: &str = concat!(
+    "data: {\"id\":\"gen-1\",\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\",\"reasoning\":\"thinking\"},\"finish_reason\":null}]}\n\n",
+    "data: {\"id\":\"gen-1\",\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"length\"}],\"usage\":{\"prompt_tokens\":12,\"completion_tokens\":128,\"total_tokens\":140}}\n\n",
+    "data: [DONE]\n\n",
+);
+
+#[test]
+fn init_verifies_a_reasoning_model_that_stops_at_the_output_limit() {
+    let fake = FakeProvider::sequence(vec![
+        Scenario::Status(200, MODELS),
+        Scenario::Sse(REASONING_HITS_THE_LIMIT),
+    ]);
+    let home = fresh_home();
+    let answers = local_answers(1, &fake.base_url(), "1\n\n\nn\ny\n");
+    let transcript = succeeded(&interactive(&home, "init", &answers));
+    assert!(
+        transcript.contains("Verified: the provider answered a minimal request."),
+        "{transcript}"
+    );
+    assert!(!transcript.contains("Verification failed"), "{transcript}");
+}
+
 #[test]
 fn a_failed_local_verification_asks_before_writing() {
     for (decision, written) in [("n\n", false), ("y\nn\ny\n", true)] {
