@@ -442,6 +442,9 @@ pub(crate) async fn live_request(
     let outcome = runner::run(&provider, &live_target, request, &mut writer).await;
     match outcome.error {
         None => Ok(()),
+        // The provider answered; a reasoning model can spend the small
+        // output budget before it writes any answer text.
+        Some(error) if error.is_output_limit() => Ok(()),
         Some(error) => Err(error.to_string()),
     }
 }
