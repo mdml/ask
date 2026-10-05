@@ -1,6 +1,7 @@
 //! End-to-end proof of the configuration commands through the real binary.
 //!
-//! `ask init` creates a first configuration interactively. `ask configure check`
+//! `ask init` creates a first configuration interactively or makes one change
+//! to an existing one. `ask configure check`
 //! validates a complete candidate document without writing, and
 //! `ask configure apply` installs one. Every case here drives the installed
 //! binary using redirected input, a PTY, or synchronized OS boundaries. Only
@@ -15,9 +16,11 @@ use std::{
     process::{Child, Command, Output, Stdio},
 };
 
+#[cfg(unix)]
+use support::write_limited;
 use support::{
-    CREDENTIAL, command,
-    fake_provider::{FakeProvider, Scenario},
+    CREDENTIAL, MODEL_LIST_URL, command,
+    fake_provider::{FakeProvider, RecordedRequest, Scenario},
     fresh_home,
 };
 
@@ -40,20 +43,139 @@ system_prompt = "Use terse tables."
 
 // -- ask init ---------------------------------------------------------------
 
+/// A model list in the OpenAI shape, with a dated snapshot listed first and
+/// an identifier that would clear the screen if it were printed.
+const MODELS: &str = r#"{"object":"list","data":[{"id":"fake-model-2024-08-06"},{"id":"fake-model"},{"id":"other-model"},{"id":"\u001b[2Jevil"},{"id":"other-mini"}]}"#;
+/// The key the PTY helper pastes at the hidden prompt.
+const PASTED: &str = "pasted-secret-never-print";
+
+/// Runs one `init_menu_process.py` scenario, optionally against `fake` and
+/// with `LOCAL_API_KEY` set to the fixture credential.
+#[cfg(unix)]
+fn terminal_init(scenario: &str, fake: Option<&FakeProvider>, with_credential: bool) -> Output {
+    let home = fresh_home();
+    let mut helper = Command::new("python3");
+    helper
+        .arg("tests/support/init_menu_process.py")
+        .arg(env!("CARGO_BIN_EXE_ask"))
+        .arg(&home)
+        .arg(scenario)
+        .args(fake.map(FakeProvider::base_url))
+        .env_remove("LOCAL_API_KEY");
+    if with_credential {
+        helper.env("LOCAL_API_KEY", CREDENTIAL);
+    }
+    let output = helper.output().unwrap();
+    assert!(output.status.success(), "{scenario}: {}", stderr(&output));
+    output
+}
+
 #[cfg(unix)]
 #[test]
 fn terminal_init_handles_selection_escape_and_keyboard_interrupt_and_restores_the_terminal() {
-    for scenario in ["select", "escape", "ctrl-c"] {
-        let home = fresh_home();
-        let output = Command::new("python3")
-            .arg("tests/support/init_menu_process.py")
-            .arg(env!("CARGO_BIN_EXE_ask"))
-            .arg(&home)
-            .arg(scenario)
-            .output()
-            .unwrap();
-        assert!(output.status.success(), "{scenario}: {}", stderr(&output));
+    for scenario in [
+        "select",
+        "escape",
+        "ctrl-c",
+        "hidden-escape",
+        "hidden-ctrl-d",
+        "hidden-ctrl-c",
+        "hangup",
+        "local-escape",
+    ] {
+        terminal_init(scenario, None, false);
     }
+}
+
+#[cfg(unix)]
+#[test]
+fn terminal_init_filters_the_listed_models_and_verifies_the_choice() {
+    let fake = FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Stream]);
+    terminal_init("filter", Some(&fake), true);
+    let requests = fake.requests(2);
+    let listing = &requests[0];
+    assert_eq!(listing.method, "GET");
+    assert_eq!(listing.path, "/v1/models");
+    assert!(listing.authorization_is_fixture);
+    let verification = &requests[1];
+    assert_eq!(verification.model, "other-mini");
+    let prompt = &verification.messages.last().unwrap().1;
+    assert_eq!(prompt, ask::doctor::LIVE_PROMPT);
+}
+
+#[cfg(unix)]
+#[test]
+fn terminal_init_selects_a_local_server_and_filters_its_models_without_a_key() {
+    let fake = FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Stream]);
+    terminal_init("local", Some(&fake), true);
+    let requests = fake.requests(2);
+    assert_eq!(requests[0].path, "/v1/models");
+    assert_eq!(requests[1].model, "other-mini");
+    assert_placeholder_only(&requests);
+}
+
+/// Every request carried the fixed placeholder and no environment credential.
+fn assert_placeholder_only(requests: &[RecordedRequest]) {
+    for request in requests {
+        assert_eq!(request.header("authorization"), Some("Bearer no-key"));
+        let wire = format!("{:?}{}", request.headers, request.body);
+        assert!(
+            !wire.contains(CREDENTIAL) && !wire.contains("OPENAI-ENV"),
+            "{wire}"
+        );
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn terminal_init_uses_a_hidden_key_only_for_the_list_and_verification() {
+    let fake = FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Stream]);
+    terminal_init("hidden", Some(&fake), false);
+    let requests = fake.requests(2);
+    assert_eq!(requests.len(), 2);
+    let bearer = format!("Bearer {PASTED}");
+    for request in &requests {
+        assert_eq!(request.header("authorization"), Some(bearer.as_str()));
+    }
+    assert_eq!(requests[1].model, "typed-model");
+}
+
+/// While a menu or the hidden prompt waits, the terminal neither echoes nor
+/// edits input, so a burst of keys written at once is read in order.
+#[cfg(unix)]
+#[test]
+fn terminal_init_reads_a_burst_of_keys_in_order_without_echo() {
+    let fake = FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Stream]);
+    terminal_init("burst", Some(&fake), true);
+    assert_eq!(fake.requests(2)[1].model, "other-mini");
+}
+
+#[cfg(unix)]
+#[test]
+fn terminal_init_reads_a_long_paste_at_the_hidden_prompt_without_echo() {
+    let fake = FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Stream]);
+    terminal_init("paste", Some(&fake), false);
+    let alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let bearer = format!("Bearer pasted-{}", alphabet.repeat(4));
+    for request in &fake.requests(2) {
+        assert_eq!(request.header("authorization"), Some(bearer.as_str()));
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn terminal_init_ctrl_c_at_the_model_menu_restores_the_terminal() {
+    let fake = FakeProvider::start(Scenario::Status(200, MODELS));
+    terminal_init("model-ctrl-c", Some(&fake), true);
+    assert_eq!(fake.requests(1).len(), 1);
+}
+
+#[cfg(unix)]
+#[test]
+fn terminal_init_escape_at_the_model_menu_writes_nothing() {
+    let fake = FakeProvider::start(Scenario::Status(200, MODELS));
+    terminal_init("model-escape", Some(&fake), true);
+    assert_eq!(fake.requests(1).len(), 1);
 }
 
 #[test]
@@ -61,16 +183,21 @@ fn init_then_query_answers_through_the_fake_provider() {
     let fake = FakeProvider::start(Scenario::Stream);
     let home = fresh_home();
     let answers = format!(
-        "5\nlocal\n{}\nLOCAL_API_KEY\nfake-model\nUse terse tables.\n\ny\n",
+        "9\nlocal\n{}\nLOCAL_API_KEY\nfake-model\nUse terse tables.\n\nn\ny\n",
         fake.base_url()
     );
     let transcript = succeeded(&interactive(&home, "init", &answers));
-    assert!(transcript.contains(ask::DEFAULT_SYSTEM_PROMPT));
-    assert!(transcript.contains("LOCAL_API_KEY"));
-    assert!(!transcript.contains(CREDENTIAL));
+    for expected in [
+        ask::DEFAULT_SYSTEM_PROMPT,
+        "LOCAL_API_KEY is not set; continuing without a key, so the setup will not be verified.",
+        "docs/guides/credentials.md",
+    ] {
+        assert!(transcript.contains(expected), "{transcript}");
+    }
+    let connections = fake.connections();
+    assert_eq!(connections, 0, "redirected stdin never supplies a key");
     let written = fs::read_to_string(home.join("config.toml")).unwrap();
     assert!(written.contains("api_key_env = \"LOCAL_API_KEY\""));
-    assert!(!written.contains(CREDENTIAL));
 
     let query = command(&home, true)
         .args(["what", "is", "2+2"])
@@ -80,16 +207,330 @@ fn init_then_query_answers_through_the_fake_provider() {
     assert_eq!(query.stdout, b"**4**\n");
     let request = fake.recorded().unwrap();
     assert_eq!(request.model, "fake-model");
+    let (role, system_prompt) = &request.messages[0];
     assert_eq!(
-        request.messages[0],
-        ("system".to_string(), "Use terse tables.".to_string())
+        (role.as_str(), system_prompt.as_str()),
+        ("system", "Use terse tables.")
     );
+}
+
+#[test]
+fn init_offers_the_listed_models_and_verifies_with_the_environment_key() {
+    let fake = FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Stream]);
+    let home = fresh_home();
+    let answers = format!(
+        "9\nlocal\n{}\nLOCAL_API_KEY\n0\n2\n\n\nn\ny\n",
+        fake.base_url()
+    );
+    let transcript = succeeded(&keyed(&home, &answers));
+    for expected in [
+        "Using LOCAL_API_KEY from the environment (value not shown).",
+        " 1. fake-model\n 2. other-model\n 3. other-mini\n 4. fake-model-2024-08-06\n 5. Enter a model identifier manually\n",
+        "Enter a number from 1 to 5.",
+        "warning: live check sends a minimal provider request that may incur cost",
+        "Verified: the provider answered a minimal request.",
+    ] {
+        assert!(transcript.contains(expected), "{expected}: {transcript}");
+    }
+    assert!(!transcript.contains('\u{1b}'), "{transcript}");
+    assert!(!transcript.contains(CREDENTIAL));
+    let written = fs::read_to_string(home.join("config.toml")).unwrap();
+    assert!(written.contains("model = \"other-model\""), "{written}");
+    assert!(!written.contains(CREDENTIAL));
+    let requests = fake.requests(2);
+    assert_eq!(
+        (requests[0].method.as_str(), requests[0].path.as_str()),
+        ("GET", "/v1/models")
+    );
+    assert!(
+        requests
+            .iter()
+            .all(|request| request.authorization_is_fixture)
+    );
+    assert_eq!(requests[1].model, "other-model");
+}
+
+/// Answers for a local server: preset `choice`, endpoint `url`, then the
+/// listed model number, defaults for the prompt and profile, and write.
+fn local_answers(choice: usize, url: &str, tail: &str) -> String {
+    format!("8\n{choice}\n{url}\n{tail}")
+}
+
+/// Runs `ask init` with unrelated credential variables set.
+fn keyed_elsewhere(home: &Path, answers: &str) -> Output {
+    drive(
+        command(home, true)
+            .env("OPENAI_API_KEY", "OPENAI-ENV-SECRET")
+            .arg("init"),
+        answers,
+    )
+}
+
+#[test]
+fn init_writes_each_local_preset_and_verifies_it_without_a_key() {
+    for (choice, name, default_url) in [
+        (1, "ollama", "http://localhost:11434/v1"),
+        (2, "lmstudio", "http://localhost:1234/v1"),
+        (3, "llamacpp", "http://localhost:8080/v1"),
+    ] {
+        let fake = FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Stream]);
+        let home = fresh_home();
+        let answers = local_answers(choice, &fake.base_url(), "2\n\n\nn\ny\n");
+        let transcript = succeeded(&keyed_elsewhere(&home, &answers));
+        for expected in [
+            format!("Endpoint base URL [{default_url}]: "),
+            "Requesting the model list from".to_string(),
+            format!(
+                "Sending a minimal request to {} to verify it.",
+                fake.base_url()
+            ),
+            "Verified: the provider answered a minimal request.".to_string(),
+        ] {
+            assert!(transcript.contains(&expected), "{expected}: {transcript}");
+        }
+        assert!(!transcript.contains("incur cost"), "{transcript}");
+        assert!(!transcript.contains("Credential variable"), "{transcript}");
+        let expected = format!(
+            "[providers.{name}]\nkind = \"openai-compatible\"\nbase_url = \"{}\"\ntimeout_ms = 120000\n",
+            fake.base_url()
+        );
+        let written = fs::read_to_string(home.join("config.toml")).unwrap();
+        assert!(written.contains(&expected), "{written}");
+        assert!(!written.contains("api_key_env"), "{written}");
+        let requests = fake.requests(2);
+        assert_eq!(requests[0].path, "/v1/models");
+        assert_eq!(requests[1].model, "other-model");
+        assert_placeholder_only(&requests);
+    }
+}
+
+#[test]
+fn a_query_after_local_init_works_with_no_key() {
+    let fake = FakeProvider::sequence(vec![
+        Scenario::Status(200, MODELS),
+        Scenario::Stream,
+        Scenario::Stream,
+    ]);
+    let home = fresh_home();
+    let answers = local_answers(1, &fake.base_url(), "1\n\n\nn\ny\n");
+    succeeded(&interactive(&home, "init", &answers));
+    let query = command(&home, false).arg("what").output().unwrap();
+    assert!(query.status.success(), "{}", stderr(&query));
+    assert_eq!(query.stdout, b"**4**\n");
+    let requests = fake.requests(3);
+    assert_eq!(requests[2].model, "fake-model");
+    assert_placeholder_only(&requests);
+}
+
+#[test]
+fn an_unreachable_local_server_falls_back_to_manual_entry_with_the_start_hint() {
+    let url = "http://127.0.0.1:1/v1";
+    for (choice, hint) in [
+        (1, "`ollama serve`"),
+        (2, "`lms server start`"),
+        (3, "`llama-server -m <model.gguf>`"),
+    ] {
+        let home = fresh_home();
+        let answers = local_answers(choice, url, "typed-model\n\n\ny\nn\ny\n");
+        let transcript = succeeded(&interactive(&home, "init", &answers));
+        let notice = format!("Cannot list models from {url} (");
+        assert!(transcript.contains(&notice), "{transcript}");
+        assert!(transcript.contains(hint), "{transcript}");
+        assert!(transcript.contains("Model identifier (free text sent to the provider): "));
+        let written = fs::read_to_string(home.join("config.toml")).unwrap();
+        assert!(written.contains("model = \"typed-model\""), "{written}");
+    }
+}
+
+#[test]
+fn a_keyless_custom_endpoint_lists_models_and_verifies_too() {
+    let fake = FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Stream]);
+    let home = fresh_home();
+    let answers = format!("9\nlocal\n{}\n\n1\n\n\nn\ny\n", fake.base_url());
+    let transcript = succeeded(&keyed_elsewhere(&home, &answers));
+    assert!(
+        transcript.contains("Verified: the provider answered"),
+        "{transcript}"
+    );
+    assert_placeholder_only(&fake.requests(2));
+}
+
+#[test]
+fn an_empty_local_model_list_falls_back_to_manual_entry() {
+    let fake = FakeProvider::sequence(vec![
+        Scenario::Status(200, r#"{"object":"list","data":[]}"#),
+        Scenario::Stream,
+    ]);
+    let home = fresh_home();
+    let answers = local_answers(3, &fake.base_url(), "typed-model\n\n\nn\ny\n");
+    let transcript = succeeded(&interactive(&home, "init", &answers));
+    assert!(
+        transcript.contains("the server listed no models"),
+        "{transcript}"
+    );
+    assert!(
+        transcript.contains("`llama-server -m <model.gguf>`"),
+        "{transcript}"
+    );
+}
+
+/// What init prints when verification fails before it writes.
+const ASKED_BEFORE_WRITING: [&str; 2] = [
+    "Verification failed: ",
+    "Write the configuration anyway? [y/N]: ",
+];
+
+/// A reasoning model that spends the whole verification output budget
+/// thinking: reasoning deltas only, then an output-limit ending.
+const REASONING_HITS_THE_LIMIT: &str = concat!(
+    "data: {\"id\":\"gen-1\",\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\",\"reasoning\":\"thinking\"},\"finish_reason\":null}]}\n\n",
+    "data: {\"id\":\"gen-1\",\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"length\"}],\"usage\":{\"prompt_tokens\":12,\"completion_tokens\":128,\"total_tokens\":140}}\n\n",
+    "data: [DONE]\n\n",
+);
+
+#[test]
+fn init_verifies_a_reasoning_model_that_stops_at_the_output_limit() {
+    let fake = FakeProvider::sequence(vec![
+        Scenario::Status(200, MODELS),
+        Scenario::Sse(REASONING_HITS_THE_LIMIT),
+    ]);
+    let home = fresh_home();
+    let answers = local_answers(1, &fake.base_url(), "1\n\n\nn\ny\n");
+    let transcript = succeeded(&interactive(&home, "init", &answers));
+    assert!(
+        transcript.contains("Verified: the provider answered a minimal request."),
+        "{transcript}"
+    );
+    assert!(!transcript.contains("Verification failed"), "{transcript}");
+}
+
+#[test]
+fn a_failed_local_verification_asks_before_writing() {
+    for (decision, written) in [("n\n", false), ("y\nn\ny\n", true)] {
+        let fake =
+            FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Unauthorized]);
+        let home = fresh_home();
+        let answers = local_answers(1, &fake.base_url(), &format!("1\n\n\n{decision}"));
+        let output = interactive(&home, "init", &answers);
+        let transcript = stderr(&output);
+        for expected in ASKED_BEFORE_WRITING {
+            assert!(transcript.contains(expected), "{transcript}");
+        }
+        assert_eq!(output.status.success(), written, "{transcript}");
+        assert_eq!(home.join("config.toml").exists(), written);
+    }
+}
+
+#[test]
+fn init_end_of_input_cancels_at_every_local_prompt_without_writing() {
+    let mut prefix = String::new();
+    let answers = "8\n2\n{url}\n1\n\n\n";
+    for line in answers.split_inclusive('\n').chain(["unused\n"]) {
+        let fake =
+            FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Unauthorized]);
+        let home = fresh_home();
+        let transcript = failed(&interactive(
+            &home,
+            "init",
+            &prefix.replace("{url}", &fake.base_url()),
+        ));
+        assert!(transcript.ends_with(CANCELLED), "{prefix:?}: {transcript}");
+        assert!(!home.join("config.toml").exists());
+        prefix.push_str(line);
+    }
+}
+
+#[test]
+fn init_falls_back_to_manual_entry_when_the_list_fails() {
+    let fake = FakeProvider::sequence(vec![
+        Scenario::Status(500, r#"{"error":"down"}"#),
+        Scenario::Stream,
+    ]);
+    let home = fresh_home();
+    let answers = format!(
+        "9\nlocal\n{}\nLOCAL_API_KEY\ntyped-model\n\n\nn\ny\n",
+        fake.base_url()
+    );
+    let transcript = succeeded(&keyed(&home, &answers));
+    assert!(
+        transcript.contains("Cannot list models (provider returned HTTP status 500"),
+        "{transcript}"
+    );
+    assert!(transcript.contains("Model identifier (free text sent to the provider): "));
+    assert_eq!(fake.requests(2)[1].model, "typed-model");
+}
+
+#[test]
+fn init_asks_before_writing_after_a_failed_verification() {
+    for (decision, written) in [("n\n", false), ("y\nn\ny\n", true)] {
+        let fake =
+            FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Unauthorized]);
+        let home = fresh_home();
+        let answers = format!(
+            "9\nlocal\n{}\nLOCAL_API_KEY\n1\n\n\n{decision}",
+            fake.base_url()
+        );
+        let output = keyed(&home, &answers);
+        let transcript = stderr(&output);
+        for expected in ASKED_BEFORE_WRITING {
+            assert!(transcript.contains(expected), "{transcript}");
+        }
+        assert!(!transcript.contains(CREDENTIAL));
+        assert_eq!(output.status.success(), written, "{transcript}");
+        assert_eq!(home.join("config.toml").exists(), written);
+    }
+}
+
+#[test]
+fn init_adds_a_second_provider_with_its_own_profile() {
+    let fake = FakeProvider::sequence(vec![
+        Scenario::Status(200, MODELS),
+        Scenario::Stream,
+        Scenario::Status(200, MODELS),
+        Scenario::Stream,
+    ]);
+    let home = fresh_home();
+    let url = fake.base_url();
+    let answers = format!(
+        "9\nlocal\n{url}\nLOCAL_API_KEY\n1\n\n\ny\n9\nlocal\nsecond\n{url}\nLOCAL_API_KEY\n3\n\n\nn\ny\n"
+    );
+    let transcript = succeeded(&keyed(&home, &answers));
+    assert!(transcript.contains("That provider name is already used; choose another."));
+    assert!(transcript.contains("Profile name [second]: "));
+    let config = fs::read_to_string(home.join("config.toml")).unwrap();
+    for expected in [
+        "default_profile = \"default\"",
+        "[providers.local]",
+        "[providers.second]",
+        "[profiles.default]\nprovider = \"local\"\nmodel = \"fake-model\"",
+        "[profiles.second]\nprovider = \"second\"\nmodel = \"other-mini\"",
+    ] {
+        assert!(config.contains(expected), "{expected}: {config}");
+    }
+    assert_eq!(fake.requests(4).len(), 4);
+}
+
+#[test]
+fn init_end_of_input_cancels_at_every_keyed_prompt_without_writing() {
+    let answers = "9\nlocal\n{url}\nLOCAL_API_KEY\n1\n\n\n";
+    let mut prefix = String::new();
+    // The trailing entry makes the complete answers the last prefix tried.
+    for line in answers.split_inclusive('\n').chain(["unused\n"]) {
+        let fake =
+            FakeProvider::sequence(vec![Scenario::Status(200, MODELS), Scenario::Unauthorized]);
+        let home = fresh_home();
+        let input = prefix.replace("{url}", &fake.base_url());
+        let transcript = failed(&keyed(&home, &input));
+        assert!(transcript.ends_with(CANCELLED), "{input:?}: {transcript}");
+        assert!(!home.join("config.toml").exists());
+        prefix.push_str(line);
+    }
 }
 
 #[test]
 fn init_alias_i_creates_the_same_file() {
     let home = fresh_home();
-    let answers = "5\nlocal\nhttp://127.0.0.1:1/v1\nLOCAL_API_KEY\nfake-model\n\n\ny\n";
+    let answers = "9\nlocal\nhttp://127.0.0.1:1/v1\nLOCAL_API_KEY\nfake-model\n\n\nn\ny\n";
     succeeded(&interactive(&home, "i", answers));
     let written = fs::read_to_string(home.join("config.toml")).unwrap();
     assert!(written.contains("default_profile = \"default\""));
@@ -99,7 +540,7 @@ fn init_alias_i_creates_the_same_file() {
 #[test]
 fn init_keeps_the_default_system_prompt_when_the_answer_is_empty() {
     let home = fresh_home();
-    let answers = "5\nlocal\nhttp://127.0.0.1:1/v1\nLOCAL_API_KEY\nfake-model\n\n\ny\n";
+    let answers = "9\nlocal\nhttp://127.0.0.1:1/v1\nLOCAL_API_KEY\nfake-model\n\n\nn\ny\n";
     assert!(interactive(&home, "init", answers).status.success());
     let written = fs::read_to_string(home.join("config.toml")).unwrap();
     assert!(!written.contains("system_prompt"), "{written}");
@@ -116,7 +557,7 @@ fn init_has_no_all_default_mode() {
 #[test]
 fn init_end_of_input_cancels_with_nothing_written() {
     let home = fresh_home();
-    let answers = "5\nlocal\nhttp://127.0.0.1:1/v1\n";
+    let answers = "9\nlocal\nhttp://127.0.0.1:1/v1\n";
     let transcript = failed(&interactive(&home, "init", answers));
     assert!(transcript.ends_with(CANCELLED), "{transcript}");
     assert!(!home.join("config.toml").exists());
@@ -126,7 +567,7 @@ fn init_end_of_input_cancels_with_nothing_written() {
 fn init_asks_again_after_an_invalid_answer() {
     let home = fresh_home();
     let answers =
-        "5\nlocal\nnot-a-url\nhttp://127.0.0.1:1/v1\n9KEY\nLOCAL_API_KEY\nfake-model\n\n\ny\n";
+        "9\nlocal\nnot-a-url\nhttp://127.0.0.1:1/v1\n9KEY\nLOCAL_API_KEY\nfake-model\n\n\nn\ny\n";
     let transcript = succeeded(&interactive(&home, "init", answers));
     assert!(transcript.contains(
         "That value must be an http:// or https:// URL with a host, no embedded credentials, and no query or fragment component."
@@ -138,8 +579,15 @@ fn init_asks_again_after_an_invalid_answer() {
 #[test]
 fn init_openai_preset_writes_supported_kind_and_defaults() {
     let home = fresh_home();
-    let answers = "1\ngpt-5.6-luna\n\n\ny\n";
-    succeeded(&interactive(&home, "init", answers));
+    let answers = "1\ngpt-5.6-luna\n\n\nn\ny\n";
+    let transcript = succeeded(&interactive(&home, "init", answers));
+    assert!(transcript.contains(
+        "OPENAI_API_KEY is not set; continuing without a key, so the setup will not be verified."
+    ));
+    assert!(
+        !transcript.contains("published model list"),
+        "an empty {MODEL_LIST_URL} disables it: {transcript}"
+    );
     let written = fs::read_to_string(home.join("config.toml")).unwrap();
     assert!(written.contains("kind = \"openai\""));
     assert!(written.contains("base_url = \"https://api.openai.com/v1\""));
@@ -154,29 +602,14 @@ fn help_and_version_run_without_configuration() {
     assert!(
         String::from_utf8(help.stdout)
             .unwrap()
-            .contains("ask init creates the first configuration")
+            .contains("ask init creates the first configuration interactively or changes")
     );
     assert!(String::from_utf8_lossy(&help.stderr).is_empty());
 
     let version = command(&home, false).args(["--version"]).output().unwrap();
     assert!(version.status.success(), "{}", stderr(&version));
-    assert_eq!(String::from_utf8(version.stdout).unwrap(), "ask 0.1.0\n");
+    assert_eq!(String::from_utf8(version.stdout).unwrap(), "ask 0.2.0\n");
     assert!(String::from_utf8_lossy(&version.stderr).is_empty());
-}
-
-#[test]
-fn init_refuses_an_existing_configuration_and_points_at_apply() {
-    let home = fresh_home();
-    let path = home.join("config.toml");
-    fs::write(&path, "original = true\n").unwrap();
-    let transcript = failed(&interactive(&home, "init", ""));
-    assert!(
-        transcript.starts_with("ask: configuration already exists at '")
-            && transcript.ends_with("'ask configure apply' replaces regular files only\n"),
-        "{transcript}"
-    );
-    assert_eq!(transcript.lines().count(), 1);
-    assert_eq!(fs::read_to_string(&path).unwrap(), "original = true\n");
 }
 
 #[cfg(unix)]
@@ -209,7 +642,7 @@ fn symlink_destinations_are_refused_before_initialization_prompts() {
 fn init_failed_disk_write_leaves_no_config_and_allows_retry() {
     let home = fresh_home();
     let answers = format!(
-        "5\nlocal\nhttp://127.0.0.1:1/v1\nLOCAL_API_KEY\nfake-model\n{}\n\ny\n",
+        "9\nlocal\nhttp://127.0.0.1:1/v1\nLOCAL_API_KEY\nfake-model\n{}\n\nn\ny\n",
         "x".repeat(4096)
     );
     let transcript = failed(&drive(&mut write_limited(&home, &["init"]), &answers));
@@ -434,32 +867,18 @@ fn misused(output: &Output) -> String {
     refused(output, 2)
 }
 
+/// Runs `verb` with redirected `answers` and no credential in the environment.
 fn interactive(home: &Path, verb: &str, answers: &str) -> Output {
-    drive(command(home, true).arg(verb), answers)
+    drive(command(home, false).arg(verb), answers)
+}
+
+/// Runs `ask init` with redirected `answers` and the fixture credential set.
+fn keyed(home: &Path, answers: &str) -> Output {
+    drive(command(home, true).arg("init"), answers)
 }
 
 fn configure(home: &Path, arguments: &[&str], input: &str) -> Output {
     drive(command(home, false).args(arguments), input)
-}
-
-/// Runs the binary under a one-block file-size limit so any write beyond the
-/// first block fails. `SIGXFSZ` is ignored so the child reports the error itself.
-#[cfg(unix)]
-fn write_limited(home: &Path, arguments: &[&str]) -> Command {
-    let mut limited = Command::new("sh");
-    limited
-        .args([
-            "-c",
-            "trap '' XFSZ; ulimit -f 1; exec \"$@\"",
-            "write-limit",
-            env!("CARGO_BIN_EXE_ask"),
-        ])
-        .args(arguments)
-        .env("ASK_HOME", home)
-        .env_remove("LOCAL_API_KEY")
-        // The disk limit would also truncate this child's coverage profile.
-        .env("LLVM_PROFILE_FILE", "/dev/null");
-    limited
 }
 
 fn drive(command: &mut Command, input: &str) -> Output {
@@ -600,6 +1019,7 @@ fn synchronized_configuration_process_proofs() {
         "appeared",
         "exclusion",
         "init_interaction",
+        "edit_changed",
         "utf8",
     ] {
         let home = fresh_home();

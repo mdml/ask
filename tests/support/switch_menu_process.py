@@ -15,6 +15,13 @@ if not __debug__:
 signal.alarm(20)
 binary, home, scenario = sys.argv[1:]
 os.environ['ASK_HOME'] = home
+# No proof contacts the project's published model list.
+os.environ['ASK_MODEL_LIST_URL'] = ''
+# Proxy settings never reach ask, so requests to a loopback fake go direct.
+for variable in ('HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY'):
+    os.environ.pop(variable, None)
+    os.environ.pop(variable.lower(), None)
+os.environ['NO_PROXY'] = '127.0.0.1,localhost'
 os.environ['TERM'] = 'dumb' if scenario == 'dumb' else 'xterm-256color'
 master, slave = pty.openpty()
 termios.tcsetwinsize(slave, (6, 24) if scenario == 'viewport' else
@@ -51,6 +58,26 @@ def wait_for(predicate, transcript, description, timeout=5):
 
 def raw_mode(_transcript):
     return not termios.tcgetattr(slave)[3] & termios.ICANON
+
+
+def sampled(transcript, chunks, span=0.25):
+    """Writes `chunks` spread over `span` seconds, checking the terminal
+    attributes between writes and output reads: while the menu waits, the
+    terminal never echoes input or buffers lines."""
+    start = time.monotonic()
+    pending = list(chunks)
+    samples = 0
+    while pending or time.monotonic() - start < span or samples < 50:
+        local = termios.tcgetattr(slave)[3]
+        assert not local & (termios.ECHO | termios.ICANON), (samples, local, transcript)
+        assert child.poll() is None, ('sampling attributes', 'child exited', transcript)
+        samples += 1
+        written = len(chunks) - len(pending)
+        if pending and written < (time.monotonic() - start) / span * len(chunks):
+            os.write(master, pending.pop(0))
+        if select.select([master], [], [], 0.001)[0]:
+            transcript += os.read(master, 4096)
+    return transcript
 
 
 def finish(transcript, timeout=10):
@@ -122,7 +149,9 @@ try:
         out, transcript = finish(transcript)
         assert child.returncode == 0, (child.returncode, transcript)
         assert b'thread 1' in out, out
-    elif scenario == 'select':
+    elif scenario in ('select', 'held'):
+        if scenario == 'held':
+            transcript = sampled(transcript, [b'\x1b[B', b'\x1b[A'] * 4)
         os.write(master, b'\x1b[B\r')
         out, transcript = finish(transcript)
         assert child.returncode == 0, (child.returncode, transcript)

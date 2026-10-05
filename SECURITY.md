@@ -14,11 +14,16 @@ The project applies a higher-than-usual supply-chain bar because model-provider 
 
 - Direct dependencies are pinned exactly; transitive dependencies are locked in `Cargo.lock`.
 - Builds use `--locked` to enforce the lockfile.
+- `libc` 0.2.189 is a direct dependency only so that `src/terminal/attributes.rs` can hold the terminal in raw mode while an interactive menu or the hidden key prompt waits; the [libc direct-dependency note](docs/reviews/libc-direct-dependency.md) records that it was already in the locked closure. That module is the crate's only `unsafe` code. `Cargo.toml` denies `unsafe_code` and `unsafe_op_in_unsafe_fn` for every target, the module alone is allowed `unsafe` code (`tests/unsafe_boundary.rs` fails if any other source or test file sets an `unsafe_code` lint level), and Clippy's `undocumented_unsafe_blocks` requires a `SAFETY:` comment on each block.
 - `cargo-deny` enforces license, advisory, ban, and source policy (`deny.toml`).
 - GitHub Actions workflows pin third-party actions to full commit SHAs.
 - Dependency updates are reviewed and merged by the managing agent under the process below; no unattended automation merges them.
 
 The [nightly release workflow](.github/workflows/nightly-release.yml) and [stable release workflow](.github/workflows/stable-release.yml) produce checksummed archives with GitHub attestations after verification; see [docs/guides/stable-releases.md](docs/guides/stable-releases.md).
+
+## Network use
+
+- `ask` sends provider requests through a configured system proxy: the standard proxy variables or, on macOS, the system proxy settings. For an `https://` endpoint the proxy sees only the host it tunnels to; for an `http://` endpoint it sees the full request, including the credential and query content. Loopback addresses are not exempt unless `NO_PROXY` covers them; see [docs/reference/providers.md](docs/reference/providers.md).
 
 ## Dependency update process
 

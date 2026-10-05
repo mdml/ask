@@ -84,17 +84,32 @@ class Provider(http.server.ThreadingHTTPServer):
         self.requests = []
         self.authorizations = []
         self.answers = iter(ANSWERS)
+        self.listings = []
+        self.live_checks = []
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
+    def do_GET(self):
+        # `ask init` falls back to manual model entry when the list is unavailable.
+        self.server.listings.append((self.path, self.headers.get("Authorization")))
+        self.send_response(404)
+        self.send_header("Content-Length", "0")
+        self.send_header("Connection", "close")
+        self.end_headers()
+
     def do_POST(self):
         length = int(self.headers["Content-Length"])
         request = json.loads(self.rfile.read(length))
-        self.server.requests.append(request)
-        self.server.authorizations.append(self.headers.get("Authorization"))
-        answer = next(self.server.answers)
+        if request["messages"][-1]["content"] == "Reply with exactly: ok":
+            # `ask init` verification; it is not part of the query walkthrough.
+            self.server.live_checks.append(self.headers.get("Authorization"))
+            answer = "ok"
+        else:
+            self.server.requests.append(request)
+            self.server.authorizations.append(self.headers.get("Authorization"))
+            answer = next(self.server.answers)
         events = [
             {"id": "offline", "object": "chat.completion.chunk",
              "choices": [{"index": 0, "delta": {"content": answer}, "finish_reason": None}]},
@@ -223,25 +238,31 @@ def main():
         with tempfile.TemporaryDirectory(prefix="ask-offline-acceptance-") as temporary:
             home = pathlib.Path(temporary)
             env = {"PATH": os.defpath, "ASK_HOME": str(home),
-                   "LOCAL_API_KEY": "offline-fixture", "NO_PROXY": "127.0.0.1"}
+                   "LOCAL_API_KEY": "offline-fixture", "NO_PROXY": "127.0.0.1",
+                   "ASK_MODEL_LIST_URL": ""}
             if "LLVM_PROFILE_FILE" in os.environ:
                 env["LLVM_PROFILE_FILE"] = os.environ["LLVM_PROFILE_FILE"]
 
             with tempfile.TemporaryDirectory(prefix="ask-init-menu-") as init_temporary:
                 init_env = dict(env, ASK_HOME=init_temporary, TERM="xterm-256color")
                 init_answers = (f"local\nhttp://127.0.0.1:{provider.server_port}/v1\n"
-                                "LOCAL_API_KEY\nterse-model\nBe terse.\n\ny\n").encode()
-                init_stdout, _ = terminal_menu(binary, init_env, ("init",),
-                                               b"\x1b[B\x1b[B\x1b[B\x1b[B\r",
-                                               init_answers)
+                                "LOCAL_API_KEY\nterse-model\nBe terse.\n\nn\ny\n").encode()
+                init_stdout, init_transcript = terminal_menu(binary, init_env, ("init",),
+                                                             b"\x1b[B" * 8 + b"\r",
+                                                             init_answers)
                 assert not init_stdout
+                assert b"Verified: the provider answered" in init_transcript
+                assert b"offline-fixture" not in init_transcript
                 init_config = pathlib.Path(init_temporary, "config.toml").read_text()
                 assert 'kind = "openai-compatible"' in init_config
 
-            answers = (f"5\nlocal\nhttp://127.0.0.1:{provider.server_port}/v1\n"
-                       "LOCAL_API_KEY\nterse-model\nBe terse.\n\ny\n").encode()
+            answers = (f"9\nlocal\nhttp://127.0.0.1:{provider.server_port}/v1\n"
+                       "LOCAL_API_KEY\nterse-model\nBe terse.\n\nn\ny\n").encode()
             initialized = run(binary, env, "init", stdin=answers)
             assert not initialized.stdout
+            assert b"Verified: the provider answered" in initialized.stderr
+            assert provider.listings == [("/v1/models", "Bearer offline-fixture")] * 2
+            assert provider.live_checks == ["Bearer offline-fixture"] * 2
             candidate = home / "config.toml"
             checked = run(binary, env, "configure", "check", str(candidate))
             assert not checked.stdout and b"valid configuration" in checked.stderr

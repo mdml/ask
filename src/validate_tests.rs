@@ -256,3 +256,28 @@ fn history_expiry_values_are_validated() {
         .is_ok()
     );
 }
+
+const KEYLESS: &str = "api_key_env = \"LOCAL_API_KEY\"\n";
+
+#[test]
+fn only_the_openai_compatible_kind_may_omit_its_credential_variable() {
+    assert!(document(&CONFIG.replace(KEYLESS, "")).is_ok());
+    for kind in ["openai", "anthropic", "gemini", "openrouter"] {
+        let candidate = CONFIG
+            .replace(KEYLESS, "")
+            .replace("\"openai-compatible\"", &format!("\"{kind}\""));
+        assert_eq!(
+            problem(&candidate),
+            "providers[1].api_key_env is required unless kind is 'openai-compatible'"
+        );
+    }
+}
+
+#[test]
+fn an_empty_credential_variable_is_invalid_not_absent() {
+    let candidate = CONFIG.replace("\"LOCAL_API_KEY\"", "\"\"");
+    assert_eq!(
+        problem(&candidate),
+        format!("providers[1].api_key_env {ENV_VAR_RULE}")
+    );
+}

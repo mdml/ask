@@ -24,7 +24,7 @@ import time
 
 AGG_SHA256 = "ddcbf6ca044c8ac3a434dcb9ee89fb9e3be87209982b7c2adb55f782e8f0f390"
 FONT = pathlib.Path("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
-FONT_SHA256 = "c805f9436dbc268644c1d9584f01a601a653e028e08fd74b9b949f6cf8304d88"
+FONT_SHA256 = "a54dca07c76d6289e717e75e0a58c0128f6d7269ef3faf76417c9d7d3bba37ab"
 COLS = 88
 ROWS = 24
 ANSI = re.compile(rb"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
@@ -45,8 +45,9 @@ class Provider(http.server.ThreadingHTTPServer):
     def __init__(self):
         super().__init__(("127.0.0.1", 0), Handler)
         self.answers = iter((
-            "The median latency is 100 ms.",
-            "The 80 ms request was faster.",
+            "James K. Polk",
+            "Zachary Taylor, inaugurated in March 1849.",
+            "first line\nsecond line",
         ))
         self.requests = []
 
@@ -247,10 +248,11 @@ def record(binary, output_dir):
             config = (f'default_profile = "demo"\n\n[providers.fixture]\n'
                       f'kind = "openai-compatible"\nbase_url = "http://127.0.0.1:{provider.server_port}/v1"\n'
                       'api_key_env = "DEMO_API_KEY"\n\n[profiles.demo]\n'
-                      'provider = "fixture"\nmodel = "fixture-model"\nsystem_prompt = "Answer briefly."\n')
+                      'provider = "fixture"\nmodel = "demo-model"\nsystem_prompt = "Answer briefly."\n')
             (home / "config.toml").write_text(config, encoding="utf-8")
             env = {"PATH": f"{private_bin}:/usr/bin:/bin", "ASK_HOME": str(home),
                    "DEMO_API_KEY": "local-fixture", "NO_PROXY": "127.0.0.1",
+                   "ASK_MODEL_LIST_URL": "",
                    "HOME": temporary, "LANG": "C.UTF-8", "TERM": "xterm-256color",
                    "PS1": "$ "}
             if "LLVM_PROFILE_FILE" in os.environ:
@@ -272,13 +274,11 @@ def record(binary, output_dir):
             try:
                 phase = "shell startup"
                 read_until(master, events, started, decoder, b"$ ")
-                command = "# Deterministic local fixture; timings are not provider performance."
-                phase = f"command {command!r}"
-                enter_command(master, command, events, started, decoder)
                 commands = (
-                    "printf 'latency: 120ms\\nlatency: 80ms\\n' | ask 'Report the median latency'",
-                    "ask reply 'Which request was faster?'",
+                    "ask \"who was u.s. president in 1846\"",
+                    "ask r \"who came next?\"",
                     "ask thread",
+                    "printf '> first line\\n> second line\\n' | ask \"remove blockquoting from this text\"",
                 )
                 for command in commands:
                     phase = f"command {command!r}"
@@ -295,18 +295,18 @@ def record(binary, output_dir):
                 events.append([round(time.monotonic() - started, 6), "o", tail])
             if process.returncode != 0:
                 raise RuntimeError(f"demo shell exited {process.returncode}")
-            if len(provider.requests) != 2:
-                raise RuntimeError(f"expected two fixture requests, got {len(provider.requests)}")
+            if len(provider.requests) != 3:
+                raise RuntimeError(f"expected three fixture requests, got {len(provider.requests)}")
             reply_messages = provider.requests[1]["messages"]
-            if not any(message.get("content") == "The median latency is 100 ms."
-                       or message.get("content") == [{"type": "text", "text": "The median latency is 100 ms."}]
+            if not any(message.get("content") == "James K. Polk"
+                       or message.get("content") == [{"type": "text", "text": "James K. Polk"}]
                        for message in reply_messages):
                 raise RuntimeError("reply did not include the first fixture answer")
 
             header = {"version": 2, "width": COLS, "height": ROWS,
                       "env": {"SHELL": "/bin/bash", "TERM": "xterm-256color"},
                       "ask_binary_sha256": digest(binary),
-                      "title": "ask deterministic happy-path demo"}
+                      "title": "ask demo"}
             cast = output_dir / "demo.cast"
             with cast.open("w", encoding="utf-8", newline="\n") as target:
                 target.write(json.dumps(header, separators=(",", ":")) + "\n")

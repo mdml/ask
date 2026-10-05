@@ -73,6 +73,24 @@ fn live_doctor_checks_the_default_target_against_the_fake_provider() {
     assert_eq!(request.body["max_tokens"].as_u64(), Some(128));
 }
 
+/// A reasoning model that spends the whole live-check output budget
+/// thinking: reasoning deltas only, then an output-limit ending.
+const REASONING_HITS_THE_LIMIT: &str = concat!(
+    "data: {\"id\":\"gen-1\",\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\",\"reasoning\":\"thinking\"},\"finish_reason\":null}]}\n\n",
+    "data: {\"id\":\"gen-1\",\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"length\"}],\"usage\":{\"prompt_tokens\":12,\"completion_tokens\":128,\"total_tokens\":140}}\n\n",
+    "data: [DONE]\n\n",
+);
+
+#[test]
+fn live_doctor_counts_an_answer_stopped_at_the_output_limit_as_answered() {
+    let fake = FakeProvider::start(Scenario::Sse(REASONING_HITS_THE_LIMIT));
+    let home = configured(&fake, false);
+    let output = ask(&home, &["doctor", "--live"], true);
+    assert!(output.status.success(), "{}", stderr(&output));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("live: ok"), "{stdout}");
+}
+
 #[test]
 fn live_all_checks_every_distinct_provider_target() {
     let fake = FakeProvider::sequence(vec![Scenario::Answer("ok"), Scenario::Answer("ok")]);

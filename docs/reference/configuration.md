@@ -10,7 +10,9 @@
 | History and statistics database | `$ASK_HOME/data/ask.sqlite3` | `ask.sqlite3` in the platform-standard data directory |
 | Cache | `$ASK_HOME/cache` | the platform-standard cache directory |
 
-`ask doctor` prints every resolved path. Environment variables are used only for credentials and for the `ASK_HOME` path override; no environment variable changes any other setting.
+`ask doctor` prints every resolved path. `ASK_HOME` counts as set whenever it is present, even as an empty string. The home directory is `HOME`, or the user database entry when `HOME` is unset or empty. On Linux, the platform-standard directories are `ask` beneath `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, and `XDG_CACHE_HOME` when each is set to an absolute path, and otherwise beneath `.config`, `.local/share`, and `.cache` in the home directory; on macOS they are beneath the home directory.
+
+`ask` itself reads these environment variables: the credential variables named in the configuration; `ASK_HOME`, the path override; `TERM`, which decides whether [menus](commands.md#synopsis) are used; and `ASK_MODEL_LIST_URL`, which `ask init` alone reads to override the location of the [published model list](providers.md#published-model-list) (an empty or non-Unicode value disables it). No other variable changes a setting in this document. The platform and HTTP libraries `ask` uses honor further variables and settings, including these, though this list may not be complete: `HOME` and the `XDG_*` variables above, which locate the platform-standard directories when `ASK_HOME` is unset; the standard proxy variables `HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY`, and `NO_PROXY`, or their lowercase forms, and on macOS the system proxy settings, which route requests through a proxy (see [providers](providers.md#provider-kinds)); and on Linux `SSL_CERT_FILE` and `SSL_CERT_DIR`, which replace the system certificate locations used to verify `https://` endpoints.
 
 ## Example
 
@@ -52,7 +54,7 @@ Each `[providers.NAME]` table configures one endpoint. `NAME` must not be empty.
 |:--|:--|:--|:--|
 | `kind` | string | yes | One of `openai`, `anthropic`, `gemini`, `openrouter`, or `openai-compatible`; see the [provider reference](providers.md). |
 | `base_url` | string | yes | The prefix to which `ask` appends the API path. It must be an `http://` or `https://` URL with a host, no embedded username or password, and no query or fragment component, including an empty trailing `?` or `#`. |
-| `api_key_env` | string | yes | The name of the environment variable that supplies the credential: letters, digits, and underscores, not starting with a digit. `ask` never stores credential values. |
+| `api_key_env` | string | yes, except for `openai-compatible` | The name of the environment variable that supplies the credential: letters, digits, and underscores, not starting with a digit. An empty string is invalid, not absent. Only `kind = "openai-compatible"` may omit it, for a user-operated server that needs no key; a target without it reads no environment variable and sends the placeholder described in [keyless targets](providers.md#keyless-targets). `ask` never stores credential values. |
 | `timeout_ms` | positive integer | no | Request timeout in milliseconds. Defaults to `30000` (30 seconds). |
 
 ## Profiles
@@ -79,6 +81,7 @@ Display settings are not implemented.
 - rejects any key that is not part of the schema, at every level of the document;
 - validates every provider and every profile, not only the ones the default profile selects;
 - requires every profile to reference a configured provider, and `default_profile` to name a configured profile;
+- requires `api_key_env` on every provider whose `kind` is not `openai-compatible`;
 - enforces the type, range, and format rules in the tables above.
 
 Validation diagnostics contain only schema field names and error categories, with one-based entry and key indexes in sorted key order. They never echo candidate-controlled keys, provider or profile names, reference values, or parser messages. Invalid TOML syntax reports a one-based line and column instead.

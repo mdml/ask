@@ -40,7 +40,7 @@ fn target(model: &str) -> Target {
         profile: "default".to_string(),
         kind: "openai-compatible".to_string(),
         base_url: "http://127.0.0.1:1/v1".to_string(),
-        api_key_env: "LOCAL_API_KEY".to_string(),
+        api_key_env: Some("LOCAL_API_KEY".to_string()),
         timeout_ms: 41,
         model: model.to_string(),
         system_prompt: "Be brief.".to_string(),
@@ -152,7 +152,7 @@ fn creates_the_schema_with_owner_only_permissions() {
     assert_eq!(
         (pragmas(&store), counts(&store), modes(&path)),
         (
-            (4, "delete".to_string(), 2, 1, 1_000),
+            (5, "delete".to_string(), 2, 1, 1_000),
             vec![0; 6],
             (0o600, 0o700)
         )
@@ -174,7 +174,7 @@ fn existing_permissions_are_left_alone() {
 #[test]
 fn newer_and_foreign_databases_are_refused_without_writing() {
     for (setup, expected) in [
-        ("PRAGMA user_version = 5;", "schema version 5 is newer"),
+        ("PRAGMA user_version = 6;", "schema version 6 is newer"),
         (
             "PRAGMA user_version = -1;",
             "unrecognized schema version -1",
@@ -213,7 +213,7 @@ fn simultaneous_first_runs_create_the_schema_once() {
             opener.join().unwrap().unwrap();
         }
         let store = Store::open(&path).unwrap();
-        assert_eq!(scalar::<i64>(&store, "PRAGMA user_version"), 4);
+        assert_eq!(scalar::<i64>(&store, "PRAGMA user_version"), 5);
         assert_eq!(counts(&store), vec![0; 6]);
     }
 }
@@ -270,7 +270,7 @@ fn version_1_snapshots_migrate_without_an_output_limit() {
         opener.join().unwrap().unwrap();
     }
     let mut store = Store::open(&path).unwrap();
-    assert_eq!(scalar::<i64>(&store, "PRAGMA user_version"), 4);
+    assert_eq!(scalar::<i64>(&store, "PRAGMA user_version"), 5);
     let thread = store.current().unwrap().unwrap();
     assert_eq!(thread.id, 7);
     assert_eq!(thread.target, target("old-model"));
@@ -563,7 +563,7 @@ fn a_version_one_database_is_upgraded_in_place() {
             current.history.len(),
             current.target.max_output_tokens
         ),
-        (4, vec![1, 1, 1, 1, 1, 0], 1, None)
+        (5, vec![1, 1, 1, 1, 1, 0], 1, None)
     );
 }
 
@@ -600,7 +600,7 @@ fn recall_version_two_preserves_highwater_and_migrates() {
             thread.target.max_output_tokens,
             scalar::<i64>(&store, "SELECT highest_thread_id FROM history_expiry")
         ),
-        (4, 9, "kept-model", None, 8)
+        (5, 9, "kept-model", None, 8)
     );
     store
         .record(&record(&thread.target, None, complete("after", "a")))
@@ -1103,7 +1103,7 @@ fn health_observations_record_source() {
 }
 
 #[test]
-fn version_three_databases_migrate_to_four() {
+fn version_three_databases_migrate_to_current() {
     let path = scratch();
     fs::create_dir_all(path.parent().unwrap()).unwrap();
     Connection::open(&path)
@@ -1120,7 +1120,7 @@ fn version_three_databases_migrate_to_four() {
         .unwrap();
     let before = fs::read(&path).unwrap();
     let store = Store::open(&path).unwrap();
-    assert_eq!(scalar::<i64>(&store, "PRAGMA user_version"), 4);
+    assert_eq!(scalar::<i64>(&store, "PRAGMA user_version"), 5);
     assert!(fs::read(&path).unwrap().len() >= before.len());
     assert_eq!(
         scalar::<i64>(
@@ -1129,6 +1129,59 @@ fn version_three_databases_migrate_to_four() {
         ),
         1
     );
+}
+
+/// The version 4 schema with one thread and a turn, as the previous release wrote it.
+const VERSION_4: &str = "
+CREATE TABLE threads (id INTEGER PRIMARY KEY, created_at_ms INTEGER NOT NULL, profile TEXT NOT NULL, provider_kind TEXT NOT NULL, base_url TEXT NOT NULL, model TEXT NOT NULL, system_prompt TEXT NOT NULL, timeout_ms INTEGER NOT NULL CHECK (timeout_ms > 0), api_key_env TEXT NOT NULL, max_output_tokens INTEGER CHECK (max_output_tokens > 0));
+CREATE TABLE turns (id INTEGER PRIMARY KEY, thread_id INTEGER NOT NULL REFERENCES threads (id) ON DELETE CASCADE, ordinal INTEGER NOT NULL CHECK (ordinal > 0), created_at_ms INTEGER NOT NULL, prompt TEXT NOT NULL, answer TEXT NOT NULL, status TEXT NOT NULL CHECK (status IN ('complete', 'partial')), reason TEXT CHECK ((status = 'complete') = (reason IS NULL)), UNIQUE (thread_id, ordinal));
+CREATE TABLE current_thread (singleton INTEGER PRIMARY KEY CHECK (singleton = 1), thread_id INTEGER NOT NULL REFERENCES threads (id) ON DELETE CASCADE);
+CREATE TABLE query_statistics (id INTEGER PRIMARY KEY, started_at_ms INTEGER NOT NULL, command TEXT NOT NULL CHECK (command IN ('new', 'reply')), profile TEXT NOT NULL, provider_kind TEXT NOT NULL, base_url TEXT NOT NULL, model TEXT NOT NULL, outcome TEXT NOT NULL CHECK (outcome IN ('complete', 'partial', 'failed')), error_class TEXT, wall_ms INTEGER NOT NULL, api_ms INTEGER NOT NULL, first_token_ms INTEGER, input_tokens INTEGER, output_tokens INTEGER);
+CREATE TABLE provider_health (provider_kind TEXT NOT NULL, base_url TEXT NOT NULL, model TEXT NOT NULL, last_success_at_ms INTEGER, last_success_source TEXT, last_failure_at_ms INTEGER, last_failure_class TEXT, last_failure_source TEXT, PRIMARY KEY (provider_kind, base_url, model)) WITHOUT ROWID;
+CREATE TABLE history_expiry (singleton INTEGER PRIMARY KEY CHECK (singleton = 1), threads_cleared INTEGER NOT NULL CHECK (threads_cleared >= 0), last_cleared_at_ms INTEGER NOT NULL, highest_thread_id INTEGER NOT NULL CHECK (highest_thread_id >= 0));
+INSERT INTO threads VALUES (3, 1, 'default', 'openai-compatible', 'http://127.0.0.1:1/v1', 'kept-model', 'Be brief.', 41, 'LOCAL_API_KEY', 64);
+INSERT INTO turns VALUES (1, 3, 1, 1, 'kept', 'answer', 'complete', NULL);
+INSERT INTO current_thread VALUES (1, 3);
+PRAGMA user_version = 4;
+";
+
+#[test]
+fn version_four_databases_keep_their_threads_and_turns_through_the_rebuild() {
+    let path = scratch();
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    Connection::open(&path)
+        .unwrap()
+        .execute_batch(VERSION_4)
+        .unwrap();
+    let mut store = Store::open(&path).unwrap();
+    let thread = store.current().unwrap().unwrap();
+    assert_eq!(scalar::<i64>(&store, "PRAGMA user_version"), 5);
+    assert_eq!(scalar::<i64>(&store, "PRAGMA foreign_keys"), 1);
+    assert_eq!(
+        (
+            thread.id,
+            thread.history.len(),
+            thread.target.max_output_tokens
+        ),
+        (3, 1, Some(64))
+    );
+    assert_eq!(thread.target.api_key_env.as_deref(), Some("LOCAL_API_KEY"));
+    store
+        .record(&record(&thread.target, Some(3), complete("more", "a")))
+        .unwrap();
+    assert_eq!(counts(&store), vec![1, 2, 1, 1, 1, 0]);
+}
+
+#[test]
+fn a_keyless_thread_snapshot_is_stored_and_read_back() {
+    let path = scratch();
+    let mut store = Store::open(&path).unwrap();
+    let mut keyless = target("local");
+    keyless.api_key_env = None;
+    store
+        .record(&record(&keyless, None, complete("q", "a")))
+        .unwrap();
+    assert_eq!(store.current().unwrap().unwrap().target, keyless);
 }
 
 fn sidecar_present(path: &Path, suffix: &str) -> bool {

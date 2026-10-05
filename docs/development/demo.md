@@ -1,6 +1,6 @@
 # Terminal demo
 
-The README terminal demo is a repeatable presentation fixture, not provider-speed evidence. `scripts/demo.py` runs the exact supplied, already-built executable as `ask` in a Python standard-library pseudo-terminal against a loopback-only fake OpenAI-compatible provider. The fixture supplies the captioned answers; `ask` supplies all command output, history, statistics, and terminal presentation. Recorded event times reflect the individual run and can vary.
+The README terminal demo is a repeatable presentation fixture, not provider-speed evidence. `scripts/demo.py` runs the exact supplied, already-built executable as `ask` in a Python standard-library pseudo-terminal against a loopback-only fake OpenAI-compatible provider. The recording asks a question, replies with `ask r`, shows `ask thread`, then pipes blockquoted text into `ask`. The fixture supplies the answers under the model name `demo-model`; `ask` supplies all command output, history, statistics, and terminal presentation. Recorded event times reflect the individual run and can vary.
 
 The recorder writes asciicast v2 terminal bytes with measured event times to `docs/assets/demo/demo.cast` and derives `docs/assets/demo/demo.txt` from the same byte stream by removing ANSI control sequences and trailing whitespace. It renders `docs/assets/demo/demo.gif` only when an approved renderer is supplied. Generated artifacts contain no credentials, machine-specific paths, or hostnames.
 
@@ -25,6 +25,6 @@ Rendering uses `agg` 1.9.0 from release source commit `26ca84c02523973198fca2853
 python3 scripts/demo.py <path-to-final-ask> --agg <path-to-approved-agg>
 ```
 
-The render uses DejaVu Sans Mono Book 2.37 from Debian package `fonts-dejavu-core` version `2.37-8`, SHA-256 `c805f9436dbc268644c1d9584f01a601a653e028e08fd74b9b949f6cf8304d88`, at 16 px. The recorder finds the font in the system font directory. The cast header records the supplied `ask` binary's SHA-256. The [dependency review](../reviews/agg-1.9.0.md) records the accepted limitations.
+The render uses DejaVu Sans Mono Book 2.37 from Ubuntu 26.04 package `fonts-dejavu-core` version `2.37-8build1`, SHA-256 `a54dca07c76d6289e717e75e0a58c0128f6d7269ef3faf76417c9d7d3bba37ab`, at 16 px. The recorder finds the font in the system font directory. The cast header records the supplied `ask` binary's SHA-256. The [dependency review](../reviews/agg-1.9.0.md) records the accepted limitations.
 
 The renderer binary is local tooling and must never be added to the repository. Do not replace it or download another asset without a new security review.

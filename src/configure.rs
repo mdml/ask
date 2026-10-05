@@ -169,6 +169,47 @@ fn publish(destination: &Path, temporary: &Path, replacing: bool) -> Result<(), 
     })
 }
 
+/// An installed configuration as `ask init` read it, kept so a later
+/// replacement can refuse a file that changed in the meantime.
+pub(crate) struct Installed {
+    pub(crate) text: String,
+    snapshot: Snapshot,
+}
+
+/// Reads the installed regular file that `ask init` is about to change.
+pub(crate) fn read_installed(destination: &Path) -> Result<Installed, String> {
+    let snapshot = current(destination)?.ok_or_else(|| {
+        format!(
+            "cannot read '{}': it no longer exists",
+            destination.display()
+        )
+    })?;
+    let text = String::from_utf8(snapshot.bytes.clone()).map_err(|_| {
+        format!(
+            "cannot read '{}': it is not valid UTF-8",
+            destination.display()
+        )
+    })?;
+    Ok(Installed { text, snapshot })
+}
+
+/// Replaces the file `ask init` read under the same lock, snapshot check, and
+/// atomic rename as [`apply`], unless it changed after it was read.
+pub(crate) fn replace_installed(
+    destination: &Path,
+    contents: &[u8],
+    read: Installed,
+) -> Result<(), String> {
+    let _lock = publication_lock(destination).map_err(|error| cannot_write(destination, &error))?;
+    if !same(Some(&read.snapshot), current(destination)?.as_ref()) {
+        return Err(format!(
+            "'{}' changed after init read it; nothing was written",
+            destination.display()
+        ));
+    }
+    install(destination, contents, Some(read.snapshot)).map(drop)
+}
+
 /// Initialization participates in the same lock and never replaces a destination.
 pub(crate) fn create_new(destination: &Path, contents: &[u8]) -> Result<(), WriteError> {
     let _lock = publication_lock(destination)?;

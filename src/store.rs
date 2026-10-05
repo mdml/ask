@@ -30,7 +30,7 @@ use crate::{
 #[path = "store_recall.rs"]
 mod recall;
 
-const SCHEMA_VERSION: i64 = 4;
+const SCHEMA_VERSION: i64 = 5;
 const DAY_MS: i64 = 86_400_000;
 const BUSY_TIMEOUT: Duration = Duration::from_millis(1_000);
 
@@ -46,7 +46,7 @@ CREATE TABLE threads (
     model TEXT NOT NULL,
     system_prompt TEXT NOT NULL,
     timeout_ms INTEGER NOT NULL CHECK (timeout_ms > 0),
-    api_key_env TEXT NOT NULL,
+    api_key_env TEXT,
     max_output_tokens INTEGER CHECK (max_output_tokens > 0)
 );
 CREATE TABLE turns (
@@ -97,7 +97,7 @@ CREATE TABLE history_expiry (
     last_cleared_at_ms INTEGER NOT NULL,
     highest_thread_id INTEGER NOT NULL CHECK (highest_thread_id >= 0)
 );
-PRAGMA user_version = 4;
+PRAGMA user_version = 5;
 ";
 
 // Version 2 adds the text-free count of threads removed by history expiry and
@@ -125,6 +125,29 @@ const MIGRATE_3_TO_4: &str = "
 ALTER TABLE provider_health ADD COLUMN last_success_source TEXT;
 ALTER TABLE provider_health ADD COLUMN last_failure_source TEXT;
 PRAGMA user_version = 4;
+";
+
+// Version 5 lets a thread snapshot a target with no credential variable, so
+// `api_key_env` becomes nullable. SQLite cannot drop NOT NULL in place; the
+// table is rebuilt with foreign keys off (see `create_schema`) so the rebuild
+// cannot cascade into turns.
+const MIGRATE_4_TO_5: &str = "
+CREATE TABLE threads_v5 (
+    id INTEGER PRIMARY KEY,
+    created_at_ms INTEGER NOT NULL,
+    profile TEXT NOT NULL,
+    provider_kind TEXT NOT NULL,
+    base_url TEXT NOT NULL,
+    model TEXT NOT NULL,
+    system_prompt TEXT NOT NULL,
+    timeout_ms INTEGER NOT NULL CHECK (timeout_ms > 0),
+    api_key_env TEXT,
+    max_output_tokens INTEGER CHECK (max_output_tokens > 0)
+);
+INSERT INTO threads_v5 SELECT id, created_at_ms, profile, provider_kind, base_url, model, system_prompt, timeout_ms, api_key_env, max_output_tokens FROM threads;
+DROP TABLE threads;
+ALTER TABLE threads_v5 RENAME TO threads;
+PRAGMA user_version = 5;
 ";
 
 const EXPIRE_THREADS: &str = "DELETE FROM threads WHERE coalesce((SELECT max(created_at_ms) FROM turns WHERE turns.thread_id = threads.id), created_at_ms) < ?1";
@@ -274,14 +297,15 @@ impl Store {
     fn configure(mut connection: Connection) -> Result<Self, Box<dyn Error>> {
         connection.busy_timeout(BUSY_TIMEOUT)?;
         let version = supported(user_version(&connection)?)?;
-        connection.pragma_update(None, "foreign_keys", true)?;
         connection.pragma_update(None, "synchronous", "FULL")?;
         connection.pragma_update_and_check(None, "journal_mode", "DELETE", |row| {
             row.get::<_, String>(0)
         })?;
         if version != SCHEMA_VERSION {
+            connection.pragma_update(None, "foreign_keys", false)?;
             create_schema(&mut connection)?;
         }
+        connection.pragma_update(None, "foreign_keys", true)?;
         Ok(Self { connection })
     }
 
@@ -657,6 +681,7 @@ fn create_schema(connection: &mut Connection) -> Result<(), Box<dyn Error>> {
             transaction.execute_batch(MIGRATE_1_TO_2)?;
             transaction.execute_batch(MIGRATE_2_TO_3)?;
             transaction.execute_batch(MIGRATE_3_TO_4)?;
+            transaction.execute_batch(MIGRATE_4_TO_5)?;
         }
         2 => {
             if !table_exists(&transaction, "history_expiry")? {
@@ -672,10 +697,13 @@ fn create_schema(connection: &mut Connection) -> Result<(), Box<dyn Error>> {
             }
             transaction.execute_batch(MIGRATE_2_TO_3)?;
             transaction.execute_batch(MIGRATE_3_TO_4)?;
+            transaction.execute_batch(MIGRATE_4_TO_5)?;
         }
         3 => {
             transaction.execute_batch(MIGRATE_3_TO_4)?;
+            transaction.execute_batch(MIGRATE_4_TO_5)?;
         }
+        4 => transaction.execute_batch(MIGRATE_4_TO_5)?,
         _ => (),
     }
     transaction.commit()?;

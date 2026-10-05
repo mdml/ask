@@ -98,6 +98,9 @@ pub const KINDS: [(&str, Kind); 5] = [
 /// requires one.
 pub const REQUIRED_MAX_OUTPUT_TOKENS: u64 = 4_096;
 
+/// The `anthropic-version` header value Rig sends with Anthropic requests.
+pub const ANTHROPIC_VERSION: &str = anthropic::completion::ANTHROPIC_VERSION_LATEST;
+
 impl Kind {
     pub fn parse(name: &str) -> Option<Self> {
         KINDS
@@ -117,16 +120,21 @@ impl Kind {
     }
 }
 
+/// The bearer value sent for a target with no credential. Rig always sends an
+/// `Authorization` header, so a keyless target sends this fixed, non-secret
+/// placeholder, which servers that need no key ignore.
+pub const NO_KEY_PLACEHOLDER: &str = "no-key";
+
 pub struct RigProvider {
     kind: Option<Kind>,
     base_url: String,
-    credential: String,
+    credential: Option<String>,
     model: String,
     max_output_tokens: Option<u64>,
 }
 
 impl RigProvider {
-    pub fn new(target: &Target, credential: String) -> Self {
+    pub fn new(target: &Target, credential: Option<String>) -> Self {
         Self {
             kind: Kind::parse(&target.kind),
             base_url: target.base_url.clone(),
@@ -136,8 +144,13 @@ impl RigProvider {
         }
     }
 
+    /// The text to redact from diagnostics: empty, so nothing, without a credential.
+    fn secret(&self) -> &str {
+        self.credential.as_deref().unwrap_or_default()
+    }
+
     fn error(&self, error: impl std::fmt::Display) -> ProviderError {
-        redact(error, &self.credential)
+        redact(error, self.secret())
     }
 
     async fn open(
@@ -146,7 +159,8 @@ impl RigProvider {
         request: Request<'_>,
     ) -> Result<StreamingCompletionResponse, ProviderError> {
         let http = http_client().map_err(|error| self.error(error))?;
-        let (key, url) = (self.credential.as_str(), self.base_url.as_str());
+        let key = self.credential.as_deref().unwrap_or(NO_KEY_PLACEHOLDER);
+        let url = self.base_url.as_str();
         let limit = kind.max_output_tokens(self.max_output_tokens);
         let result = match kind {
             Kind::OpenAi => {
@@ -202,7 +216,7 @@ impl PromptProvider for RigProvider {
                 return self.gemini(request).await;
             }
             let stream = self.open(kind, request).await?;
-            let credential = self.credential.clone();
+            let credential = self.secret().to_string();
             Ok(Box::pin(stream.map(move |item| {
                 item.map_err(|error| redact(error, &credential))
                     .and_then(event)
@@ -220,7 +234,7 @@ impl RigProvider {
             "{}/v1beta/models/{}:streamGenerateContent?alt=sse&key={}",
             self.base_url.trim_end_matches('/'),
             path_segment(&self.model),
-            path_segment(&self.credential)
+            path_segment(self.secret())
         );
         let response = client
             .post(url)
@@ -234,7 +248,7 @@ impl RigProvider {
                 response.status()
             )));
         }
-        let credential = self.credential.clone();
+        let credential = self.secret().to_string();
         let events = response
             .bytes_stream()
             .map(Some)
@@ -477,15 +491,49 @@ async fn stream<M: CompletionModel + Clone>(
 
 /// Refuses redirects so the credential and query content reach only the
 /// configured endpoint; a redirect response surfaces as a provider failure.
-fn http_client() -> reqwest::Result<reqwest::Client> {
+pub(crate) fn http_client() -> reqwest::Result<reqwest::Client> {
     reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .build()
 }
 
+/// Why a [`bounded_get`] returned no body; each caller words it.
+pub(crate) enum GetError {
+    Transport(reqwest::Error),
+    Status(reqwest::StatusCode),
+    TooLarge,
+}
+
+/// The body of a successful `GET url` with `headers`, within `timeout` per
+/// request and at most `max_bytes` long.
+pub(crate) async fn bounded_get(
+    client: &reqwest::Client,
+    url: &str,
+    headers: &[(&str, String)],
+    timeout: std::time::Duration,
+    max_bytes: usize,
+) -> Result<Vec<u8>, GetError> {
+    let mut builder = client.get(url).timeout(timeout);
+    for (name, value) in headers {
+        builder = builder.header(*name, value);
+    }
+    let mut response = builder.send().await.map_err(GetError::Transport)?;
+    if !response.status().is_success() {
+        return Err(GetError::Status(response.status()));
+    }
+    let mut body = Vec::new();
+    while let Some(chunk) = response.chunk().await.map_err(GetError::Transport)? {
+        if body.len() + chunk.len() > max_bytes {
+            return Err(GetError::TooLarge);
+        }
+        body.extend_from_slice(&chunk);
+    }
+    Ok(body)
+}
+
 /// Percent-encodes every byte outside RFC 3986's unreserved set, so a value
 /// stays one URL path segment or query value whatever characters it holds.
-fn path_segment(value: &str) -> String {
+pub(crate) fn path_segment(value: &str) -> String {
     value.bytes().fold(String::new(), |mut encoded, byte| {
         if byte.is_ascii_alphanumeric() || b"-._~".contains(&byte) {
             encoded.push(char::from(byte));
@@ -541,7 +589,7 @@ fn usage(value: rig_core::completion::Usage) -> Option<Usage> {
 /// Replaces every occurrence of the credential, whether it appears verbatim or
 /// percent-encoded (in any mix of encoded and literal bytes, either hex case,
 /// or with `+` for a space), as it can inside a URL quoted by an HTTP error.
-fn redact(error: impl std::fmt::Display, credential: &str) -> ProviderError {
+pub(crate) fn redact(error: impl std::fmt::Display, credential: &str) -> ProviderError {
     let message = error.to_string();
     if credential.is_empty() {
         return ProviderError(message);
@@ -695,13 +743,13 @@ mod tests {
             profile: "default".to_string(),
             kind: "retired-kind".to_string(),
             base_url: "http://127.0.0.1:1/v1".to_string(),
-            api_key_env: "KEY".to_string(),
+            api_key_env: Some("KEY".to_string()),
             timeout_ms: 1,
             model: "m".to_string(),
             system_prompt: String::new(),
             max_output_tokens: None,
         };
-        let provider = RigProvider::new(&target, "secret".to_string());
+        let provider = RigProvider::new(&target, Some("secret".to_string()));
         let request = Request {
             prompt: "q",
             system_prompt: "",
@@ -709,6 +757,26 @@ mod tests {
         };
         let error = provider.start(request).await.err().unwrap();
         assert_eq!(error.to_string(), "unsupported provider kind");
+    }
+
+    #[test]
+    fn the_keyless_placeholder_is_not_redacted() {
+        let provider = RigProvider::new(&keyless_target(), None);
+        let error = provider.error(format!("sent Bearer {NO_KEY_PLACEHOLDER}"));
+        assert_eq!(error.to_string(), "sent Bearer no-key");
+    }
+
+    fn keyless_target() -> Target {
+        Target {
+            profile: "default".to_string(),
+            kind: "openai-compatible".to_string(),
+            base_url: "http://127.0.0.1:1/v1".to_string(),
+            api_key_env: None,
+            timeout_ms: 1,
+            model: "m".to_string(),
+            system_prompt: String::new(),
+            max_output_tokens: None,
+        }
     }
 
     #[test]

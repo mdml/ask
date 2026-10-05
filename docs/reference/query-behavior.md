@@ -61,13 +61,28 @@ A streaming failure or explicit provider refusal preserves any text already deli
 
 If the stdout reader closes early, `ask` exits 0 without a diagnostic, unless the provider had already failed or recording the partial turn fails; either of those exits 1 with its diagnostic on stderr.
 
+### Inline reasoning
+
+Some models, mostly local ones, put their reasoning at the start of the answer text as `<think>...</think>`. That block is not part of the answer: it is not written to stdout, not recorded in the turn, and not sent as context in replies. `ask thread` therefore never shows it. Turns recorded before this rule are not rewritten. Reasoning that a provider streams in a separate field is handled as described in [reasoning output](providers.md#reasoning-output).
+
+The rule is applied to answer text from every provider kind:
+
+1. A block is removed only when the answer begins with it: optional leading ASCII whitespace, the opening tag `<think>`, everything through the first closing tag `</think>`, and the ASCII whitespace that follows the closing tag. Tag names match ignoring ASCII case. A second opening tag inside the block does not nest; the first closing tag ends it.
+2. Text after the block is the answer and is passed through unchanged, byte for byte, including any later `<think>` block.
+3. An answer that does not begin with the opening tag is passed through with no bytes changed, and `<think>` anywhere other than the very start of the answer is ordinary text. A stream is held back only while its bytes could still be leading whitespace or the opening tag; as soon as the tag is ruled out, everything held is written and the text is no longer inspected. Either tag may be split across stream chunks.
+4. While inside the block nothing is written. After the closing tag and the whitespace that follows it, the rest streams normally.
+5. If the stream ends, fails, or stops at the output-token limit inside an unclosed block, the answer is empty and the reasoning is printed nowhere, including stderr. The ending is otherwise handled as for an empty answer: a normal ending is a complete turn with an empty answer, and an output-token-limit ending keeps its warning and partial status.
+6. If the stream ends while bytes are still held because they could have begun a tag, such as an answer that is only `<thi`, they are ordinary answer text and are written.
+
+The statistics line reports provider-reported token counts and measured timings unchanged. Time to first token is measured to the first text chunk received from the provider, whether that chunk is reasoning that is then removed or answer text.
+
 ## Threads and replies
 
 `ask`, `ask new`, and `ask n` start a new thread. `ask reply` and `ask r` continue the current thread from a separate process.
 
-A thread keeps the profile resolved when the thread was created: profile name, provider kind, base URL, model, system prompt, `max_output_tokens` when the profile set one, timeout, and the name of the credential environment variable, never its value. Replies use that snapshot even after the configuration changes, and they work when the installed configuration is missing or invalid; they need only the credential environment variable that the snapshot names. Threads recorded before profiles could set `max_output_tokens` have no limit in their snapshot, so their replies follow the [omitted-limit rule](providers.md#output-token-limit).
+A thread keeps the profile resolved when the thread was created: profile name, provider kind, base URL, model, system prompt, `max_output_tokens` when the profile set one, timeout, and the name of the credential environment variable (or that it has none), never its value. Replies use that snapshot even after the configuration changes, and they work when the installed configuration is missing or invalid; they need only the credential environment variable that the snapshot names, and none when the snapshot has none. Threads recorded before profiles could set `max_output_tokens` have no limit in their snapshot, so their replies follow the [omitted-limit rule](providers.md#output-token-limit).
 
-A reply sends the system prompt, then each earlier complete turn of the thread in order as a user message followed by an assistant message, then the new prompt. The assistant message is the raw answer text the provider returned, without the final-newline normalization that `ask` applies on stdout. Partial turns are stored but never sent as context.
+A reply sends the system prompt, then each earlier complete turn of the thread in order as a user message followed by an assistant message, then the new prompt. The assistant message is the answer text recorded for the turn, without the final-newline normalization that `ask` applies on stdout. Partial turns are stored but never sent as context.
 
 The current thread is global to the data directory. A thread becomes current when the command that created or continued it records its turn, or when `ask switch` selects it; when commands overlap, the last to finish wins. A reply reads its thread when it starts, before any input prompt, and appends only to that thread, even if `ask switch` selects another thread while the reply waits for input.
 

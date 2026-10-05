@@ -33,7 +33,7 @@ pub struct Query<'a> {
 struct Session {
     store: Store,
     target: Target,
-    credential: String,
+    credential: Option<String>,
     thread: Option<i64>,
     history: Vec<Exchange>,
     retention: Retention,
@@ -112,7 +112,7 @@ fn fresh(profile: Option<&str>) -> Result<Session, String> {
             .map_err(|error| error.to_string())?,
         None => config.resolve().map_err(|error| error.to_string())?,
     };
-    let credential = credential(&target.api_key_env)?;
+    let credential = credential(target.api_key_env.as_deref())?;
     Ok(Session {
         store: open()?,
         target,
@@ -137,7 +137,7 @@ fn continued() -> Result<Session, String> {
         .current()
         .map_err(|error| error.to_string())?
         .ok_or_else(|| NO_CURRENT_THREAD.to_string())?;
-    let credential = credential(&thread.target.api_key_env)?;
+    let credential = credential(thread.target.api_key_env.as_deref())?;
     Ok(Session {
         store,
         target: thread.target,

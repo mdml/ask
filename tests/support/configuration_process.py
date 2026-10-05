@@ -14,6 +14,14 @@ signal.alarm(20)
 binary, home, scenario = sys.argv[1:]
 home = pathlib.Path(home)
 os.environ['ASK_HOME'] = str(home)
+# No proof contacts the project's published model list.
+os.environ['ASK_MODEL_LIST_URL'] = ''
+# Proxy settings never reach ask, so requests to a loopback fake go direct.
+for variable in ('HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY'):
+    os.environ.pop(variable, None)
+    os.environ.pop(variable.lower(), None)
+os.environ['NO_PROXY'] = '127.0.0.1,localhost'
+os.environ.pop('KEY', None)
 candidate = (home / 'candidate.toml').read_bytes()
 destination = home / 'config.toml'
 
@@ -62,7 +70,7 @@ elif scenario in ('content', 'identity', 'appeared'):
 elif scenario == 'exclusion':
     child, producer = reading()
     assert b'lock' in finish(start('configure', 'apply', '-', stdin=subprocess.DEVNULL), 1)
-    answers = b'5\nlocal\nhttp://localhost/v1\nKEY\nm\n\n\ny\n'
+    answers = b'9\nlocal\nhttp://localhost/v1\nKEY\nm\n\n\nn\ny\n'
     init = start('init', stdin=subprocess.PIPE)
     init.stdin.write(answers)
     init.stdin.close()
@@ -75,7 +83,7 @@ elif scenario == 'exclusion':
 elif scenario == 'init_interaction':
     init = start('init', stdin=subprocess.PIPE)
     # The flushed confirmation prompt is the dialogue rendezvous.
-    init.stdin.write(b'5\nlocal\nhttp://localhost/v1\nKEY\nm\n\n\n')
+    init.stdin.write(b'9\nlocal\nhttp://localhost/v1\nKEY\nm\n\n\nn\n')
     init.stdin.flush()
     transcript = b''
     while not transcript.endswith(b'Write this configuration? [y/N]: '):
@@ -89,6 +97,23 @@ elif scenario == 'init_interaction':
     init.stdin = None
     assert b'already exists' in finish(init, 1)
     assert destination.read_bytes() == candidate
+elif scenario == 'edit_changed':
+    destination.write_bytes(candidate)
+    init = start('init', stdin=subprocess.PIPE)
+    # The flushed confirmation prompt proves the file was read before this edit.
+    init.stdin.write(b'4\n1\n')
+    init.stdin.flush()
+    transcript = b''
+    while not transcript.endswith(b'Write this configuration? [y/N]: '):
+        byte = init.stderr.read(1)
+        assert byte
+        transcript += byte
+    destination.write_bytes(candidate + b'# edited elsewhere\n')
+    init.stdin.write(b'y\n')
+    init.stdin.close()
+    init.stdin = None
+    assert b'changed after init read it; nothing was written' in finish(init, 1)
+    assert destination.read_bytes() == candidate + b'# edited elsewhere\n'
 elif scenario == 'utf8':
     for action in ('check', 'apply'):
         destination.write_bytes(candidate)

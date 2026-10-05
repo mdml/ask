@@ -19,6 +19,13 @@ with sqlite3.connect(database) as connection:
     )
 
 os.environ['ASK_HOME'] = home
+# No proof contacts the project's published model list.
+os.environ['ASK_MODEL_LIST_URL'] = ''
+# Proxy settings never reach ask, so requests to a loopback fake go direct.
+for variable in ('HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY'):
+    os.environ.pop(variable, None)
+    os.environ.pop(variable.lower(), None)
+os.environ['NO_PROXY'] = '127.0.0.1,localhost'
 os.environ['TERM'] = 'xterm-256color'
 master, slave = pty.openpty()
 child = subprocess.Popen(

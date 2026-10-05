@@ -205,7 +205,7 @@ fn entry(thread: &ThreadSummary) -> String {
 /// Replaces control characters, which could move the cursor or restyle the
 /// terminal, and invisible format characters, which could reorder or hide
 /// what the entry shows, with spaces.
-fn printable(text: &str) -> String {
+pub(crate) fn printable(text: &str) -> String {
     text.chars()
         .map(|character| {
             if character.is_control() || is_invisible_format(character) {
@@ -222,7 +222,7 @@ fn printable(text: &str) -> String {
 /// annotation, and tag characters. The zero-width joiner and non-joiner
 /// (U+200C, U+200D) are kept because they shape emoji and scripts such as
 /// Persian.
-fn is_invisible_format(character: char) -> bool {
+pub(crate) fn is_invisible_format(character: char) -> bool {
     matches!(
         character,
         '\u{ad}'

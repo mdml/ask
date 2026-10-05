@@ -1,6 +1,6 @@
 # Injecting credentials when launching `ask`
 
-`ask` reads the environment-variable name in each provider's `api_key_env`. Store the key in an external credential manager and inject it only when launching `ask`. Keep credential values out of configuration, shell profiles, command arguments, and shell history. Process-scoped environment variables remain accessible to sufficiently privileged processes; they are not a sandbox.
+`ask` reads the environment-variable name in each provider's `api_key_env`. A provider of `kind = "openai-compatible"` that omits `api_key_env` needs no credential and reads none; see [keyless targets](../reference/providers.md#keyless-targets). Store the key in an external credential manager and inject it only when launching `ask`. Keep credential values out of configuration, shell profiles, command arguments, and shell history. Process-scoped environment variables remain accessible to sufficiently privileged processes; they are not a sandbox.
 
 For a one-off hidden prompt in bash or zsh, replace `OPENAI_API_KEY` with the name shown by `ask init`:
 

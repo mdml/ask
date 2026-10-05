@@ -36,10 +36,20 @@ pub enum Scenario {
     SseChunks(&'static [&'static str]),
     /// A JSON error body with the given status.
     Status(u16, &'static str),
+    /// A published model list whose body exceeds the 1 MiB `ask init` reads.
+    OversizedList,
+    /// Accepts the request and answers nothing for six seconds, longer than
+    /// the published-list timeout.
+    Silent,
 }
+
+/// A version 1 published model list. Its `openai` entries include a dated
+/// snapshot listed first and an identifier that would clear the screen.
+pub const PUBLISHED: &str = r#"{"version": 1, "generated_at": "2026-10-01T06:00:00Z", "providers": {"openai": ["fake-model-2024-08-06", "fake-model", "other-model", "\u001b[2Jevil", "other-mini"], "anthropic": ["claude-fake"]}}"#;
 
 #[derive(Clone, Debug)]
 pub struct RecordedRequest {
+    pub method: String,
     pub path: String,
     pub authorization_present: bool,
     /// Whether the bearer credential is exactly the test fixture's.
@@ -159,6 +169,11 @@ impl FakeProvider {
         format!("http://{}/v1", self.address)
     }
 
+    /// Where `ASK_MODEL_LIST_URL` points to fetch a published list from this fake.
+    pub fn published_url(&self) -> String {
+        format!("http://{}/models/v1/models.json", self.address)
+    }
+
     /// The number of connections accepted so far.
     pub fn connections(&self) -> usize {
         self.shared.connections.load(Ordering::SeqCst)
@@ -252,17 +267,21 @@ fn read_request(stream: &mut TcpStream) -> Option<RecordedRequest> {
     let split = find(&bytes, b"\r\n\r\n")?;
     let headers = String::from_utf8_lossy(&bytes[..split]);
     let body = &bytes[split + 4..];
-    let path = headers
-        .lines()
-        .next()
-        .and_then(|line| line.split_whitespace().nth(1))?
-        .to_string();
+    let mut request_line = headers.lines().next()?.split_whitespace();
+    let method = request_line.next()?.to_string();
+    let path = request_line.next()?.to_string();
     let authorization_present = headers
         .lines()
         .any(|line| line.to_ascii_lowercase().starts_with("authorization:"));
     let authorization_is_fixture = headers.lines().any(carries_fixture_credential);
-    let value: Value = rig_core::serde_json::from_slice(body).ok()?;
+    // A body-less request, such as a model list, records `Value::Null`.
+    let value: Value = if body.is_empty() {
+        Value::Null
+    } else {
+        rig_core::serde_json::from_slice(body).ok()?
+    };
     Some(RecordedRequest {
+        method,
         path,
         authorization_present,
         authorization_is_fixture,
@@ -308,7 +327,7 @@ fn content_length(headers: &[u8]) -> usize {
                 .map(str::trim)
                 .and_then(|value| value.parse().ok())
         })
-        .unwrap()
+        .unwrap_or(0)
 }
 
 fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
@@ -362,6 +381,16 @@ fn respond(stream: &mut TcpStream, scenario: Scenario) {
             let _ = stream.write_all(b"0\r\n\r\n");
         }
         Scenario::Status(status, body) => fixed(stream, status, "application/json", body),
+        Scenario::OversizedList => {
+            let padding = " ".repeat(1024 * 1024);
+            fixed(
+                stream,
+                200,
+                "application/json",
+                &format!("{PUBLISHED}{padding}"),
+            );
+        }
+        Scenario::Silent => thread::sleep(Duration::from_secs(6)),
     }
 }
 
