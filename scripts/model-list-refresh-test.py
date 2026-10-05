@@ -207,6 +207,22 @@ class ModelListRefreshTests(unittest.TestCase):
         for form in SECRET_FORMS:
             self.assertNotIn(form, sent)
 
+    def test_the_catalog_request_identifies_the_script(self):
+        # The catalog's host rejects the default urllib user agent with HTTP 403.
+        code, report, _ = self.run_refresh()
+        self.assertEqual(code, 0, report)
+        [(_, headers)] = self.requests_for("catalog")
+        self.assertEqual(headers.get("user-agent"), refresh.USER_AGENT)
+        self.assertNotIn("python", headers["user-agent"].lower())
+
+    def test_every_provider_request_identifies_the_script(self):
+        # Some providers' hosts reject the default urllib user agent with HTTP 403.
+        code, report, _ = self.run_refresh()
+        self.assertEqual(code, 0, report)
+        self.assertGreater(len(self.server.requests), len(refresh.PROVIDERS))
+        for path, headers in self.server.requests:
+            self.assertEqual(headers.get("user-agent"), refresh.USER_AGENT, path)
+
     def test_only_text_only_chat_models_with_tool_calling_are_kept(self):
         code, report, document = self.run_refresh()
         self.assertEqual(code, 0, report)
