@@ -18,7 +18,7 @@ On 2026-10-05, `ask init` with redirected stdin and the key from the environment
 | Cerebras | 2 |
 | xAI | 14 |
 
-Several lists include identifiers that are not chat models, such as speech, transcription, image, embedding, and moderation models, because those providers do not mark them in the list response. The type-to-filter menu and the manual-entry row are the remedy on the client; curating the published list is tracked separately.
+Several lists include identifiers that are not chat models, such as speech, transcription, image, embedding, and moderation models, because those providers do not mark them in the list response. The type-to-filter menu and the manual-entry row are the remedy on the client; the published list is curated, as described below.
 
 ## Hosted query and reply
 
@@ -52,8 +52,11 @@ On 2026-10-04, the same sequence on `353a803` passed end to end: init printed `V
 
 On 2026-10-05, after the owner approved one more minimal paid request per provider, `ask init` ran with piped answers at `353a803` for each hosted preset: it took the key from the environment, listed the provider's models, accepted a typed identifier at the manual-entry row (the models in the table above), and sent the verification request. All seven printed `Verified: the provider answered a minimal request.`, wrote the configuration, exited 0, and left stdout empty. No key value appeared in any transcript or written file. Seven requests were made; usage is not reported by the verification step.
 
+## Published model list
+
+On 2026-10-05 the model list was generated on the owner's host and published for the first time. Afterwards, `ask init` at `353a803` with no key and the default location printed the request line and `Published model list generated 2026-10-05; any identifier can still be entered.` and offered the published identifiers for the OpenAI preset (38) and the Groq preset (4). Both runs were cancelled at the model menu and sent no provider request.
+
 ## Not covered
 
 - `ask init` on an attended terminal against a real service; the menus and hidden prompt are covered by the PTY proofs against fake providers.
 - LM Studio and llama.cpp servers, which are covered only by fake-provider proofs.
-- The published model list, which had not been published on the check date.
