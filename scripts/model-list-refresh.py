@@ -44,6 +44,9 @@ PROVIDERS = {
 }
 
 CATALOG_URL = "https://models.dev/api.json"
+# The catalog's host and some providers' hosts reject urllib's default user agent,
+# so every request names this script.
+USER_AGENT = "ask-model-list-refresh (+https://github.com/mdml/ask)"
 # The catalog's provider id for each preset whose id differs from the preset name.
 CATALOG_IDS = {"gemini": "google"}
 
@@ -75,7 +78,7 @@ def page_request(shape, base_url, key, cursor):
 
 
 def fetch_json(url, headers, limit=MAX_RESPONSE_BYTES):
-    request = urllib.request.Request(url, headers=headers, method="GET")
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, **headers}, method="GET")
     try:
         # Built per request so proxy settings come from the current environment.
         opener = urllib.request.build_opener(RefuseRedirects)
