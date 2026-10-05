@@ -17,6 +17,7 @@ Internal delivery plan for the guided-setup release, version `0.2.0`, developed 
 | S9 | [#71](https://github.com/mdml/ask/pull/71) | Action dependency review renewed through 2026-11-01; an unchanged nightly skips when the review has expired. |
 | Release | [#72](https://github.com/mdml/ask/pull/72) | Version 0.2.0, this tracker, and the README demo re-recorded from a 0.2.0 release build. |
 | Promotion review fixes | [#73](https://github.com/mdml/ask/pull/73), [#74](https://github.com/mdml/ask/pull/74), and the pull request that adds this row | Findings from the independent reviews of the promotion candidate. |
+| Acceptance fixes | [#76](https://github.com/mdml/ask/pull/76), [#77](https://github.com/mdml/ask/pull/77) | A live check that stops at the output limit counts as answered; fourth-round review fixes. |
 | Dependencies | [#59](https://github.com/mdml/ask/pull/59), [#60](https://github.com/mdml/ask/pull/60) | reqwest 0.13.5; install-action 2.87.18, later 2.87.22 in S9. |
 
 ## Named proofs
@@ -37,19 +38,20 @@ Record personally run results in pull requests; this table lists proof targets, 
 
 ## Acceptance checks that need the owner's host
 
-These use real services and run outside the gates, on the owner's host through the credential wrapper described in [live-provider checks](../guides/live-provider-checks.md). As of 2026-10-02 none has run for this release.
+These use real services and run outside the gates, on the owner's host through the credential wrapper described in [live-provider checks](../guides/live-provider-checks.md). Results are in the [2026-10-05 record](../reviews/live-provider-checks-2026-10-05.md).
 
-| Check | Needs | Status on 2026-10-02 |
-|:--|:--|:--|
-| One query and one reply per hosted provider: OpenAI, Anthropic, Gemini, OpenRouter, Groq, Cerebras, xAI | A key for each in the owner's provider store | Not run. |
-| One query and one reply against a real Ollama server, including a model that emits reasoning | Ollama installed with a small model | Not run. |
-| `ask init` model listing against each hosted provider's live list endpoint | The same keys | Not run. The xAI and Cerebras list response shapes are assumed to match OpenAI's and are unconfirmed. |
-| First publication of the model list | The same keys; see [publishing the model list](../guides/model-list-publishing.md) | Not published. Until then a hosted preset without a key falls back to manual entry. |
+| Check | Status |
+|:--|:--|
+| One query and one reply per hosted provider: OpenAI, Anthropic, Gemini, OpenRouter, Groq, Cerebras, xAI | Passed on 2026-10-05 at `353a803`. |
+| One query and one reply against a real Ollama server with a reasoning model | Passed on 2026-10-04 at `353a803`, after the first run on 2026-10-03 found the false verification failure fixed in [#76](https://github.com/mdml/ask/pull/76). |
+| `ask init` model listing against each hosted provider's live list endpoint | Passed on 2026-10-05 at `353a803`; the xAI and Cerebras response shapes are confirmed. |
+| `ask init` verification against each hosted provider | Not run; it needs the owner's approval for one more paid request per provider. |
+| First publication of the model list | Not published as of 2026-10-05; see [publishing the model list](../guides/model-list-publishing.md). Until then a hosted preset without a key falls back to manual entry. |
 
 ## Completion conditions
 
 - The frozen promotion candidate passes `just verify-full` and the three independent reviews in [agent-contracts.md](agent-contracts.md), with findings and dispositions recorded in the promotion pull request.
-- The acceptance checks above have recorded results.
+- The acceptance checks above have recorded results, and the candidate is re-frozen and reviewed after any fix they produce.
 - A nightly built from `main` at version `0.2.0` is published, which also confirms the renewed action review and the `fallback: none` install steps on the release workflow.
 - The owner evaluates that nightly and authorizes the stable release; the [stable release guide](../guides/stable-releases.md) lists the remaining operator steps.
 - The README demo is recorded from the release candidate build.
