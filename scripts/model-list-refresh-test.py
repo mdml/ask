@@ -32,8 +32,11 @@ KEYS = {
     "XAI_API_KEY": "dummy-xai-key",
 }
 SECRET_FORMS = [form for key in KEYS.values() for form in (key, refresh.encode(key))]
+# The last five are listed but not text-only chat models with tool calling in the catalog.
+NOT_CHAT = ["speech", "painter", "mixed", "no-tools", "unknown-tools"]
 OPENAI_LIST = {"data": [{"id": "model-2024-08-06"}, {"id": "model"}, {"id": "\u001b[2Jevil"},
-                        {"id": "x" * 201}, {"id": "model"}, {"id": "mini-0125"}, {"id": "mini"}]}
+                        {"id": "x" * 201}, {"id": "model"}, {"id": "mini-0125"}, {"id": "mini"},
+                        *({"id": model} for model in NOT_CHAT)]}
 ANTHROPIC_PAGES = {
     None: {"data": [{"id": "claude-b-20250514"}, {"id": "claude-a"}], "has_more": True,
            "last_id": "claude-a"},
@@ -51,6 +54,35 @@ OPENROUTER_LIST = {"data": [
     {"id": "router/image", "architecture": {"output_modalities": ["image"]}},
     {"id": "router/plain"},
 ]}
+
+CHAT = {"modalities": {"input": ["text", "image"], "output": ["text"]}, "tool_call": True}
+
+
+def catalog_models(*chat):
+    """A catalog provider entry describing `chat` as chat models, plus the non-chat cases."""
+    models = {model: CHAT for model in chat}
+    models.update({
+        "painter": {"modalities": {"output": ["image"]}, "tool_call": True},
+        "mixed": {"modalities": {"output": ["text", "image"]}, "tool_call": True},
+        "no-tools": {"modalities": {"output": ["text"]}, "tool_call": False},
+        "unknown-tools": {"modalities": {"output": ["text"]}},
+    })
+    return {"id": "provider", "models": models}
+
+
+OPENAI_CHAT = ("model", "mini", "model-2024-08-06", "mini-0125", "\u001b[2Jevil")
+CATALOG = {
+    "openai": catalog_models(*OPENAI_CHAT),
+    "anthropic": catalog_models("claude-a", "claude-b-20250514", "claude-c"),
+    # The `gemini` preset is the catalog's `google` provider.
+    "google": catalog_models("gemini-pro", "gemini-flash", "embedder"),
+    "openrouter": catalog_models("router/text", "router/plain", "router/image"),
+    "groq": catalog_models(*OPENAI_CHAT),
+    "cerebras": catalog_models(*OPENAI_CHAT),
+    # xAI's catalog lacks `mini`, so curation is per provider.
+    "xai": catalog_models("model", "model-2024-08-06", "mini-0125"),
+}
+CURATED = ["model", "mini", "model-2024-08-06", "mini-0125"]
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
@@ -71,6 +103,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             cursor = "after\ud800"
             return self.reply(200, {"data": [{"id": "claude-a"}], "has_more": True, "last_id": cursor,
                                     "models": GEMINI_PAGES[None]["models"], "nextPageToken": cursor})
+        if provider in ("catalog", "mirror"):
+            if behavior == "invalid":
+                return self.reply(200, None, b"{not json")
+            if behavior == "error":
+                return self.reply(500, {"error": "unavailable"})
+            return self.reply(200, self.server.catalog)
         if behavior == "error":
             # The body echoes the request, credential included; it must never be shown.
             return self.reply(500, {"error": self.path, "headers": dict(self.headers)})
@@ -82,8 +120,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.reply(200, OPENROUTER_LIST)
         return self.reply(200, OPENAI_LIST)
 
-    def reply(self, status, value):
-        body = json.dumps(value).encode()
+    def reply(self, status, value, body=None):
+        body = json.dumps(value).encode() if body is None else body
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
@@ -99,6 +137,7 @@ class ModelListRefreshTests(unittest.TestCase):
         self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         self.server.requests = []
         self.server.behavior = {}
+        self.server.catalog = json.loads(json.dumps(CATALOG))
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.addCleanup(self.server.server_close)
         self.addCleanup(self.server.shutdown)
@@ -106,9 +145,10 @@ class ModelListRefreshTests(unittest.TestCase):
         # Each provider keeps its endpoint's path under a prefix naming it.
         providers = {name: (shape, f"{base}/{name}{urllib.parse.urlsplit(url).path}", variable)
                      for name, (shape, url, variable) in refresh.PROVIDERS.items()}
-        patcher = patch.object(refresh, "PROVIDERS", providers)
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        for name, value in (("PROVIDERS", providers), ("CATALOG_URL", f"{base}/catalog/api.json")):
+            patcher = patch.object(refresh, name, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.output = Path(self.temp.name) / "models.json"
@@ -139,7 +179,8 @@ class ModelListRefreshTests(unittest.TestCase):
             self.assertTrue(path.endswith("/models"), path)
             variable = refresh.PROVIDERS[name][2]
             self.assertEqual(headers["authorization"], f"Bearer {KEYS[variable]}")
-            self.assertEqual(document["providers"][name], ["model", "mini", "model-2024-08-06", "mini-0125"])
+            curated = [model for model in CURATED if name != "xai" or model != "mini"]
+            self.assertEqual(document["providers"][name], curated)
         [(first, headers), (second, _)] = self.requests_for("anthropic")
         self.assertEqual((first, second), ("/anthropic/v1/models", "/anthropic/v1/models?after_id=claude-a"))
         self.assertEqual(headers["x-api-key"], KEYS["ANTHROPIC_API_KEY"])
@@ -153,6 +194,126 @@ class ModelListRefreshTests(unittest.TestCase):
         self.assertNotIn("authorization", headers)
         self.assertEqual(document["providers"]["gemini"], ["gemini-pro", "gemini-flash"])
         self.assertEqual(document["providers"]["openrouter"], ["router/text", "router/plain"])
+        self.assertIn("model catalog: http://127.0.0.1:", report)
+        self.assertIn("openai: 4 identifiers of 9 listed", report)
+
+    def test_the_catalog_is_fetched_once_without_any_credential(self):
+        code, report, _ = self.run_refresh()
+        self.assertEqual(code, 0, report)
+        [(path, headers)] = self.requests_for("catalog")
+        self.assertEqual(path, "/catalog/api.json")
+        self.assertFalse({"authorization", "x-api-key", "anthropic-version"} & set(headers))
+        sent = path + json.dumps(headers)
+        for form in SECRET_FORMS:
+            self.assertNotIn(form, sent)
+
+    def test_only_text_only_chat_models_with_tool_calling_are_kept(self):
+        code, report, document = self.run_refresh()
+        self.assertEqual(code, 0, report)
+        for name in ("openai", "groq", "cerebras", "xai"):
+            for model in NOT_CHAT:
+                self.assertNotIn(model, document["providers"][name])
+        self.assertNotIn("mini", self.server.catalog["xai"]["models"])
+        self.assertEqual(document["providers"]["xai"], ["model", "model-2024-08-06", "mini-0125"])
+
+    def test_the_gemini_preset_is_curated_by_the_catalog_google_provider(self):
+        self.server.catalog["gemini"] = catalog_models()
+        self.server.catalog["google"] = catalog_models("gemini-flash")
+        code, report, document = self.run_refresh("--providers", "gemini")
+        self.assertEqual(code, 0, report)
+        self.assertEqual(document["providers"]["gemini"], ["gemini-flash"])
+
+    def test_a_catalog_url_option_selects_a_mirror(self):
+        code, report, _ = self.run_refresh("--providers", "openai", "--catalog-url",
+                                           f"http://127.0.0.1:{self.server.server_port}/mirror/models.json")
+        self.assertEqual(code, 0, report)
+        self.assertEqual([path for path, _ in self.requests_for("mirror")], ["/mirror/models.json"])
+        self.assertEqual(self.requests_for("catalog"), [])
+
+    def test_a_catalog_failure_omits_every_provider_without_listing_any(self):
+        cases = {"error": "HTTP status 500", "redirect": "HTTP status 302; redirects are not followed",
+                 "invalid": "response is not valid JSON"}
+        for behavior, reason in cases.items():
+            with self.subTest(behavior):
+                self.server.requests.clear()
+                self.server.behavior = {"catalog": behavior}
+                for partial in ((), ("--allow-partial",)):
+                    code, report, document = self.run_refresh("--providers", "openai,xai", *partial)
+                    self.assertEqual(code, 1)
+                    self.assertIn(f"openai: omitted (model catalog unavailable: {reason})", report)
+                    self.assertIn(f"xai: omitted (model catalog unavailable: {reason})", report)
+                    self.assertIn("nothing was written", report)
+                    self.assertIsNone(document)
+                self.assertEqual({path.split("/")[1] for path, _ in self.server.requests}, {"catalog"})
+                self.assertFalse(any(path.startswith("/stolen") for path, _ in self.server.requests))
+
+    def test_an_oversized_catalog_is_refused(self):
+        self.assertEqual(refresh.MAX_CATALOG_BYTES, 32 * 1024 * 1024)
+        size = len(json.dumps(self.server.catalog).encode())
+        with patch.object(refresh, "MAX_CATALOG_BYTES", size - 1):
+            code, report, document = self.run_refresh("--providers", "openai")
+        self.assertEqual(code, 1)
+        self.assertIn("openai: omitted (model catalog unavailable: response is too large)", report)
+        self.assertIsNone(document)
+        with patch.object(refresh, "MAX_CATALOG_BYTES", size):
+            code, report, _ = self.run_refresh("--providers", "openai")
+        self.assertEqual(code, 0, report)
+
+    def test_a_catalog_that_is_not_an_object_omits_every_provider(self):
+        self.server.catalog = [CATALOG]
+        code, report, document = self.run_refresh("--providers", "openai")
+        self.assertEqual(code, 1)
+        self.assertIn("openai: omitted (model catalog unavailable: model catalog has an unexpected shape)",
+                      report)
+        self.assertIsNone(document)
+
+    def test_a_provider_missing_or_malformed_in_the_catalog_is_omitted(self):
+        del self.server.catalog["groq"]
+        self.server.catalog["cerebras"] = {"models": list(OPENAI_CHAT)}
+        self.server.catalog["xai"] = [catalog_models(*OPENAI_CHAT)]
+        code, report, document = self.run_refresh("--providers", "openai,groq,cerebras,xai")
+        self.assertEqual(code, 1)
+        self.assertIn("groq: omitted (missing from the model catalog)", report)
+        self.assertIn("cerebras: omitted (unexpected shape in the model catalog)", report)
+        self.assertIn("xai: omitted (unexpected shape in the model catalog)", report)
+        self.assertIsNone(document)
+        code, report, document = self.run_refresh("--providers", "openai,groq,cerebras,xai",
+                                                  "--allow-partial")
+        self.assertEqual(code, 0, report)
+        self.assertEqual(list(document["providers"]), ["openai"])
+
+    def test_malformed_catalog_entries_are_not_chat_models(self):
+        self.server.catalog["openai"]["models"].update({
+            "model": "chat", "mini": {"modalities": ["text"], "tool_call": True},
+            "mini-0125": {"modalities": {"output": "text"}, "tool_call": True},
+            "model-2024-08-06": {"modalities": {"output": ["text"]}, "tool_call": "true"},
+        })
+        self.server.catalog["openai"]["models"]["speech"] = CHAT
+        code, report, document = self.run_refresh("--providers", "openai")
+        self.assertEqual(code, 0, report)
+        self.assertEqual(document["providers"]["openai"], ["speech"])
+
+    def test_a_list_left_empty_by_curation_is_omitted(self):
+        self.server.catalog["groq"] = catalog_models("elsewhere")
+        code, report, document = self.run_refresh("--providers", "openai,groq")
+        self.assertEqual(code, 1)
+        self.assertIn("groq: omitted (no listed identifier is a text-only chat model with tool calling "
+                      "in the model catalog)", report)
+        self.assertIsNone(document)
+        code, report, document = self.run_refresh("--providers", "openai,groq", "--allow-partial")
+        self.assertEqual(code, 0, report)
+        self.assertEqual(list(document["providers"]), ["openai"])
+
+    def test_no_catalog_publishes_the_uncurated_lists_and_says_so(self):
+        code, report, document = self.run_refresh("--providers", "openai", "--no-catalog")
+        self.assertEqual(code, 0, report)
+        self.assertIn("model catalog: not used (--no-catalog); the lists are not curated", report)
+        self.assertEqual(document["providers"]["openai"], ["model", "mini", *NOT_CHAT, "model-2024-08-06",
+                                                           "mini-0125"])
+        self.assertIn("openai: 9 identifiers\n", report)
+        self.assertEqual(self.requests_for("catalog"), [])
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            refresh.build_parser().parse_args([str(self.output), "--no-catalog", "--catalog-url", "x"])
 
     def test_a_missing_key_omits_the_provider_and_fails_unless_partial_is_allowed(self):
         keys = {name: value for name, value in KEYS.items() if name != "XAI_API_KEY"}
@@ -203,7 +364,7 @@ class ModelListRefreshTests(unittest.TestCase):
         code, report, document = self.run_refresh("--providers", "cerebras")
         self.assertEqual(code, 0, report)
         self.assertEqual(list(document["providers"]), ["cerebras"])
-        self.assertEqual({path.split("/")[1] for path, _ in self.server.requests}, {"cerebras"})
+        self.assertEqual({path.split("/")[1] for path, _ in self.server.requests}, {"catalog", "cerebras"})
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
             refresh.build_parser().parse_args([str(self.output), "--providers", "mistral"])
 

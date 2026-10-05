@@ -5,6 +5,10 @@ An operator runs this on a host that holds provider keys; it never runs in CI
 and `ask` never runs it. It writes the version 1 document to the given path and
 never pushes or publishes anything. Credentials are read from each provider's
 standard environment variable and never printed, logged, or written.
+
+Each provider's list is curated against the public models.dev catalog, fetched
+without credentials: only identifiers the catalog describes as text-only chat
+models with tool calling are kept.
 """
 import argparse
 import datetime
@@ -22,6 +26,7 @@ VERSION = 1
 TIMEOUT_SECONDS = 10
 MAX_PAGES = 10
 MAX_RESPONSE_BYTES = 8 * 1024 * 1024
+MAX_CATALOG_BYTES = 32 * 1024 * 1024
 MAX_IDENTIFIER_BYTES = 200
 MAX_ENTRIES = 2000
 ANTHROPIC_VERSION = "2023-06-01"
@@ -37,6 +42,10 @@ PROVIDERS = {
     "cerebras": ("openai", "https://api.cerebras.ai/v1", "CEREBRAS_API_KEY"),
     "xai": ("openai", "https://api.x.ai/v1", "XAI_API_KEY"),
 }
+
+CATALOG_URL = "https://models.dev/api.json"
+# The catalog's provider id for each preset whose id differs from the preset name.
+CATALOG_IDS = {"gemini": "google"}
 
 
 class Failure(Exception):
@@ -65,18 +74,18 @@ def page_request(shape, base_url, key, cursor):
     return f"{base}/models", {"Authorization": f"Bearer {key}"}
 
 
-def fetch_json(url, headers):
+def fetch_json(url, headers, limit=MAX_RESPONSE_BYTES):
     request = urllib.request.Request(url, headers=headers, method="GET")
     try:
         # Built per request so proxy settings come from the current environment.
         opener = urllib.request.build_opener(RefuseRedirects)
         with opener.open(request, timeout=TIMEOUT_SECONDS) as response:
-            body = response.read(MAX_RESPONSE_BYTES + 1)
+            body = response.read(limit + 1)
     except urllib.error.HTTPError as error:
         raise Failure(f"HTTP status {error.code}") from None
     except (urllib.error.URLError, OSError) as error:
         raise Failure(f"request failed ({type(error).__name__})") from None
-    if len(body) > MAX_RESPONSE_BYTES:
+    if len(body) > limit:
         raise Failure("response is too large")
     try:
         return json.loads(body)
@@ -200,24 +209,72 @@ def arrange(ids, secrets):
     return [model for model in kept if not snapshot(model)] + [model for model in kept if snapshot(model)]
 
 
-def refresh(names, environ, report):
-    """Lists each named provider once; returns the lists and the omitted names."""
+def fetch_catalog(url):
+    """The catalog's provider map; fetched with no credentials, as untrusted input."""
+    catalog = fetch_json(url, {}, MAX_CATALOG_BYTES)
+    if not isinstance(catalog, dict):
+        raise Failure("model catalog has an unexpected shape")
+    return catalog
+
+
+def chat_models(catalog, name):
+    """The identifiers the catalog describes as text-only chat models with tool calling."""
+    entry = catalog.get(CATALOG_IDS.get(name, name))
+    if entry is None:
+        raise Failure("missing from the model catalog")
+    models = entry.get("models") if isinstance(entry, dict) else None
+    if not isinstance(models, dict):
+        raise Failure("unexpected shape in the model catalog")
+    return {model for model, value in models.items()
+            if isinstance(value, dict) and isinstance(value.get("modalities"), dict)
+            and value["modalities"].get("output") == ["text"] and value.get("tool_call") is True}
+
+
+def provider_ids(name, key, catalog, secrets):
+    """The provider's arranged identifiers and its count before curation."""
+    shape, base_url, _ = PROVIDERS[name]
+    ids = list_models(shape, base_url, key)
+    listed = len(arrange(ids, secrets))
+    if not listed:
+        raise Failure("no usable identifiers")
+    if catalog is None:
+        return arrange(ids, secrets), listed
+    chat = chat_models(catalog, name)
+    kept = arrange([model for model in ids if model in chat], secrets)
+    if not kept:
+        raise Failure("no listed identifier is a text-only chat model with tool calling in the model catalog")
+    return kept, listed
+
+
+def refresh(names, environ, report, catalog_url=None):
+    """Lists each named provider once; returns the lists and the omitted names.
+
+    With a catalog URL, a provider's list keeps only the catalog's chat models,
+    and a catalog failure omits every provider; without one, lists are uncurated.
+    """
     secrets = [environ[variable] for _, _, variable in PROVIDERS.values() if environ.get(variable)]
+    catalog = None
+    if catalog_url is not None:
+        try:
+            catalog = fetch_catalog(catalog_url)
+        except Failure as failure:
+            for name in names:
+                report(f"{name}: omitted (model catalog unavailable: {failure})")
+            return {}, list(names)
     listed, omitted = {}, []
     for name in names:
-        shape, base_url, variable = PROVIDERS[name]
+        variable = PROVIDERS[name][2]
         key = environ.get(variable, "")
         try:
             if not key:
                 raise Failure(f"{variable} is not set")
-            ids = arrange(list_models(shape, base_url, key), secrets)
-            if not ids:
-                raise Failure("no usable identifiers")
+            ids, count = provider_ids(name, key, catalog, secrets)
         except Failure as failure:
             report(f"{name}: omitted ({failure})")
             omitted.append(name)
             continue
-        report(f"{name}: {len(ids)} identifiers")
+        curated = f" of {count} listed" if catalog is not None else ""
+        report(f"{name}: {len(ids)} identifiers{curated}")
         listed[name] = ids
     return listed, omitted
 
@@ -254,13 +311,25 @@ def build_parser():
                         help="comma-separated providers to list (default: all)")
     parser.add_argument("--allow-partial", action="store_true",
                         help="write the document and exit 0 even if a provider was omitted")
+    catalog = parser.add_mutually_exclusive_group()
+    catalog.add_argument("--catalog-url", default=None,
+                         help=f"model catalog to curate against (default: {CATALOG_URL})")
+    catalog.add_argument("--no-catalog", action="store_true",
+                         help="publish each provider's uncurated list")
     return parser
 
 
 def main(argv=None, environ=None):
     args = build_parser().parse_args(argv)
     report = lambda line: print(line, file=sys.stderr)
-    listed, omitted = refresh(args.providers, os.environ if environ is None else environ, report)
+    if args.no_catalog:
+        catalog_url = None
+        report("model catalog: not used (--no-catalog); the lists are not curated")
+    else:
+        catalog_url = args.catalog_url or CATALOG_URL
+        report(f"model catalog: {catalog_url}")
+    listed, omitted = refresh(args.providers, os.environ if environ is None else environ, report,
+                              catalog_url)
     if not listed or (omitted and not args.allow_partial):
         report(f"omitted: {', '.join(omitted)}; nothing was written")
         return 1
