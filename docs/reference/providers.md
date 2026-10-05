@@ -70,7 +70,7 @@ For a keyless provider, the same `GET {base_url}/models` request carries the pla
 
 ### Published model list
 
-The `ask` project publishes a model list at `https://raw.githubusercontent.com/mdml/ask/models/v1/models.json`, the file `v1/models.json` on the repository's `models` branch. An operator regenerates it from each provider's own list as described in [Publishing the model list](../guides/model-list-publishing.md); nothing model-specific is compiled into `ask`.
+The `ask` project publishes a model list at `https://raw.githubusercontent.com/mdml/ask/models/v1/models.json`, the file `v1/models.json` on the repository's `models` branch. An operator regenerates it from each provider's own list as described in [Publishing the model list](../guides/model-list-publishing.md); nothing model-specific is compiled into `ask`. The list holds only identifiers that the provider lists and that the public models.dev catalog describes as text-only chat models with tool calling, so it is narrower than the provider's own list.
 
 `ask init` requests it only for a hosted preset (OpenAI, Anthropic, Gemini, OpenRouter, Groq, Cerebras, or xAI) when no key is available for that provider. It first prints `Requesting the published model list from <URL>; no credentials are sent.` The request is a plain `GET` with no `Authorization`, `x-api-key`, or key parameter and no query content, even when credential variables for other providers are set. It never follows redirects, times out after 5 seconds, and reads at most 1 MiB. A provider target that `ask init` writes from a custom endpoint whose kind, `base_url`, and `api_key_env` all equal a hosted preset's is treated as that preset.
 
