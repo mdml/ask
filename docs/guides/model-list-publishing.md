@@ -2,7 +2,7 @@
 
 `ask init` offers model identifiers from a list the `ask` project publishes when no key is available for a hosted provider. The [provider reference](../reference/providers.md#published-model-list) specifies how `ask` fetches and validates it. This guide is for the operator who regenerates and publishes that list. Publishing is a manual operator step; no workflow, schedule, or CI job runs it, and `ask` never runs the refresh script.
 
-As of 2026-10-02 the list has not been published: the `models` branch does not exist, so `ask init` reports `HTTP status 404 Not Found` and falls back to free-text entry until the first publication below.
+The list was first published on 2026-10-05: the `models` branch holds `v1/models.json`, generated that day with curation against the catalog described below. It held 38 OpenAI, 13 Anthropic, 18 Gemini, 317 OpenRouter, 4 Groq, 2 Cerebras, and 7 xAI identifiers.
 
 ## What is published
 
@@ -44,7 +44,7 @@ Choose a hosted provider whose key is not set, confirm the menu and the `generat
 
 ## Publish
 
-The first publication creates the `models` branch as an orphan in a separate worktree:
+The first publication created the `models` branch as an orphan in a separate worktree, with these commands, which are kept for recreating the branch:
 
 ```sh
 git fetch origin
@@ -58,7 +58,7 @@ git commit -m "chore(models): publish the model list generated <YYYY-MM-DD>"
 git push origin models
 ```
 
-Later publications update the same file:
+Each later publication updates the same file:
 
 ```sh
 git fetch origin
