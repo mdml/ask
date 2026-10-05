@@ -48,9 +48,12 @@ On 2026-10-03, against Ollama 0.35.1 with the reasoning model `qwen3.5:4b` and a
 
 On 2026-10-04, the same sequence on `353a803` passed end to end: init printed `Verified: the provider answered a minimal request.`, the query (37 / 213 tokens) and reply (54 / 318 tokens) returned the expected answers, and `ask doctor --live` printed `credential: not required` and `live: ok`.
 
+## Init verification against hosted providers
+
+On 2026-10-05, after the owner approved one more minimal paid request per provider, `ask init` ran with piped answers at `353a803` for each hosted preset: it took the key from the environment, listed the provider's models, accepted a typed identifier at the manual-entry row (the models in the table above), and sent the verification request. All seven printed `Verified: the provider answered a minimal request.`, wrote the configuration, exited 0, and left stdout empty. No key value appeared in any transcript or written file. Seven requests were made; usage is not reported by the verification step.
+
 ## Not covered
 
-- `ask init` verification against a hosted provider. It sends one more minimal paid request per provider, which the standing authorization for one query and one reply does not cover.
 - `ask init` on an attended terminal against a real service; the menus and hidden prompt are covered by the PTY proofs against fake providers.
 - LM Studio and llama.cpp servers, which are covered only by fake-provider proofs.
 - The published model list, which had not been published on the check date.

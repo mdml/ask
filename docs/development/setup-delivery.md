@@ -45,7 +45,7 @@ These use real services and run outside the gates, on the owner's host through t
 | One query and one reply per hosted provider: OpenAI, Anthropic, Gemini, OpenRouter, Groq, Cerebras, xAI | Passed on 2026-10-05 at `353a803`. |
 | One query and one reply against a real Ollama server with a reasoning model | Passed on 2026-10-04 at `353a803`, after the first run on 2026-10-03 found the false verification failure fixed in [#76](https://github.com/mdml/ask/pull/76). |
 | `ask init` model listing against each hosted provider's live list endpoint | Passed on 2026-10-05 at `353a803`; the xAI and Cerebras response shapes are confirmed. |
-| `ask init` verification against each hosted provider | Not run; it needs the owner's approval for one more paid request per provider. |
+| `ask init` verification against each hosted provider | Passed on 2026-10-05 at `353a803`, with the owner's approval for one more paid request per provider. |
 | First publication of the model list | Not published as of 2026-10-05; see [publishing the model list](../guides/model-list-publishing.md). Until then a hosted preset without a key falls back to manual entry. |
 
 ## Completion conditions
