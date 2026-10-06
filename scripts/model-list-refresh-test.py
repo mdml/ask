@@ -13,6 +13,7 @@ import threading
 import unittest
 from unittest.mock import patch
 import urllib.parse
+import urllib.request
 
 sys.dont_write_bytecode = True
 
@@ -31,6 +32,7 @@ KEYS = {
     "CEREBRAS_API_KEY": "dummy-cerebras-key",
     "XAI_API_KEY": "dummy-xai-key",
 }
+LOOPBACK_HOSTS = "127.0.0.1,localhost"
 SECRET_FORMS = [form for key in KEYS.values() for form in (key, refresh.encode(key))]
 # The last five are listed but not text-only chat models with tool calling in the catalog.
 NOT_CHAT = ["speech", "painter", "mixed", "no-tools", "unknown-tools"]
@@ -155,7 +157,10 @@ class ModelListRefreshTests(unittest.TestCase):
 
     def run_refresh(self, *argv, keys=KEYS):
         stdout, stderr = io.StringIO(), io.StringIO()
-        environ = {"PATH": os.defpath, **keys}
+        # The cleared environment drops every ambient proxy variable, and
+        # `no_proxy` keeps the loopback requests direct even where urllib would
+        # otherwise fall back to the macOS system proxy settings.
+        environ = {"PATH": os.defpath, "no_proxy": LOOPBACK_HOSTS, **keys}
         with patch.dict(os.environ, environ, clear=True), \
                 contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
             code = refresh.main([str(self.output), *argv], environ)
@@ -375,6 +380,25 @@ class ModelListRefreshTests(unittest.TestCase):
         self.assertIn("gemini: omitted (HTTP status 302; redirects are not followed)", report)
         self.assertFalse(any(path.startswith("/stolen") for path, _ in self.server.requests))
         self.assertIsNone(document)
+
+    def test_ambient_and_system_proxies_never_carry_the_loopback_requests(self):
+        # A proxy that accepts no connection; any request routed to it fails.
+        unreachable = "http://127.0.0.1:9"
+        # On macOS, urllib falls back to the system proxy settings when the
+        # environment names no proxy; simulate that fallback on every platform.
+        system = lambda: urllib.request.getproxies_environment() or {"http": unreachable}
+        with patch.dict(os.environ, {"HTTP_PROXY": unreachable, "http_proxy": unreachable}), \
+                patch.object(urllib.request, "getproxies", system):
+            code, report, document = self.run_refresh("--providers", "openai")
+        self.assertEqual(code, 0, report)
+        self.assertEqual(list(document["providers"]), ["openai"])
+
+    def test_an_empty_catalog_url_is_a_usage_error(self):
+        with contextlib.redirect_stderr(io.StringIO()) as error, self.assertRaises(SystemExit) as exit:
+            refresh.build_parser().parse_args([str(self.output), "--catalog-url", ""])
+        self.assertEqual(exit.exception.code, 2)
+        self.assertIn("--catalog-url", error.getvalue())
+        self.assertEqual(self.server.requests, [])
 
     def test_providers_limits_which_ones_run(self):
         code, report, document = self.run_refresh("--providers", "cerebras")

@@ -306,6 +306,12 @@ def provider_names(text):
     return list(dict.fromkeys(names))
 
 
+def catalog_location(text):
+    if not text:
+        raise argparse.ArgumentTypeError("must not be empty; omit the option to use the default catalog")
+    return text
+
+
 def build_parser():
     parser = argparse.ArgumentParser(
         description="Write the version 1 published model list from each hosted provider's own list.")
@@ -313,9 +319,9 @@ def build_parser():
     parser.add_argument("--providers", type=provider_names, default=list(PROVIDERS),
                         help="comma-separated providers to list (default: all)")
     parser.add_argument("--allow-partial", action="store_true",
-                        help="write the document and exit 0 even if a provider was omitted")
+                        help="write the document and exit 0 even if some providers were omitted")
     catalog = parser.add_mutually_exclusive_group()
-    catalog.add_argument("--catalog-url", default=None,
+    catalog.add_argument("--catalog-url", type=catalog_location, default=None,
                          help=f"model catalog to curate against (default: {CATALOG_URL})")
     catalog.add_argument("--no-catalog", action="store_true",
                          help="publish each provider's uncurated list")
@@ -329,7 +335,7 @@ def main(argv=None, environ=None):
         catalog_url = None
         report("model catalog: not used (--no-catalog); the lists are not curated")
     else:
-        catalog_url = args.catalog_url or CATALOG_URL
+        catalog_url = CATALOG_URL if args.catalog_url is None else args.catalog_url
         report(f"model catalog: {catalog_url}")
     listed, omitted = refresh(args.providers, os.environ if environ is None else environ, report,
                               catalog_url)
