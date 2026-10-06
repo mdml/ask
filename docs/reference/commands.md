@@ -5,8 +5,8 @@ This page specifies every `ask` command. Interfaces may change during 0.x. Input
 ## Synopsis
 
 ```text
-ask [--profile NAME | -p NAME] [new|n] [prompt words...]
-ask [reply|r] [prompt words...]
+ask [--profile NAME | -p NAME] [new|n] [--] [prompt words...]
+ask [reply|r] [--] [prompt words...]
 ask [thread|t]
 ask [switch|s] [ID]
 ask stats
@@ -31,7 +31,7 @@ ask version
 | `ask help` | `ask --help`, `ask -h` | Print the command summary. |
 | `ask version` | `ask --version`, `ask -V` | Print `ask <version>`. |
 
-`ask stats` has no one-character alias because `s` belongs to `switch`. A first argument that is not a command name or alias starts a new query, so `ask "what is 2+2"` is `ask new "what is 2+2"`.
+`ask stats` has no one-character alias because `s` belongs to `switch`. A first argument that is not a command name or alias starts a new query, so `ask "what is 2+2"` is `ask new "what is 2+2"`, unless it is shaped like an option `ask` does not know; see [`ask new`](#ask-new).
 
 Usage errors exit 2 with an `ask: ...` diagnostic on stderr. A command-line syntax error names the problem, when there is a specific one, and appends the full usage synopsis.
 
