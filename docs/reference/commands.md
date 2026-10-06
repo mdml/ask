@@ -53,6 +53,8 @@ ask n "what is 2+2"
 ask --profile terse "what is 2+2"
 ```
 
+A leading word shaped like an option that `ask` does not know is a usage error: `ask: unknown option '<word>'` and the usage synopsis on stderr, exit status 2, nothing on stdout, and no provider request. A word is shaped like an option when it is a dash and one ASCII letter (`-q`) or two dashes and one or more characters, the first not a dash (`--quiet`, `--profile=x`). Anything else, such as `-item`, `-5`, `-`, or `---x`, is prompt text. The check covers the leading words before and after `new`, `n`, `reply`, or `r`, where `--profile` and `-p` are accepted; once a prompt word appears, later words are never inspected. `--` ends option parsing, so the words after it are prompt text even when shaped like options and are not read as `new` or `reply`: `ask -- -q is a flag` sends `-q is a flag`. A bare `--` with no further words is the same as no prompt words.
+
 Prompt words are joined with single spaces. Without prompt words, the prompt comes from redirected stdin or from a multiline terminal prompt; see [query input](query-behavior.md#input).
 
 ## `ask reply`
