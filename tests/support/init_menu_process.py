@@ -25,7 +25,8 @@ os.environ['NO_PROXY'] = '127.0.0.1,localhost'
 os.environ['TERM'] = 'xterm-256color'
 # Only the scenario's own credential variable may reach init.
 for variable in ('OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'OPENROUTER_API_KEY',
-                 'GROQ_API_KEY', 'CEREBRAS_API_KEY', 'XAI_API_KEY', 'KEY'):
+                 'GROQ_API_KEY', 'CEREBRAS_API_KEY', 'XAI_API_KEY', 'KEY',
+                 'ASK_OPENAI_API_KEY'):
     os.environ.pop(variable, None)
 environment_key = os.environ.get('LOCAL_API_KEY', '').encode()
 PASTED = b'pasted-secret-never-print'
@@ -259,6 +260,7 @@ def edit_scenario(transcript):
     if scenario == 'edit-provider':
         transcript = pick(transcript, b'Choose a change', 1)
         transcript = pick(transcript, b'Select a provider', 1)
+        transcript = write_after(transcript, b'Credential variable [OPENAI_API_KEY]: ', b'\n')
         transcript = write_after(transcript, b'Provider name', b'openai\n')
         transcript = write_after(transcript, b'already used', b'work\n')
         transcript = at_raw_prompt(transcript, b'API key (hidden; Enter skips): ')
@@ -444,6 +446,7 @@ try:
     elif scenario == 'published':
         assert not environment_key and os.environ['ASK_MODEL_LIST_URL']
         os.write(master, b'\r')
+        transcript = write_after(transcript, b'Credential variable [OPENAI_API_KEY]: ', b'\n')
         transcript = at_raw_prompt(transcript, b'API key (hidden; Enter skips): ')
         os.write(master, b'\r')
         transcript = at_raw_prompt(transcript, b'Select a model')
@@ -461,6 +464,19 @@ try:
         assert b'kind = "openai"' in config and b'model = "other-mini"' in config, config
         assert b'[2Jevil' not in transcript, transcript
         assert b'live check' not in transcript and b'Verified' not in transcript, transcript
+    elif scenario == 'credential-variable':
+        os.write(master, b'\r')
+        transcript = wait_for_prompt(transcript, b'? Credential variable [OPENAI_API_KEY]: ')
+        assert_restored()
+        os.write(master, b'ASK_OPENAI_API_KEY\n')
+        transcript = at_raw_prompt(transcript, b'API key (hidden; Enter skips): ')
+        assert b'ASK_OPENAI_API_KEY is not set. Paste the key' in transcript, transcript
+        os.write(master, b'\r')
+        transcript = write_after(transcript, b'Model identifier', b'typed-model\n')
+        config, transcript = finish_written(transcript)
+        assert b'[providers.openai]' in config, config
+        assert b'api_key_env = "ASK_OPENAI_API_KEY"' in config, config
+        assert b'read -rs ASK_OPENAI_API_KEY' in transcript, transcript
     elif scenario == 'model-escape':
         assert environment_key
         transcript = custom_endpoint(transcript)

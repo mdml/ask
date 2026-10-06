@@ -187,8 +187,10 @@ fn presets_supply_endpoint_and_credential_defaults() {
         ),
     ] {
         let path = fresh_path();
-        let answers = format!("{choice}\nsome-model\n\n\nn\ny\n");
-        drive(&path, &answers).0.unwrap();
+        let answers = format!("{choice}\n\nsome-model\n\n\nn\ny\n");
+        let (result, transcript) = drive(&path, &answers);
+        result.unwrap();
+        assert!(transcript.contains("Credential variable ["), "{transcript}");
         assert_preset_contents(&fs::read_to_string(&path).unwrap(), fields);
     }
 }
@@ -209,8 +211,8 @@ fn replacement_prompt_and_profile_name_are_recorded() {
 fn another_provider_gets_its_own_uniquely_named_profile() {
     let path = fresh_path();
     let answers = concat!(
-        "1\nfirst-model\n\n\ny\n",
-        "1\nopenai\nwork\nsecond-model\n\ndefault\nwork-profile\nn\ny\n"
+        "1\n\nfirst-model\n\n\ny\n",
+        "1\n\nopenai\nwork\nsecond-model\n\ndefault\nwork-profile\nn\ny\n"
     );
     let (result, transcript) = drive(&path, answers);
     result.unwrap();
@@ -229,12 +231,47 @@ fn another_provider_gets_its_own_uniquely_named_profile() {
 #[test]
 fn a_later_profile_defaults_to_the_provider_name() {
     let path = fresh_path();
-    let answers = "2\nm\n\n\ny\n3\nm\n\n\nn\ny\n";
+    let answers = "2\n\nm\n\n\ny\n3\n\nm\n\n\nn\ny\n";
     drive(&path, answers).0.unwrap();
     let config = validate::document(&fs::read_to_string(&path).unwrap()).unwrap();
     assert_eq!(config.default_profile, "default");
     assert_eq!(config.profiles["default"].provider, "anthropic");
     assert_eq!(config.profiles["gemini"].provider, "gemini");
+}
+
+#[test]
+fn a_typed_credential_variable_is_read_named_and_written() {
+    let path = fresh_path();
+    let answers = "1\nASK_OPENAI_API_KEY\nsome-model\n\n\nn\ny\n";
+    let (result, transcript) = drive_with(&path, answers, UNREACHABLE_LIST);
+    result.unwrap();
+    for expected in [
+        "Endpoint: https://api.openai.com/v1\nCredential variable [OPENAI_API_KEY]: ",
+        "ASK_OPENAI_API_KEY is not set; continuing without a key",
+        "Requesting the published model list from ",
+        "Supply ASK_OPENAI_API_KEY only",
+        "read -rs ASK_OPENAI_API_KEY",
+    ] {
+        assert!(transcript.contains(expected), "{expected}: {transcript}");
+    }
+    let config = validate::document(&fs::read_to_string(&path).unwrap()).unwrap();
+    let provider = &config.providers["openai"];
+    assert_eq!(provider.api_key_env.as_deref(), Some("ASK_OPENAI_API_KEY"));
+    assert_eq!(provider.base_url, "https://api.openai.com/v1");
+}
+
+#[test]
+fn an_invalid_credential_variable_is_explained_and_asked_again() {
+    let path = fresh_path();
+    let answers = "1\n1KEY\nBAD-NAME\nASK_KEY\nsome-model\n\n\nn\ny\n";
+    let (result, transcript) = drive(&path, answers);
+    result.unwrap();
+    let message = "That value must be an environment variable name";
+    assert_eq!(transcript.matches(message).count(), 2, "{transcript}");
+    let prompt = "Credential variable [OPENAI_API_KEY]: ";
+    assert_eq!(transcript.matches(prompt).count(), 3, "{transcript}");
+    let written = fs::read_to_string(&path).unwrap();
+    assert!(written.contains("api_key_env = \"ASK_KEY\""), "{written}");
 }
 
 #[test]
@@ -274,7 +311,7 @@ fn unit_tests_never_request_the_published_list() {
 #[test]
 fn a_hosted_preset_without_a_key_tries_the_published_list() {
     let path = fresh_path();
-    let answers = "2\nsome-model\n\n\nn\ny\n";
+    let answers = "2\n\nsome-model\n\n\nn\ny\n";
     let (result, transcript) = drive_with(&path, answers, UNREACHABLE_LIST);
     result.unwrap();
     for expected in [
@@ -290,8 +327,8 @@ fn a_hosted_preset_without_a_key_tries_the_published_list() {
 fn custom_endpoints_and_disabled_lists_never_request_the_published_list() {
     for (answers, lookup) in [
         (COMPLETE, UNREACHABLE_LIST),
-        ("3\nsome-model\n\n\nn\ny\n", UNSET),
-        ("4\nsome-model\n\n\nn\ny\n", NOT_UNICODE),
+        ("3\n\nsome-model\n\n\nn\ny\n", UNSET),
+        ("4\n\nsome-model\n\n\nn\ny\n", NOT_UNICODE),
     ] {
         let path = fresh_path();
         let (result, transcript) = drive_with(&path, answers, lookup);
@@ -306,7 +343,7 @@ fn custom_endpoints_and_disabled_lists_never_request_the_published_list() {
 #[test]
 fn a_published_list_override_that_is_not_unicode_is_ignored() {
     let path = fresh_path();
-    let (_, transcript) = drive_with(&path, "1\nm\n\n\nn\ny\n", NOT_UNICODE);
+    let (_, transcript) = drive_with(&path, "1\n\nm\n\n\nn\ny\n", NOT_UNICODE);
     assert!(
         transcript.contains(
             "ASK_MODEL_LIST_URL is not valid Unicode; skipping the published model list."
@@ -434,6 +471,10 @@ fn local_presets_write_a_keyless_target_with_a_long_timeout() {
         let (result, transcript) = drive(&path, &answers);
         result.unwrap();
         assert!(transcript.contains(&format!("[{url}]: ")), "{transcript}");
+        assert!(
+            !transcript.contains("Credential variable ["),
+            "{transcript}"
+        );
         let contents = fs::read_to_string(&path).unwrap();
         assert!(
             contents.contains(&format!("[providers.{name}]")),
