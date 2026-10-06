@@ -1,6 +1,6 @@
 use std::{fmt, path::PathBuf};
 
-const USAGE: &str = "usage: ask [--profile NAME | -p NAME] [new|n] [prompt words...] | ask [reply|r] [prompt words...] | ask [thread|t] | ask [switch|s] [ID] | ask stats | ask [doctor|d] [--live] [--all] | ask [init|i] | ask [configure|c] check [FILE|-] | ask [configure|c] apply [FILE|-] | ask help | ask version | ask [--help | -h] | ask [--version | -V]";
+const USAGE: &str = "usage: ask [--profile NAME | -p NAME] [new|n] [--] [prompt words...] | ask [reply|r] [--] [prompt words...] | ask [thread|t] | ask [switch|s] [ID] | ask stats | ask [doctor|d] [--live] [--all] | ask [init|i] | ask [configure|c] check [FILE|-] | ask [configure|c] apply [FILE|-] | ask help | ask version | ask [--help | -h] | ask [--version | -V]";
 
 const REPLY_PROFILE: &str = "--profile and -p apply only to new queries; replies use the profile captured when their thread was created";
 
@@ -138,7 +138,7 @@ fn flag_shaped(word: &str) -> bool {
 fn flag_value(words: &mut Vec<String>, flag: &str) -> Result<String, String> {
     words
         .first()
-        .filter(|value| !value.is_empty())
+        .filter(|value| !value.is_empty() && *value != "--" && !flag_shaped(value))
         .cloned()
         .inspect(|_| {
             words.remove(0);

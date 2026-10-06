@@ -228,6 +228,27 @@ fn init_with_a_key_uses_the_provider_list_and_not_the_published_list() {
 }
 
 #[test]
+fn a_custom_endpoint_at_a_preset_endpoint_without_a_key_gets_the_published_list() {
+    let fake = FakeProvider::start(Scenario::Status(200, PUBLISHED));
+    let home = fresh_home();
+    let mut init = command(&home, false);
+    init.env_remove("KEY")
+        .env(MODEL_LIST_URL, fake.published_url());
+    // Custom endpoint with Groq's endpoint and a variable of its own.
+    let answers = "9\nmine\nhttps://api.groq.com/openai/v1\nKEY\n1\n\n\nn\ny\n";
+    let transcript = succeeded(&drive(init.arg("init"), answers));
+    // The fake document lists no Groq models, so init falls back to manual entry
+    // after the request; the request itself is what this proves.
+    assert!(
+        transcript.contains("Requesting the published model list from"),
+        "{transcript}"
+    );
+    let requests = fake.requests(1);
+    assert_published_request(&requests[0]);
+    assert_eq!(fake.connections(), 1, "no verification request");
+}
+
+#[test]
 fn custom_and_keyless_providers_never_request_the_published_list() {
     // A keyless endpoint is also verified; the unreachable one fails and is written anyway.
     for (variable, rest) in [("LOCAL_API_KEY", "n\ny\n"), ("", "y\nn\ny\n")] {

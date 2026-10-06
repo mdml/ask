@@ -358,6 +358,32 @@ fn a_bare_double_dash_is_no_prompt() {
     }
     assert_eq!(terminal(&["--"]), none);
     assert_eq!(piped(&["r", "--"]), reply(None));
+    assert_eq!(
+        piped(&["-p", "x", "--"]),
+        Ok(Command::Query(
+            Mode::New,
+            QueryOptions {
+                profile: Some("x".to_string()),
+                words: None
+            }
+        ))
+    );
+}
+
+#[test]
+fn an_option_shaped_word_is_not_a_profile_name() {
+    for words in [
+        &["-p", "-q"][..],
+        &["-p", "--"],
+        &["--profile", "--quiet", "x"],
+    ] {
+        let error = piped(words).unwrap_err();
+        assert!(
+            error.starts_with("-p requires a profile name")
+                || error.starts_with("--profile requires a profile name"),
+            "{words:?}: {error}"
+        );
+    }
 }
 
 #[test]
