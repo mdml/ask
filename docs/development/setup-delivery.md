@@ -16,9 +16,13 @@ Internal delivery plan for the guided-setup release, version `0.2.0`, developed 
 | S8 | [#61](https://github.com/mdml/ask/pull/61) | README header with slogan and badges; re-recorded demo. |
 | S9 | [#71](https://github.com/mdml/ask/pull/71) | Action dependency review renewed through 2026-11-01; an unchanged nightly skips when the review has expired. |
 | Release | [#72](https://github.com/mdml/ask/pull/72) | Version 0.2.0, this tracker, and the README demo re-recorded from a 0.2.0 release build. |
-| Promotion review fixes | [#73](https://github.com/mdml/ask/pull/73), [#74](https://github.com/mdml/ask/pull/74), and the pull request that adds this row | Findings from the independent reviews of the promotion candidate. |
-| Acceptance fixes | [#76](https://github.com/mdml/ask/pull/76), [#77](https://github.com/mdml/ask/pull/77) | A live check that stops at the output limit counts as answered; fourth-round review fixes. |
+| Promotion review fixes | [#73](https://github.com/mdml/ask/pull/73), [#74](https://github.com/mdml/ask/pull/74), [#75](https://github.com/mdml/ask/pull/75), [#77](https://github.com/mdml/ask/pull/77) | Findings from four rounds of independent reviews of the promotion candidate. |
+| Acceptance fix | [#76](https://github.com/mdml/ask/pull/76) | A live check or `ask init` verification that stops at the output limit counts as answered; found by the Ollama acceptance check. |
+| Acceptance records | [#78](https://github.com/mdml/ask/pull/78) | Results of the acceptance checks below and the first publication of the model list. |
+| Model list curation | [#79](https://github.com/mdml/ask/pull/79) | The refresh script curates each provider's list against the public models.dev catalog and identifies itself in every request. |
 | Dependencies | [#59](https://github.com/mdml/ask/pull/59), [#60](https://github.com/mdml/ask/pull/60) | reqwest 0.13.5; install-action 2.87.18, later 2.87.22 in S9. |
+
+`milestone/setup` was promoted to `main` by [#80](https://github.com/mdml/ask/pull/80), merged on 2026-10-05 as merge commit `f6e57e4`.
 
 ## Named proofs
 
@@ -50,8 +54,8 @@ These use real services and run outside the gates, on the owner's host through t
 
 ## Completion conditions
 
-- The frozen promotion candidate passes `just verify-full` and the three independent reviews in [agent-contracts.md](agent-contracts.md), with findings and dispositions recorded in the promotion pull request.
-- The acceptance checks above have recorded results, and the candidate is re-frozen and reviewed after any fix they produce.
-- A nightly built from `main` at version `0.2.0` is published, which also confirms the renewed action review and the `fallback: none` install steps on the release workflow.
-- The owner evaluates that nightly and authorizes the stable release; the [stable release guide](../guides/stable-releases.md) lists the remaining operator steps.
-- The README demo is recorded from the release candidate build.
+- Met: the frozen promotion candidate passed `just verify-full` and the three independent reviews in [agent-contracts.md](agent-contracts.md), with findings and dispositions recorded in the promotion pull request, [#80](https://github.com/mdml/ask/pull/80), which merged on 2026-10-05.
+- Met: the acceptance checks above have recorded results, and the candidate was re-frozen and reviewed after the fix they produced.
+- Met: the nightly `v0.2.0-nightly.20261005.37376527280.1`, built from `main` at `f6e57e4`, was published on 2026-10-05 with every job of the release workflow succeeding, which also confirms the renewed action review and the `fallback: none` install steps.
+- The README demo is recorded from the release candidate build: [#72](https://github.com/mdml/ask/pull/72) re-recorded it from a 0.2.0 release build, and no later change re-recorded it.
+- Pending: the owner evaluates that nightly and authorizes the stable release; the [stable release guide](../guides/stable-releases.md) lists the remaining operator steps.

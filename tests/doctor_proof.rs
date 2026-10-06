@@ -89,6 +89,19 @@ fn live_doctor_counts_an_answer_stopped_at_the_output_limit_as_answered() {
     assert!(output.status.success(), "{}", stderr(&output));
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("live: ok"), "{stdout}");
+    assert_live_check_recorded_as_healthy(&home);
+}
+
+/// `ask stats` shows a success from the live check and no failure.
+fn assert_live_check_recorded_as_healthy(home: &Path) {
+    let output = ask(home, &["stats"], false);
+    assert!(output.status.success(), "{}", stderr(&output));
+    let stats = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stats.contains("last observed healthy") && stats.contains("(from live check)"),
+        "{stats}"
+    );
+    assert!(stats.contains("no failures observed"), "{stats}");
 }
 
 #[test]

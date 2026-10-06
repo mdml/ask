@@ -74,7 +74,7 @@ The `ask` project publishes a model list at `https://raw.githubusercontent.com/m
 
 `ask init` requests it only for a hosted preset (OpenAI, Anthropic, Gemini, OpenRouter, Groq, Cerebras, or xAI) when no key is available for that provider. It first prints `Requesting the published model list from <URL>; no credentials are sent.` The request is a plain `GET` with no `Authorization`, `x-api-key`, or key parameter and no query content, even when credential variables for other providers are set. It never follows redirects, times out after 5 seconds, and reads at most 1 MiB. Any provider target whose kind and `base_url` equal a hosted preset's, including a custom endpoint or a preset with a renamed credential variable, is treated as that preset.
 
-The environment variable `ASK_MODEL_LIST_URL` overrides the location. An empty value, or one that is not valid Unicode, disables the published list: `ask init` makes no request and asks for the identifier as free text. A value that is not valid Unicode is first reported as `ASK_MODEL_LIST_URL is not valid Unicode; skipping the published model list.`
+The environment variable `ASK_MODEL_LIST_URL` overrides the location. An empty value, or one that is not valid Unicode, disables the published list: `ask init` makes no request and asks for the identifier as free text. A value that is not valid Unicode is reported as `ASK_MODEL_LIST_URL is not valid Unicode; skipping the published model list.` whenever a provider that needs a key has none, including a custom endpoint that is not treated as a hosted preset; a [keyless](#keyless-targets) provider never reads the variable.
 
 Version 1 of the document is a JSON object:
 
