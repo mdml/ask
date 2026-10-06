@@ -121,16 +121,12 @@ pub(super) const LOCAL_PRESETS: [LocalPreset; 3] = [
     },
 ];
 
-/// The name of the hosted preset whose kind, endpoint, and credential
-/// variable `provider` has, if any.
+/// The name of the hosted preset whose kind and endpoint `provider` has, if
+/// any, whatever its credential variable.
 pub(super) fn hosted_preset(provider: &ProviderConfig) -> Option<&'static str> {
     PRESETS
         .iter()
-        .find(|preset| {
-            provider.kind == preset.kind
-                && provider.base_url == preset.base_url
-                && provider.api_key_env.as_deref() == Some(preset.api_key_env)
-        })
+        .find(|preset| provider.kind == preset.kind && provider.base_url == preset.base_url)
         .map(|preset| preset.name)
 }
 
@@ -203,12 +199,22 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
 
     /// A valid endpoint typed at `prompt`; an empty answer takes `default`.
     pub(super) fn endpoint_or(&mut self, prompt: &str, default: &str) -> Result<String, InitError> {
+        self.valid_or(prompt, default, validate::endpoint)
+    }
+
+    /// An answer to `prompt` that satisfies `rule`; an empty answer takes `default`.
+    fn valid_or(
+        &mut self,
+        prompt: &str,
+        default: &str,
+        rule: fn(Value<'_>) -> Result<(), &'static str>,
+    ) -> Result<String, InitError> {
         loop {
             let answer = self.ask(prompt)?;
             if answer.is_empty() {
                 return Ok(default.to_string());
             }
-            match validate::endpoint(Value(&answer)) {
+            match rule(Value(&answer)) {
                 Ok(()) => return Ok(answer),
                 Err(rule) => self.say(&format!("That value {rule}."))?,
             }
@@ -236,12 +242,13 @@ impl<R: BufRead, W: Write> Dialogue<'_, R, W> {
             preset.menu_label, preset.kind
         ))?;
         self.say(&format!("Endpoint: {}", preset.base_url))?;
-        self.say(&format!("Credential variable: {}", preset.api_key_env))?;
+        let prompt = format!("Credential variable [{}]: ", preset.api_key_env);
+        let api_key_env = self.valid_or(&prompt, preset.api_key_env, validate::env_var_name)?;
         let name = self.unused_name(preset.name, existing)?;
         let provider = ProviderConfig {
             kind: preset.kind.to_string(),
             base_url: preset.base_url.to_string(),
-            api_key_env: Some(preset.api_key_env.to_string()),
+            api_key_env: Some(api_key_env),
             timeout_ms: DEFAULT_TIMEOUT_MS,
         };
         Ok(Selection {

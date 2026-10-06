@@ -164,6 +164,12 @@ fn terminal_init_reads_a_long_paste_at_the_hidden_prompt_without_echo() {
 
 #[cfg(unix)]
 #[test]
+fn terminal_init_asks_for_a_preset_credential_variable_and_uses_the_typed_name() {
+    terminal_init("credential-variable", None, false);
+}
+
+#[cfg(unix)]
+#[test]
 fn terminal_init_ctrl_c_at_the_model_menu_restores_the_terminal() {
     let fake = FakeProvider::start(Scenario::Status(200, MODELS));
     terminal_init("model-ctrl-c", Some(&fake), true);
@@ -579,7 +585,7 @@ fn init_asks_again_after_an_invalid_answer() {
 #[test]
 fn init_openai_preset_writes_supported_kind_and_defaults() {
     let home = fresh_home();
-    let answers = "1\ngpt-5.6-luna\n\n\nn\ny\n";
+    let answers = "1\n\ngpt-5.6-luna\n\n\nn\ny\n";
     let transcript = succeeded(&interactive(&home, "init", answers));
     assert!(transcript.contains(
         "OPENAI_API_KEY is not set; continuing without a key, so the setup will not be verified."
@@ -592,6 +598,45 @@ fn init_openai_preset_writes_supported_kind_and_defaults() {
     assert!(written.contains("kind = \"openai\""));
     assert!(written.contains("base_url = \"https://api.openai.com/v1\""));
     assert!(written.contains("api_key_env = \"OPENAI_API_KEY\""));
+}
+
+#[test]
+fn init_reads_a_renamed_preset_variable_for_the_list_and_verification() {
+    // A loopback proxy stands in for the preset's endpoint, so the CONNECT
+    // requests it records show where each request went without leaving the host.
+    let fake = FakeProvider::start(Scenario::Status(502, "{}"));
+    let home = fresh_home();
+    let mut init = command(&home, false);
+    init.env("ASK_OPENAI_API_KEY", CREDENTIAL)
+        .env("HTTPS_PROXY", format!("http://{}", fake.address()))
+        .env("NO_PROXY", "127.0.0.1");
+    let answers = "1\nASK_OPENAI_API_KEY\ntyped-model\n\n\ny\nn\ny\n";
+    let transcript = succeeded(&drive(init.arg("init"), answers));
+    for expected in [
+        "Credential variable [OPENAI_API_KEY]: ",
+        "Using ASK_OPENAI_API_KEY from the environment (value not shown).",
+        "Requesting the model list from https://api.openai.com/v1.",
+        "Verification failed: ",
+        "Supply ASK_OPENAI_API_KEY only to the ask process",
+        "IFS= read -rs ASK_OPENAI_API_KEY </dev/tty || exit; printf '\\n' >&2; export ASK_OPENAI_API_KEY;",
+    ] {
+        assert!(transcript.contains(expected), "{expected}: {transcript}");
+    }
+    assert!(!transcript.contains(CREDENTIAL));
+    let written = fs::read_to_string(home.join("config.toml")).unwrap();
+    assert!(written.contains("[providers.openai]"), "{written}");
+    assert!(
+        written.contains("api_key_env = \"ASK_OPENAI_API_KEY\""),
+        "{written}"
+    );
+    let requests = fake.requests(2);
+    assert_eq!(fake.connections(), 2, "the list and the verification");
+    for request in &requests {
+        assert_eq!(
+            (request.method.as_str(), request.path.as_str()),
+            ("CONNECT", "api.openai.com:443")
+        );
+    }
 }
 
 #[test]
