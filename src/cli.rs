@@ -78,9 +78,12 @@ pub fn parse(
 }
 
 fn parse_query(mut words: Vec<String>) -> Result<Command, String> {
-    let profile = leading_profile(&mut words, None)?;
-    let mode = query_mode(&mut words);
-    let profile = leading_profile(&mut words, profile)?;
+    let mut profile = None;
+    let mut mode = Mode::New;
+    if !leading_options(&mut words, &mut profile)? {
+        mode = query_mode(&mut words);
+        leading_options(&mut words, &mut profile)?;
+    }
     if profile.is_some() && mode == Mode::Reply {
         return Err(format!("{REPLY_PROFILE}\n{USAGE}"));
     }
@@ -103,15 +106,33 @@ fn query_mode(words: &mut Vec<String>) -> Mode {
     mode
 }
 
-fn leading_profile(
-    words: &mut Vec<String>,
-    mut profile: Option<String>,
-) -> Result<Option<String>, String> {
-    while matches!(words.first().map(String::as_str), Some("--profile" | "-p")) {
-        let flag = words.remove(0);
-        profile = Some(flag_value(words, &flag)?);
+/// Consumes leading options and reports whether `--` ended them.
+fn leading_options(words: &mut Vec<String>, profile: &mut Option<String>) -> Result<bool, String> {
+    while let Some(word) = words.first() {
+        match word.as_str() {
+            "--" => {
+                words.remove(0);
+                return Ok(true);
+            }
+            "--profile" | "-p" => {
+                let flag = words.remove(0);
+                *profile = Some(flag_value(words, &flag)?);
+            }
+            word if flag_shaped(word) => return Err(format!("unknown option '{word}'\n{USAGE}")),
+            _ => break,
+        }
     }
-    Ok(profile)
+    Ok(false)
+}
+
+/// A dash and one ASCII letter, or two dashes and a character other than a dash.
+fn flag_shaped(word: &str) -> bool {
+    let bytes = word.as_bytes();
+    match bytes {
+        [b'-', letter] => letter.is_ascii_alphabetic(),
+        [b'-', b'-', first, ..] => *first != b'-',
+        _ => false,
+    }
 }
 
 fn flag_value(words: &mut Vec<String>, flag: &str) -> Result<String, String> {
