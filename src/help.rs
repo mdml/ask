@@ -10,8 +10,8 @@ const TEXT: &str = "\
 ask — fast terminal lookup for language models
 
 Usage:
-  ask [--profile NAME | -p NAME] [new|n] [prompt words...]
-  ask [reply|r] [prompt words...]
+  ask [--profile NAME | -p NAME] [new|n] [--] [prompt words...]
+  ask [reply|r] [--] [prompt words...]
   ask [thread|t]
   ask [switch|s] [ID]
   ask stats

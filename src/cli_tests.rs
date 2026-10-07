@@ -371,6 +371,17 @@ fn a_bare_double_dash_is_no_prompt() {
 }
 
 #[test]
+fn a_profile_name_that_starts_with_a_dash_but_is_not_option_shaped_is_accepted() {
+    for name in ["-item", "-5", "---x"] {
+        let parsed = piped(&["-p", name, "x"]).unwrap();
+        let Command::Query(_, options) = parsed else {
+            panic!("{name}");
+        };
+        assert_eq!(options.profile.as_deref(), Some(name));
+    }
+}
+
+#[test]
 fn an_option_shaped_word_is_not_a_profile_name() {
     for words in [
         &["-p", "-q"][..],

@@ -237,15 +237,23 @@ fn a_custom_endpoint_at_a_preset_endpoint_without_a_key_gets_the_published_list(
     // Custom endpoint with Groq's endpoint and a variable of its own.
     let answers = "9\nmine\nhttps://api.groq.com/openai/v1\nKEY\n1\n\n\nn\ny\n";
     let transcript = succeeded(&drive(init.arg("init"), answers));
-    // The fake document lists no Groq models, so init falls back to manual entry
-    // after the request; the request itself is what this proves.
+    // The fake document lists no Groq models, so init asks for Groq's list and
+    // falls back to manual entry; a verification request would go to the real
+    // endpoint, so its absence is checked on the transcript.
+    for expected in [
+        "Requesting the published model list from",
+        "Cannot use the published model list (the list has no models for groq)",
+    ] {
+        assert!(transcript.contains(expected), "{expected}: {transcript}");
+    }
     assert!(
-        transcript.contains("Requesting the published model list from"),
+        !transcript.contains("Sending a minimal request"),
         "{transcript}"
     );
+    assert!(!transcript.contains("live check"), "{transcript}");
     let requests = fake.requests(1);
     assert_published_request(&requests[0]);
-    assert_eq!(fake.connections(), 1, "no verification request");
+    assert_eq!(fake.connections(), 1);
 }
 
 #[test]
