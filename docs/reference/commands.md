@@ -47,7 +47,7 @@ ask new "what is 2+2"
 ask n "what is 2+2"
 ```
 
-`--profile NAME` or `-p NAME`, given before or directly after `new`, selects a configured profile instead of the default. When the flag is repeated, the last value applies. The flag requires a nonempty name.
+`--profile NAME` or `-p NAME`, given before or directly after `new`, selects a configured profile instead of the default. When the flag is repeated, the last value applies. The flag requires a name; `--` or a word shaped like an option (see [`ask new`](#ask-new)) is refused with `-p requires a profile name`, so a profile named like an option cannot be selected on the command line.
 
 ```sh
 ask --profile terse "what is 2+2"
