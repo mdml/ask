@@ -10,8 +10,8 @@ const TEXT: &str = "\
 ask — fast terminal lookup for language models
 
 Usage:
-  ask [--profile NAME | -p NAME] [new|n] [prompt words...]
-  ask [reply|r] [prompt words...]
+  ask [--profile NAME | -p NAME] [new|n] [--] [prompt words...]
+  ask [reply|r] [--] [prompt words...]
   ask [thread|t]
   ask [switch|s] [ID]
   ask stats
@@ -27,6 +27,10 @@ Query commands start a new thread or continue the current one with reply.
 Use --profile or -p on a new query to override the configured default profile.
 Replies use the profile captured when their thread was created; --profile on reply
 is rejected.
+
+A leading word shaped like an option (-q, --quiet) that ask does not know is a
+usage error. Use -- to end options so a prompt can begin with such a word:
+Example: ask -- -q is a flag
 
 Prompt words join with single spaces; without them, stdin supplies the prompt.
 

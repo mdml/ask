@@ -2,7 +2,7 @@
 
 *intelligence in your terminal*
 
-[![CI](https://github.com/mdml/ask/actions/workflows/nightly-release.yml/badge.svg)](https://github.com/mdml/ask/actions/workflows/nightly-release.yml)
+[![nightly](https://github.com/mdml/ask/actions/workflows/nightly-release.yml/badge.svg)](https://github.com/mdml/ask/actions/workflows/nightly-release.yml)
 [![Latest release](https://img.shields.io/github/v/release/mdml/ask?label=release)](https://github.com/mdml/ask/releases)
 [![License: Apache-2.0](https://img.shields.io/github/license/mdml/ask)](LICENSE)
 [![Platforms: macOS | Linux](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux-blue)](#install)
@@ -78,6 +78,7 @@ Guides, by task:
 - [Configuring profiles and providers](docs/guides/configuration.md): edit, validate, and install a configuration; add profiles; set output limits and history expiry.
 - [Threads and history](docs/guides/threads-and-history.md): reply, review, switch threads, read statistics, and expire old history.
 - [Using `ask` in pipelines](docs/guides/shell-composition.md): piped input, output streams, and exit statuses.
+- [Recipes and FAQ](docs/guides/recipes.md): a separate key variable, several profiles on one key, proxies and local servers, failed verification, and common questions.
 
 Reference, for exact behavior:
 

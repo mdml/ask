@@ -66,7 +66,7 @@ fn init_without_a_key_offers_the_published_list_and_sends_no_credential() {
     let fake = FakeProvider::start(Scenario::Status(200, PUBLISHED));
     let home = fresh_home();
     let url = fake.published_url();
-    let answers = "1\n0\n2\n\n\nn\ny\n";
+    let answers = "1\n\n0\n2\n\n\nn\ny\n";
     let transcript = succeeded(&unkeyed_with_list(&home, &fake, answers));
     for expected in [
         "OPENAI_API_KEY is not set; continuing without a key, so the setup will not be verified.",
@@ -81,6 +81,35 @@ fn init_without_a_key_offers_the_published_list_and_sends_no_credential() {
     assert!(!transcript.contains("live check"), "{transcript}");
     let written = fs::read_to_string(home.join("config.toml")).unwrap();
     assert!(written.contains("model = \"other-model\""), "{written}");
+    let requests = fake.requests(1);
+    assert_eq!(requests.len(), 1);
+    assert_published_request(&requests[0]);
+    assert_eq!(fake.connections(), 1, "no verification request");
+}
+
+#[test]
+fn a_preset_with_a_renamed_variable_and_no_key_still_offers_the_published_list() {
+    let fake = FakeProvider::start(Scenario::Status(200, PUBLISHED));
+    let home = fresh_home();
+    let mut init = command(&home, false);
+    // The preset's usual variable is set, but the renamed one is not.
+    init.env("OPENAI_API_KEY", CREDENTIAL)
+        .env_remove("ASK_OPENAI_API_KEY")
+        .env(MODEL_LIST_URL, fake.published_url());
+    let answers = "1\nASK_OPENAI_API_KEY\n2\n\n\nn\ny\n";
+    let transcript = succeeded(&drive(init.arg("init"), answers));
+    for expected in [
+        "ASK_OPENAI_API_KEY is not set; continuing without a key, so the setup will not be verified.",
+        "Published model list generated 2026-10-01; any identifier can still be entered.\n",
+    ] {
+        assert!(transcript.contains(expected), "{expected}: {transcript}");
+    }
+    let written = fs::read_to_string(home.join("config.toml")).unwrap();
+    assert!(written.contains("model = \"other-model\""), "{written}");
+    assert!(
+        written.contains("api_key_env = \"ASK_OPENAI_API_KEY\""),
+        "{written}"
+    );
     let requests = fake.requests(1);
     assert_eq!(requests.len(), 1);
     assert_published_request(&requests[0]);
@@ -146,7 +175,7 @@ fn init_falls_back_to_manual_entry_when_the_published_list_times_out() {
 fn assert_manual_fallback((scenario, choice, reason): (Scenario, &str, &str)) {
     let fake = FakeProvider::start(scenario);
     let home = fresh_home();
-    let answers = format!("{choice}\ntyped-model\n\n\nn\ny\n");
+    let answers = format!("{choice}\n\ntyped-model\n\n\nn\ny\n");
     let transcript = succeeded(&unkeyed_with_list(&home, &fake, &answers));
     let expected = format!(
         "\nCannot use the published model list ({reason}); enter the identifier manually.\nModel identifier (free text sent to the provider): "
@@ -183,7 +212,7 @@ fn init_with_a_key_uses_the_provider_list_and_not_the_published_list() {
         .env("HTTPS_PROXY", format!("http://{}", fake.address()))
         .env("NO_PROXY", "127.0.0.1")
         .env(MODEL_LIST_URL, fake.published_url());
-    let answers = "1\ntyped-model\n\n\ny\nn\ny\n";
+    let answers = "1\n\ntyped-model\n\n\ny\nn\ny\n";
     let transcript = succeeded(&drive(init.arg("init"), answers));
     assert!(transcript.contains("Requesting the model list from https://api.openai.com/v1."));
     assert!(!transcript.contains("published model list"), "{transcript}");
@@ -196,6 +225,35 @@ fn init_with_a_key_uses_the_provider_list_and_not_the_published_list() {
             ("CONNECT", "api.openai.com:443")
         );
     }
+}
+
+#[test]
+fn a_custom_endpoint_at_a_preset_endpoint_without_a_key_gets_the_published_list() {
+    let fake = FakeProvider::start(Scenario::Status(200, PUBLISHED));
+    let home = fresh_home();
+    let mut init = command(&home, false);
+    init.env_remove("KEY")
+        .env(MODEL_LIST_URL, fake.published_url());
+    // Custom endpoint with Groq's endpoint and a variable of its own.
+    let answers = "9\nmine\nhttps://api.groq.com/openai/v1\nKEY\n1\n\n\nn\ny\n";
+    let transcript = succeeded(&drive(init.arg("init"), answers));
+    // The fake document lists no Groq models, so init asks for Groq's list and
+    // falls back to manual entry; a verification request would go to the real
+    // endpoint, so its absence is checked on the transcript.
+    for expected in [
+        "Requesting the published model list from",
+        "Cannot use the published model list (the list has no models for groq)",
+    ] {
+        assert!(transcript.contains(expected), "{expected}: {transcript}");
+    }
+    assert!(
+        !transcript.contains("Sending a minimal request"),
+        "{transcript}"
+    );
+    assert!(!transcript.contains("live check"), "{transcript}");
+    let requests = fake.requests(1);
+    assert_published_request(&requests[0]);
+    assert_eq!(fake.connections(), 1);
 }
 
 #[test]

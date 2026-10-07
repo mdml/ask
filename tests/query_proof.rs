@@ -292,6 +292,30 @@ fn configured_home(base_url: &str, system_prompt: Option<&str>, timeout: Option<
 }
 
 #[test]
+fn an_unknown_leading_option_is_a_usage_error_without_a_request() {
+    let fake = FakeProvider::start(Scenario::Stream);
+    let home = configured_home(&fake.base_url(), None, None);
+    let output = ask(&home, &["-q", "groq", "what"], true);
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.starts_with("ask: unknown option '-q' usage: ask "),
+        "{stderr}"
+    );
+    assert_no_request(&fake, &output);
+}
+
+#[test]
+fn double_dash_lets_a_prompt_begin_with_a_flag_shaped_word() {
+    let fake = FakeProvider::start(Scenario::Stream);
+    let home = configured_home(&fake.base_url(), None, None);
+    let output = ask(&home, &["--", "-q", "groq", "what"], true);
+    assert!(output.status.success(), "{:?}", output);
+    let request = fake.recorded().unwrap();
+    assert_eq!(request.messages[1], ("user".into(), "-q groq what".into()));
+}
+
+#[test]
 fn piped_input_supplies_the_prompt_for_all_query_forms() {
     for args in [&[][..], &["new"][..], &["n"][..]] {
         let fake = FakeProvider::start(Scenario::Stream);

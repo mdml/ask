@@ -22,7 +22,7 @@ A provider of `kind = "openai-compatible"` may omit `api_key_env`; every other k
 
 ## Initialization presets
 
-`ask init` offers these presets and writes the listed values, so choosing one requires no endpoint or variable name:
+`ask init` offers these presets and writes the listed values, so choosing one requires no endpoint or variable name. The `api_key_env` column is the default answer to the question `Credential variable [<VARIABLE>]: ` that follows the endpoint line: Enter keeps it, and a typed environment-variable name replaces it, for example to read `ASK_ANTHROPIC_API_KEY` instead of an `ANTHROPIC_API_KEY` that another tool reacts to. The other values are fixed:
 
 | Menu entry | Provider name | `kind` | `base_url` | `api_key_env` |
 |:--|:--|:--|:--|:--|
@@ -52,7 +52,7 @@ The last menu entry, a custom OpenAI-compatible endpoint, writes `kind = "openai
 2. Without a key, for the seven hosted [initialization presets](#initialization-presets) only, the [published model list](#published-model-list).
 3. Otherwise, or when the chosen source fails or lists nothing, free-text entry.
 
-A custom endpoint uses the published list only when its kind, `base_url`, and `api_key_env` equal a hosted preset's. Whatever the source, the menu always ends with an entry for typing any identifier.
+A provider is recognized as a hosted preset by its kind and `base_url` alone, so a preset whose credential variable was renamed still uses the published list, and so does a custom endpoint whose kind and `base_url` equal a hosted preset's. Whatever the source, the menu always ends with an entry for typing any identifier.
 
 ### Provider model lists
 
@@ -72,9 +72,9 @@ For a keyless provider, the same `GET {base_url}/models` request carries the pla
 
 The `ask` project publishes a model list at `https://raw.githubusercontent.com/mdml/ask/models/v1/models.json`, the file `v1/models.json` on the repository's `models` branch. An operator regenerates it from each provider's own list as described in [Publishing the model list](../guides/model-list-publishing.md); nothing model-specific is compiled into `ask`. The list holds only identifiers that the provider lists and that the public models.dev catalog describes as text-only chat models with tool calling, so it is narrower than the provider's own list.
 
-`ask init` requests it only for a hosted preset (OpenAI, Anthropic, Gemini, OpenRouter, Groq, Cerebras, or xAI) when no key is available for that provider. It first prints `Requesting the published model list from <URL>; no credentials are sent.` The request is a plain `GET` with no `Authorization`, `x-api-key`, or key parameter and no query content, even when credential variables for other providers are set. It never follows redirects, times out after 5 seconds, and reads at most 1 MiB. A provider target that `ask init` writes from a custom endpoint whose kind, `base_url`, and `api_key_env` all equal a hosted preset's is treated as that preset.
+`ask init` requests it only for a hosted preset (OpenAI, Anthropic, Gemini, OpenRouter, Groq, Cerebras, or xAI) when no key is available for that provider. It first prints `Requesting the published model list from <URL>; no credentials are sent.` The request is a plain `GET` with no `Authorization`, `x-api-key`, or key parameter and no query content, even when credential variables for other providers are set. It never follows redirects, times out after 5 seconds, and reads at most 1 MiB. Any provider target whose kind and `base_url` equal a hosted preset's, including a custom endpoint or a preset with a renamed credential variable, is treated as that preset.
 
-The environment variable `ASK_MODEL_LIST_URL` overrides the location. An empty value, or one that is not valid Unicode, disables the published list: `ask init` makes no request and asks for the identifier as free text. A value that is not valid Unicode is first reported as `ASK_MODEL_LIST_URL is not valid Unicode; skipping the published model list.`
+The environment variable `ASK_MODEL_LIST_URL` overrides the location. An empty value, or one that is not valid Unicode, disables the published list: `ask init` makes no request and asks for the identifier as free text. A value that is not valid Unicode is reported as `ASK_MODEL_LIST_URL is not valid Unicode; skipping the published model list.` whenever a provider that needs a key has none, including a custom endpoint that is not treated as a hosted preset; a [keyless](#keyless-targets) provider never reads the variable.
 
 Version 1 of the document is a JSON object:
 

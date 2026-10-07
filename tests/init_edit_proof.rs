@@ -70,7 +70,7 @@ const ADDED: &str = "\0";
 /// One redirected answer set per edit action, without a key in the
 /// environment, with the text of the block each one changes.
 const EDIT_ANSWERS: [(&str, &str); 4] = [
-    ("1\n2\nclaude-model\n\n\ny\n", ADDED),
+    ("1\n2\n\nclaude-model\n\n\ny\n", ADDED),
     ("2\n1\nm\n\nwork\ny\n", ADDED),
     ("3\n1\nm\ny\n", "fake-model"),
     ("4\n2\ny\n", "default_profile"),

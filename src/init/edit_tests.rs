@@ -133,7 +133,7 @@ fn a_profile_on_an_existing_provider_needs_an_unused_name() {
 
 #[test]
 fn a_new_provider_gets_a_new_name_and_profile() {
-    let (written, transcript) = edited("1\n1\nopenai\nwork\nw\n\n\ny\n");
+    let (written, transcript) = edited("1\n1\n\nopenai\nwork\nw\n\n\ny\n");
     assert!(transcript.contains("A provider named 'openai' is already configured."));
     assert!(transcript.contains("That provider name is already used; choose another."));
     let config = validate::document(&written).unwrap();
@@ -142,6 +142,34 @@ fn a_new_provider_gets_a_new_name_and_profile() {
     assert_eq!(config.default_profile, "default");
     for block in EXISTING.split("\n\n") {
         assert!(written.contains(block.trim_end()), "{block}: {written}");
+    }
+}
+
+#[test]
+fn a_new_provider_asks_for_its_credential_variable() {
+    let (written, transcript) = edited("1\n2\nASK_ANTHROPIC_API_KEY\nm\n\n\ny\n");
+    assert!(transcript.contains("Credential variable [ANTHROPIC_API_KEY]: "));
+    assert!(transcript.contains("ASK_ANTHROPIC_API_KEY is not set"));
+    let config = validate::document(&written).unwrap();
+    let provider = &config.providers["anthropic"];
+    assert_eq!(
+        provider.api_key_env.as_deref(),
+        Some("ASK_ANTHROPIC_API_KEY")
+    );
+}
+
+#[test]
+fn existing_providers_keep_their_configured_credential_variable() {
+    let renamed = EXISTING.replace("\"OPENAI_API_KEY\"", "\"ASK_OPENAI_API_KEY\"");
+    for answers in ["2\n2\nm\n\nwork\ny\n", "3\n2\nm\ny\n"] {
+        let path = existing(renamed.as_bytes());
+        let (result, transcript) = drive(&path, answers);
+        result.unwrap();
+        assert!(!transcript.contains("Credential variable"), "{transcript}");
+        assert!(
+            transcript.contains("ASK_OPENAI_API_KEY is not set"),
+            "{transcript}"
+        );
     }
 }
 

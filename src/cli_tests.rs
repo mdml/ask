@@ -123,10 +123,10 @@ fn profile_overrides_apply_only_to_new_queries() {
 
 #[test]
 fn init_and_its_alias_take_no_arguments() {
-    assert_eq!(terminal(&["init"]), Ok(Command::Init));
-    assert_eq!(terminal(&["i"]), Ok(Command::Init));
-    assert_eq!(terminal(&["init", "x"]), usage());
-    assert_eq!(terminal(&["i", "x"]), usage());
+    for verb in ["init", "i"] {
+        assert_eq!(terminal(&[verb]), Ok(Command::Init));
+        assert_eq!(terminal(&[verb, "x"]), usage());
+    }
 }
 
 #[test]
@@ -143,10 +143,14 @@ fn help_and_version_take_no_arguments() {
 
 #[test]
 fn configure_requires_a_known_verb() {
-    assert_eq!(piped(&["configure"]), usage());
-    assert_eq!(piped(&["c"]), usage());
-    assert_eq!(piped(&["configure", "edit"]), usage());
-    assert_eq!(piped(&["c", "check", "one", "two"]), usage());
+    for words in [
+        &["configure"][..],
+        &["c"],
+        &["configure", "edit"],
+        &["c", "check", "one", "two"],
+    ] {
+        assert_eq!(piped(words), usage(), "{words:?}");
+    }
 }
 
 #[test]
@@ -271,5 +275,133 @@ fn query_command_words_after_the_subcommand_remain_prompt_text() {
                 words: Some("new question".to_string())
             }
         ))
+    );
+}
+
+fn unknown(word: &str) -> Result<Command, String> {
+    Err(format!("unknown option '{word}'\n{USAGE}"))
+}
+
+fn reply(text: Option<&str>) -> Result<Command, String> {
+    Ok(Command::Query(
+        Mode::Reply,
+        QueryOptions {
+            profile: None,
+            words: text.map(str::to_string),
+        },
+    ))
+}
+
+#[test]
+fn a_leading_flag_shaped_word_is_an_unknown_option() {
+    for word in ["-q", "-P", "--quiet", "--profile=x", "--a-b", "--x"] {
+        assert_eq!(piped(&[word, "groq", "what"]), unknown(word), "{word}");
+    }
+}
+
+#[test]
+fn other_leading_dash_words_are_prompt_text() {
+    for word in ["-item", "-5", "-item 1", "-", "---x", "---", "-é"] {
+        assert_eq!(piped(&[word, "x"]), query(&format!("{word} x")), "{word}");
+    }
+}
+
+#[test]
+fn unknown_options_are_rejected_on_both_sides_of_the_mode_word() {
+    for (words, word) in [
+        (&["new", "-q", "x"][..], "-q"),
+        (&["n", "--quiet"], "--quiet"),
+        (&["reply", "-q", "x"], "-q"),
+        (&["r", "--quiet"], "--quiet"),
+        (&["-p", "terse", "-q"], "-q"),
+        (&["-p", "terse", "new", "-q"], "-q"),
+    ] {
+        assert_eq!(piped(words), unknown(word), "{words:?}");
+    }
+}
+
+#[test]
+fn flag_shaped_words_after_a_prompt_word_are_prompt_text() {
+    assert_eq!(piped(&["why", "-q", "--x"]), query("why -q --x"));
+    assert_eq!(piped(&["new", "why", "-q"]), query("why -q"));
+}
+
+#[test]
+fn double_dash_ends_option_parsing() {
+    for (words, prompt) in [
+        (&["--", "-q", "groq"][..], "-q groq"),
+        (&["--", "--quiet"], "--quiet"),
+        (&["--", "--", "x"], "-- x"),
+        (&["--", "new", "x"], "new x"),
+        (&["new", "--", "-q"], "-q"),
+    ] {
+        assert_eq!(piped(words), query(prompt), "{words:?}");
+    }
+    assert_eq!(
+        piped(&["-p", "x", "--", "-q"]),
+        Ok(Command::Query(
+            Mode::New,
+            QueryOptions {
+                profile: Some("x".to_string()),
+                words: Some("-q".to_string())
+            }
+        ))
+    );
+    assert_eq!(piped(&["r", "--", "--quiet"]), reply(Some("--quiet")));
+}
+
+#[test]
+fn a_bare_double_dash_is_no_prompt() {
+    let none = Ok(Command::Query(Mode::New, QueryOptions::default()));
+    for words in [&["--"][..], &["new", "--"]] {
+        assert_eq!(piped(words), none, "{words:?}");
+    }
+    assert_eq!(terminal(&["--"]), none);
+    assert_eq!(piped(&["r", "--"]), reply(None));
+    assert_eq!(
+        piped(&["-p", "x", "--"]),
+        Ok(Command::Query(
+            Mode::New,
+            QueryOptions {
+                profile: Some("x".to_string()),
+                words: None
+            }
+        ))
+    );
+}
+
+#[test]
+fn a_profile_name_that_starts_with_a_dash_but_is_not_option_shaped_is_accepted() {
+    for name in ["-item", "-5", "---x"] {
+        let parsed = piped(&["-p", name, "x"]).unwrap();
+        let Command::Query(_, options) = parsed else {
+            panic!("{name}");
+        };
+        assert_eq!(options.profile.as_deref(), Some(name));
+    }
+}
+
+#[test]
+fn an_option_shaped_word_is_not_a_profile_name() {
+    for words in [
+        &["-p", "-q"][..],
+        &["-p", "--"],
+        &["--profile", "--quiet", "x"],
+    ] {
+        let error = piped(words).unwrap_err();
+        assert!(
+            error.starts_with("-p requires a profile name")
+                || error.starts_with("--profile requires a profile name"),
+            "{words:?}: {error}"
+        );
+    }
+}
+
+#[test]
+fn double_dash_does_not_hide_a_reply_profile() {
+    assert!(
+        piped(&["r", "-p", "x", "--", "y"])
+            .unwrap_err()
+            .starts_with("--profile and -p apply only")
     );
 }
