@@ -24,7 +24,7 @@ reqwest = { version = "=0.13.5", default-features = false }
 rig-core = { version = "=0.42.0", default-features = false, features = ["reqwest", "rustls"] }
 rusqlite = { version = "=0.40.2", default-features = false, features = ["bundled"] }
 serde = { version = "=1.0.229", features = ["derive"] }
-tokio = { version = "=1.53.1", features = ["macros", "rt", "time"] }
+tokio = { version = "=1.53.2", features = ["macros", "rt", "time"] }
 toml = "=1.1.6"
 
 # `src/terminal/attributes.rs` is the only module allowed `unsafe` code.
