@@ -23,6 +23,8 @@ allow = [
     "Zlib",
     "MPL-2.0",
     "CC0-1.0",
+    # webpki-root-certs (Mozilla root bundle), reached via rig-reqwest/rustls; allowed 2026-10-29.
+    "CDLA-Permissive-2.0",
 ]
 
 [bans]

@@ -4,7 +4,7 @@ Every query is recorded locally as a turn in a thread. This guide covers continu
 
 ## Continue the current thread
 
-`ask`, `ask new`, and `ask n` start a new thread, which becomes the current thread. `ask reply` and `ask r` continue the current thread, sending its earlier complete turns as context:
+`ask`, `ask new`, and `ask n` start a new thread, which becomes the current thread. `ask reply` and `ask r` continue the current thread, sending its earlier complete turns as context (a turn with an empty answer is sent as the assistant message `[no answer]`):
 
 ```sh
 ask "who was u.s. president in 1846"
