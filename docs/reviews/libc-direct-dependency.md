@@ -27,3 +27,7 @@ The version was not updated, so no new publication enters the closure. The manag
 - Attributes are held on standard input, the terminal `console` reads keys from when standard input is a terminal, which is the only case in which `ask` shows a menu or the hidden prompt.
 - A process stopped by `SIGTSTP` while a menu waits may be resumed by a shell that restored canonical mode; the first key after resumption is then line-buffered until the next read reapplies raw mode. On every exit path the saved attributes are restored.
 - A `SIGINT`, `SIGTERM`, or `SIGHUP` delivered by another process rather than typed as Ctrl-C uses the default disposition and does not restore the attributes; keyboard Ctrl-C arrives as a byte in raw mode and does.
+
+## Later versions
+
+- 2026-10-29: Dependabot PR 99 bumped `libc` to 0.2.191 on `milestone/context`; the evidence above describes 0.2.189 as approved and locked at the time and is not updated for later bumps.
