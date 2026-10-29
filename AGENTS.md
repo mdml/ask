@@ -6,8 +6,8 @@ These instructions apply to every coding agent working in this repository (`clau
 
 `ask` has a human-owned mental model that lives outside this repository. It states product intent, the decisions already made, and the hypotheses under test. This repository describes the implementation that exists now; it does not duplicate the mental model's product content.
 
-- It reaches you as a skill named `ask-mental-model`, loaded from the owner's user scope. Invoke it and read the model in full before any consequential product, public-interface, architecture, or process decision: commands, configuration, profiles, provider support, storage, tools, MCP, verification, and releases.
-- If the `ask-mental-model` skill is absent from your session, stop and ask for the mental model before making any such decision. Do not reconstruct it from this repository or proceed on inference.
+- It is `context/mental-model.md` in the private sibling repository `ask-context`, checked out beside this one in the `ask` workspace (`../ask-context/context/mental-model.md` from this repository's root; agents launch from the workspace directory, so both repositories are in scope). Read it in full before any consequential product, public-interface, architecture, or process decision: commands, configuration, profiles, provider support, storage, tools, MCP, verification, and releases.
+- If `ask-context` is not available in your session, stop and ask for the mental model before making any such decision. Do not reconstruct it from this repository or proceed on inference.
 - Never edit the mental model. Propose changes in your handoff instead.
 
 ## Assumption boundary
