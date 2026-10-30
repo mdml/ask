@@ -18,7 +18,7 @@ use super::{Dialogue, InitError, one_line, provider::hosted_preset};
 use crate::{
     config::ProviderConfig,
     model_list,
-    provider::{self, GetError},
+    provider::{self, BoundedGet, GetError},
 };
 
 pub(super) const DEFAULT_URL: &str =
@@ -90,9 +90,13 @@ pub(super) async fn fetch(url: &str, provider: &str) -> Result<Published, String
 
 async fn download(url: &str) -> Result<Vec<u8>, String> {
     let client = provider::http_client().map_err(|error| error.to_string())?;
-    provider::bounded_get(&client, url, &[], TIMEOUT, MAX_RESPONSE_BYTES)
-        .await
-        .map_err(failure)
+    let get = BoundedGet {
+        url,
+        headers: &[],
+        timeout: TIMEOUT,
+        max_bytes: MAX_RESPONSE_BYTES,
+    };
+    provider::bounded_get(&client, &get).await.map_err(failure)
 }
 
 fn failure(error: GetError) -> String {
