@@ -555,17 +555,23 @@ pub(crate) enum GetError {
     TooLarge,
 }
 
-/// The body of a successful `GET url` with `headers`, within `timeout` per
-/// request and at most `max_bytes` long.
+/// A bounded `GET url` with `headers`, within `timeout` per request and at
+/// most `max_bytes` long.
+pub(crate) struct BoundedGet<'a> {
+    pub url: &'a str,
+    pub headers: &'a [(&'a str, String)],
+    pub timeout: std::time::Duration,
+    pub max_bytes: usize,
+}
+
+/// The body of a successful [`BoundedGet`].
 pub(crate) async fn bounded_get(
     client: &reqwest::Client,
-    url: &str,
-    headers: &[(&str, String)],
-    timeout: std::time::Duration,
-    max_bytes: usize,
+    request: &BoundedGet<'_>,
 ) -> Result<Vec<u8>, GetError> {
-    let mut builder = client.get(url).timeout(timeout);
-    for (name, value) in headers {
+    let max_bytes = request.max_bytes;
+    let mut builder = client.get(request.url).timeout(request.timeout);
+    for (name, value) in request.headers {
         builder = builder.header(*name, value);
     }
     let mut response = builder.send().await.map_err(GetError::Transport)?;
