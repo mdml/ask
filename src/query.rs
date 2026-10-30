@@ -289,19 +289,14 @@ fn conclude(
 ) -> ExitCode {
     let error = finished.outcome.error.as_ref();
     if let Some(error) = error.filter(|error| !error.is_broken_pipe()) {
-        let message = if error.is_output_limit() {
-            format!("warning: {error}")
-        } else {
-            error.to_string()
-        };
-        report(stderr, &message, ExitCode::FAILURE);
+        report_error(stderr, error);
     }
     if let Err(cause) = saved {
-        let what = match finished.status() {
-            Some(_) => "answer was delivered but not recorded",
-            None => "query statistics were not recorded",
-        };
-        return report(stderr, &format!("{what}: {cause}"), ExitCode::FAILURE);
+        return report(
+            stderr,
+            &format!("{}: {cause}", unrecorded(finished)),
+            ExitCode::FAILURE,
+        );
     }
     match error {
         None => report(
@@ -311,5 +306,21 @@ fn conclude(
         ),
         Some(error) if error.is_broken_pipe() => ExitCode::SUCCESS,
         Some(_) => ExitCode::FAILURE,
+    }
+}
+
+fn report_error(stderr: &mut impl io::Write, error: &RunError) {
+    let message = if error.is_output_limit() {
+        format!("warning: {error}")
+    } else {
+        error.to_string()
+    };
+    report(stderr, &message, ExitCode::FAILURE);
+}
+
+fn unrecorded(finished: &Finished<'_>) -> &'static str {
+    match finished.status() {
+        Some(_) => "answer was delivered but not recorded",
+        None => "query statistics were not recorded",
     }
 }
