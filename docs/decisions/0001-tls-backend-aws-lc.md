@@ -6,7 +6,7 @@ Status: accepted
 
 ## Context
 
-Reqwest 0.13 with Rig's `rustls` feature uses the AWS-LC-backed Rustls provider. `aws-lc-sys` 0.45.0 brings a bundled native C and assembly build of about 69M unpacked and uses a CMake/`cc` build program. The dependency closure and build surface are documented in the [Rig 0.42.0 dependency-closure review](../reviews/rig-dependency-closure.md).
+Reqwest 0.13 with Rig's `rustls` feature uses the AWS-LC-backed Rustls provider. `aws-lc-sys` 0.45.0 brings a bundled native C and assembly build of about 69M unpacked and uses a CMake/`cc` build program. The dependency closure and build surface are documented in the [Rig 0.42.0 dependency-closure review](../reviews/rig-dependency-closure.md) and, for the current pin, the [Rig 0.45.0 dependency-closure review](../reviews/rig-dependency-closure-0.45.md), which confirmed on 2026-10-30 that the AWS-LC-backed Rustls provider is unchanged.
 
 ## Decision
 
