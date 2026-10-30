@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use crate::{
     model_list::{self, MAX_ENTRIES, Shape},
-    provider::{self, GetError, Kind},
+    provider::{self, BoundedGet, GetError, Kind},
 };
 
 const TIMEOUT: Duration = Duration::from_secs(10);
@@ -57,19 +57,19 @@ impl Listing<'_> {
         cursor: Option<&str>,
     ) -> Result<Vec<u8>, String> {
         let request = self.request(cursor);
-        provider::bounded_get(
-            client,
-            &request.url,
-            &request.headers,
-            TIMEOUT,
-            MAX_RESPONSE_BYTES,
-        )
-        .await
-        .map_err(|error| match error {
-            GetError::Transport(error) => self.redact(error),
-            GetError::Status(status) => format!("provider returned HTTP status {status}"),
-            GetError::TooLarge => "the model list response is too large".to_string(),
-        })
+        let get = BoundedGet {
+            url: &request.url,
+            headers: &request.headers,
+            timeout: TIMEOUT,
+            max_bytes: MAX_RESPONSE_BYTES,
+        };
+        provider::bounded_get(client, &get)
+            .await
+            .map_err(|error| match error {
+                GetError::Transport(error) => self.redact(error),
+                GetError::Status(status) => format!("provider returned HTTP status {status}"),
+                GetError::TooLarge => "the model list response is too large".to_string(),
+            })
     }
 
     /// Redacts the credential; a keyless listing's placeholder is not secret.

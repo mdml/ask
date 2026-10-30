@@ -12,6 +12,15 @@ set -eu
 ROOT="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+# Pinned CodeScene CLI. Scores differ between CLI versions (src/lib.rs scored
+# 10 on 1.0.52 and 9.68 on 1.0.55), so bumping CS_VERSION is a deliberate,
+# reviewed change, like the Rust toolchain pin. CS_BUILD is the build hash for
+# that version: curl -fsSL "https://devtools.codescene.io/api/cli/cs?version=$CS_VERSION"
+CS_VERSION="1.0.55"
+CS_BUILD="370e26a4a5a678155957c0db933efc76019eb0f2"
+# Never let the CLI auto-update or nag, for every cs invocation below.
+export CS_DISABLE_VERSION_CHECK=1
+
 CS_INSTALL_DIR="$ROOT/target/codescene"
 MODE=""
 BASE_REF=""
@@ -29,28 +38,63 @@ Usage: scripts/codescene.sh --all | --staged | --commit [REF] | --base REF
 EOF
 }
 
-ensure_cs() {
-    if command -v cs >/dev/null 2>&1; then
-        CS_CMD="cs"
-        return 0
-    fi
+# Print the version of the cs binary at $1, or nothing if it is unreadable.
+cs_version_of() {
+    CS_DISABLE_VERSION_CHECK=1 "$1" version 2>/dev/null |
+        awk 'NR == 1 && $1 == "cs" && $2 == "version" { print $3 }' || true
+}
 
-    if [ -x "$CS_INSTALL_DIR/.local/bin/cs" ]; then
-        CS_CMD="$CS_INSTALL_DIR/.local/bin/cs"
-        return 0
-    fi
+install_cs() {
+    case "$(uname -s)" in
+        Darwin) _os=macos ;;
+        Linux) _os=linux ;;
+        *)
+            echo "codescene.sh: unsupported OS: $(uname -s)" >&2
+            exit 127
+            ;;
+    esac
+    case "$(uname -m)" in
+        arm64 | aarch64) _arch=aarch64 ;;
+        x86_64 | amd64) _arch=amd64 ;;
+        *)
+            echo "codescene.sh: unsupported architecture: $(uname -m)" >&2
+            exit 127
+            ;;
+    esac
 
-    echo "codescene.sh: cs not found on PATH; installing to $CS_INSTALL_DIR" >&2
-    mkdir -p "$CS_INSTALL_DIR"
-    curl -fsSL https://downloads.codescene.io/enterprise/cli/install-cs-tool.sh |
-        HOME="$CS_INSTALL_DIR" sh -s -- -y
-
-    if [ -x "$CS_INSTALL_DIR/.local/bin/cs" ]; then
-        CS_CMD="$CS_INSTALL_DIR/.local/bin/cs"
-    else
-        echo "codescene.sh: cs installation failed" >&2
+    _tmp=$(mktemp -d "${TMPDIR:-/tmp}/codescene-cs.XXXXXX")
+    trap 'rm -rf "$_tmp"' EXIT HUP INT TERM
+    _url="https://downloads.codescene.io/enterprise/cli/cs-$_os-$_arch-$CS_BUILD.zip"
+    echo "codescene.sh: installing cs $CS_VERSION ($_os/$_arch) to $CS_INSTALL_DIR" >&2
+    curl -fsSL -o "$_tmp/cs.zip" "$_url"
+    unzip -q "$_tmp/cs.zip" -d "$_tmp/out"
+    chmod 0755 "$_tmp/out/cs"
+    _got=$(cs_version_of "$_tmp/out/cs")
+    if [ "$_got" != "$CS_VERSION" ]; then
+        echo "codescene.sh: downloaded cs is ${_got:-unreadable}, not the pinned $CS_VERSION" >&2
         exit 127
     fi
+    mkdir -p "$CS_INSTALL_DIR/.local/bin"
+    install -m 0755 "$_tmp/out/cs" "$CS_INSTALL_DIR/.local/bin/cs"
+}
+
+ensure_cs() {
+    _path_cs=$(command -v cs 2>/dev/null || true)
+    if [ -n "$_path_cs" ]; then
+        _path_version=$(cs_version_of "$_path_cs")
+        if [ "$_path_version" = "$CS_VERSION" ]; then
+            CS_CMD="$_path_cs"
+            return 0
+        fi
+        echo "codescene.sh: cs on PATH is ${_path_version:-unreadable}, not the pinned $CS_VERSION; using the pinned install in $CS_INSTALL_DIR" >&2
+    fi
+
+    CS_CMD="$CS_INSTALL_DIR/.local/bin/cs"
+    if [ -x "$CS_CMD" ] && [ "$(cs_version_of "$CS_CMD")" = "$CS_VERSION" ]; then
+        return 0
+    fi
+
+    install_cs
 }
 
 list_files() {

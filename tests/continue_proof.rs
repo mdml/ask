@@ -301,7 +301,7 @@ fn empty_answers_are_complete_turns() {
     answered(&ask(&home, &["r", "q2"]), b"ok\n");
     assert_eq!(
         fake.requests(2)[1].messages,
-        conversation(&["q1", "", "q2"])
+        conversation(&["q1", "[no answer]", "q2"])
     );
 }
 

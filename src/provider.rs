@@ -2,12 +2,22 @@ use std::{future::Future, pin::Pin};
 
 use futures_util::{Stream, StreamExt, future, stream};
 use rig_core::{
-    client::CompletionClient,
-    completion::{CompletionError, CompletionModel, FinishReason, Message},
-    providers::{anthropic, gemini, openai, openrouter},
+    Model,
+    completion::{CompletionRequest, CompletionResponse, FinishReason, Message},
+    driver::Transport,
+    error::ProviderError as RigError,
+    http_client::DynHttpClient,
+    operation::Completion,
+    providers::{
+        anthropic::{self, AnthropicConfig},
+        gemini::GeminiConfig,
+        openai::{self, OpenAIConfig},
+    },
     serde_json::{Value, json},
-    streaming::{StreamedAssistantContent, StreamingCompletionResponse},
+    streaming::{Item, StreamEvent, Streamed},
+    wire::Wire,
 };
+use rig_reqwest::ReqwestClient;
 
 use crate::config::Target;
 
@@ -153,56 +163,51 @@ impl RigProvider {
         redact(error, self.secret())
     }
 
-    async fn open(
-        &self,
-        kind: Kind,
-        request: Request<'_>,
-    ) -> Result<StreamingCompletionResponse, ProviderError> {
+    fn open(&self, kind: Kind, request: Request<'_>) -> Result<EventStream, ProviderError> {
         let http = http_client().map_err(|error| self.error(error))?;
+        let http = DynHttpClient::new(ReqwestClient::from(http));
         let key = self.credential.as_deref().unwrap_or(NO_KEY_PLACEHOLDER);
         let url = self.base_url.as_str();
-        let limit = kind.max_output_tokens(self.max_output_tokens);
-        let result = match kind {
+        let options = |params| StreamOptions {
+            max_output_tokens: kind.max_output_tokens(self.max_output_tokens),
+            params,
+            credential: self.secret(),
+        };
+        match kind {
             Kind::OpenAi => {
-                let client = openai::Client::builder().http_client(http).api_key(key);
-                let model = client.base_url(url).build().map_err(|e| self.error(e))?;
+                let client = OpenAIConfig::new(key).with_base_url(url).connect(http);
                 // Responses are not retained by OpenAI; `ask` keeps history locally.
                 let params = json!({ "store": false });
                 stream(
-                    model.completion_model(&self.model),
+                    client.responses(&self.model),
                     request,
-                    limit,
-                    Some(params),
+                    options(Some(params)),
                 )
-                .await
             }
             Kind::Anthropic => {
-                let client = anthropic::Client::builder().http_client(http).api_key(key);
-                let model = client.base_url(url).build().map_err(|e| self.error(e))?;
-                stream(model.completion_model(&self.model), request, limit, None).await
+                let client = AnthropicConfig::new(key).with_base_url(url).connect(http);
+                stream(client.completion(&self.model), request, options(None))
             }
             Kind::Gemini => {
                 // Rig inserts the key and model into the URL verbatim.
-                let encoded_key = path_segment(key);
-                let client = gemini::Client::builder().http_client(http);
-                let client = client.api_key(encoded_key).base_url(url);
-                let model = client.build().map_err(|e| self.error(e))?;
-                let model = model.completion_model(path_segment(&self.model));
-                stream(model, request, limit, None).await
+                let config = GeminiConfig::new(path_segment(key)).with_base_url(url);
+                let client = config.connect(http);
+                stream(
+                    client.completion(path_segment(&self.model)),
+                    request,
+                    options(None),
+                )
             }
             Kind::OpenRouter => {
-                let client = openrouter::Client::builder().http_client(http).api_key(key);
-                let model = client.base_url(url).build().map_err(|e| self.error(e))?;
-                stream(model.completion_model(&self.model), request, limit, None).await
+                let config = OpenAIConfig::with_key(&openai::wire::OPENROUTER, key);
+                let client = config.with_base_url(url).connect(http);
+                stream(client.chat(&self.model), request, options(None))
             }
             Kind::OpenAiCompatible => {
-                let client = openai::Client::builder().http_client(http).api_key(key);
-                let client = client.base_url(url).build().map_err(|e| self.error(e))?;
-                let model = client.completions_api().completion_model(&self.model);
-                stream(model, request, limit, None).await
+                let client = OpenAIConfig::new(key).with_base_url(url).connect(http);
+                stream(client.chat(&self.model), request, options(None))
             }
-        };
-        result.map_err(|error| self.error(error))
+        }
     }
 }
 
@@ -215,19 +220,15 @@ impl PromptProvider for RigProvider {
             if kind == Kind::Gemini {
                 return self.gemini(request).await;
             }
-            let stream = self.open(kind, request).await?;
-            let credential = self.secret().to_string();
-            Ok(Box::pin(stream.map(move |item| {
-                item.map_err(|error| redact(error, &credential))
-                    .and_then(event)
-            })) as EventStream)
+            self.open(kind, request)
         })
     }
 }
 
 impl RigProvider {
-    /// Uses Gemini's wire directly because Rig 0.42 drops a prompt-feedback
-    /// refusal when the response has no candidates, including its usage.
+    /// Uses Gemini's wire directly because Rig 0.45 turns a prompt-feedback
+    /// block in a response with no candidates into a failed stream, not a
+    /// refusal ending that carries the response's usage.
     async fn gemini(&self, request: Request<'_>) -> Result<EventStream, ProviderError> {
         let client = http_client().map_err(|error| self.error(error))?;
         let url = format!(
@@ -472,21 +473,71 @@ fn gemini_usage(value: &Value) -> Option<Usage> {
     (input != 0 || output != 0 || total != 0).then_some(Usage { input, output })
 }
 
-async fn stream<M: CompletionModel + Clone>(
-    model: M,
-    request: Request<'_>,
+/// The per-call settings that accompany a streamed request.
+struct StreamOptions<'a> {
     max_output_tokens: Option<u64>,
     params: Option<Value>,
-) -> Result<StreamingCompletionResponse, CompletionError> {
-    let mut builder = model
-        .completion_request(request.prompt)
+    /// The text to redact from diagnostics.
+    credential: &'a str,
+}
+
+/// Opens the streamed completion on `model` and maps it to events: each text
+/// fragment, then one terminal record with the reported usage and ending.
+fn stream<W>(
+    model: Model<W>,
+    request: Request<'_>,
+    options: StreamOptions<'_>,
+) -> Result<EventStream, ProviderError>
+where
+    W: Wire<Op = Completion>,
+    DynHttpClient: Transport<W>,
+{
+    let StreamOptions {
+        max_output_tokens,
+        params,
+        credential,
+    } = options;
+    let mut request = CompletionRequest::new(Message::user(request.prompt))
         .preamble(request.system_prompt.to_string())
         .messages(history(request.history))
-        .max_tokens_opt(max_output_tokens);
+        .max_tokens(max_output_tokens);
     if let Some(params) = params {
-        builder = builder.additional_params(params);
+        request = request.additional_params(params);
     }
-    builder.stream().await
+    let opened = model
+        .stream(request)
+        .map_err(|error| redact(error, credential))?;
+    let state = (Some(opened), credential.to_string());
+    Ok(Box::pin(stream::unfold(state, next_event)))
+}
+
+type StreamState = (Option<Streamed<Completion>>, String);
+
+async fn next_event(state: StreamState) -> Option<(Result<Event, ProviderError>, StreamState)> {
+    let (opened, credential) = state;
+    let mut opened = opened?;
+    match opened.next().await {
+        Some(Ok(Item::Event(StreamEvent::Text { text, .. }))) => {
+            Some((Ok(Event::Text(text)), (Some(opened), credential)))
+        }
+        Some(Ok(_)) => Some((Ok(Event::Other), (Some(opened), credential))),
+        // A stream that ends without a terminal record has none to report.
+        Some(Err(RigError::Truncated)) => None,
+        Some(Err(error)) => Some((Err(redact(error, &credential)), (None, credential))),
+        None => {
+            let ended = opened.finish().await;
+            match ended {
+                // A stream that ends without a terminal record has none to report.
+                Err(RigError::Truncated) => None,
+                ended => {
+                    let event = ended
+                        .map_err(|error| redact(error, &credential))
+                        .and_then(terminal);
+                    Some((event, (None, credential)))
+                }
+            }
+        }
+    }
 }
 
 /// Refuses redirects so the credential and query content reach only the
@@ -504,17 +555,23 @@ pub(crate) enum GetError {
     TooLarge,
 }
 
-/// The body of a successful `GET url` with `headers`, within `timeout` per
-/// request and at most `max_bytes` long.
+/// A bounded `GET url` with `headers`, within `timeout` per request and at
+/// most `max_bytes` long.
+pub(crate) struct BoundedGet<'a> {
+    pub url: &'a str,
+    pub headers: &'a [(&'a str, String)],
+    pub timeout: std::time::Duration,
+    pub max_bytes: usize,
+}
+
+/// The body of a successful [`BoundedGet`].
 pub(crate) async fn bounded_get(
     client: &reqwest::Client,
-    url: &str,
-    headers: &[(&str, String)],
-    timeout: std::time::Duration,
-    max_bytes: usize,
+    request: &BoundedGet<'_>,
 ) -> Result<Vec<u8>, GetError> {
-    let mut builder = client.get(url).timeout(timeout);
-    for (name, value) in headers {
+    let max_bytes = request.max_bytes;
+    let mut builder = client.get(request.url).timeout(request.timeout);
+    for (name, value) in request.headers {
         builder = builder.header(*name, value);
     }
     let mut response = builder.send().await.map_err(GetError::Transport)?;
@@ -544,46 +601,57 @@ pub(crate) fn path_segment(value: &str) -> String {
     })
 }
 
+/// The assistant text sent in place of an empty recorded answer. Rig 0.45
+/// drops an empty assistant turn and merges the adjacent user turns when it
+/// shapes history for the wire (`completion/history.rs::adapt`), which would
+/// fuse two separate questions into one. A fixed marker keeps each question a
+/// distinct user turn; the recorded answer stays empty.
+pub const NO_ANSWER_MARKER: &str = "[no answer]";
+
 fn history(exchanges: &[Exchange]) -> Vec<Message> {
     exchanges
         .iter()
         .flat_map(|exchange| {
+            let answer = if exchange.answer.trim().is_empty() {
+                NO_ANSWER_MARKER.to_string()
+            } else {
+                exchange.answer.clone()
+            };
             [
                 Message::user(exchange.prompt.clone()),
-                Message::assistant(exchange.answer.clone()),
+                Message::assistant(answer),
             ]
         })
         .collect()
 }
 
-/// Maps one streamed item. An `error` finish reason is an in-band provider
-/// failure, such as OpenRouter's mid-stream error chunk, never a complete answer.
-fn event(content: StreamedAssistantContent) -> Result<Event, ProviderError> {
-    Ok(match content {
-        StreamedAssistantContent::Text(text) => Event::Text(text.text),
-        StreamedAssistantContent::Final(record) => {
-            let ending = match record.finish_reason {
-                Some(FinishReason::Length) => Ending::OutputLimit,
-                Some(FinishReason::ContentFilter) => Ending::Refusal,
-                Some(FinishReason::Other(reason)) if reason == "error" => {
-                    return Err(ProviderError(
-                        "the provider reported an error in the answer stream".to_string(),
-                    ));
-                }
-                _ => Ending::Complete,
-            };
-            Event::Final(usage(record.usage), ending)
+/// Maps the folded response to the terminal record. An `error` finish reason
+/// or a provider-reported failure is an in-band provider failure, such as
+/// OpenRouter's mid-stream error chunk, never a complete answer.
+fn terminal(response: CompletionResponse) -> Result<Event, ProviderError> {
+    let ending = match response.finish_reason() {
+        Some(FinishReason::Length) => Ending::OutputLimit,
+        Some(FinishReason::ContentFilter) => Ending::Refusal,
+        Some(FinishReason::Other(reason)) if reason == "error" => {
+            return Err(stream_error());
         }
-        _ => Event::Other,
-    })
+        _ => Ending::Complete,
+    };
+    if ending == Ending::Complete && response.error.is_some() {
+        return Err(stream_error());
+    }
+    Ok(Event::Final(usage(&response.usage), ending))
 }
 
-fn usage(value: rig_core::completion::Usage) -> Option<Usage> {
-    let reported = value.input_tokens != 0 || value.output_tokens != 0 || value.total_tokens != 0;
-    reported.then_some(Usage {
-        input: value.input_tokens,
-        output: value.output_tokens,
-    })
+fn stream_error() -> ProviderError {
+    ProviderError("the provider reported an error in the answer stream".to_string())
+}
+
+fn usage(value: &rig_core::completion::Usage) -> Option<Usage> {
+    let input = value.input_tokens.unwrap_or(0);
+    let output = value.output_tokens.unwrap_or(0);
+    let reported = input != 0 || output != 0 || value.total_tokens.unwrap_or(0) != 0;
+    reported.then_some(Usage { input, output })
 }
 
 /// Replaces every occurrence of the credential, whether it appears verbatim or
@@ -799,8 +867,20 @@ mod tests {
     }
 
     #[test]
+    fn empty_answers_are_replayed_as_the_marker() {
+        let exchange = |answer: &str| Exchange {
+            prompt: "question".to_string(),
+            answer: answer.to_string(),
+        };
+        let messages = history(&[exchange(""), exchange("  \n"), exchange("kept")]);
+        assert_eq!(messages[1], Message::assistant(NO_ANSWER_MARKER));
+        assert_eq!(messages[3], Message::assistant(NO_ANSWER_MARKER));
+        assert_eq!(messages[5], Message::assistant("kept"));
+    }
+
+    #[test]
     fn zero_usage_means_provider_did_not_report_it() {
-        assert!(usage(rig_core::completion::Usage::default()).is_none());
+        assert!(usage(&rig_core::completion::Usage::default()).is_none());
     }
 
     #[test]
