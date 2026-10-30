@@ -73,6 +73,6 @@ Observed: Rig 0.45 shapes history for the wire in `completion/history.rs::adapt`
 
 ## Not established
 
-- Build scripts and procedural macros were not re-inventoried for the added crates (`uuid`, `serde_path_to_error`, `httpdate`, `rig-http`, `rig-reqwest`, `rig-core`); the 0.42.0 inventory is not extended here.
+- Build scripts and procedural macros: established by the promotion security review of 2026-10-30 (PR 109) from the cached crate sources: none of `rig-core`, `rig-http`, `rig-reqwest`, `rig-tungstenite`, `uuid`, `serde_path_to_error`, `httpdate`, or `webpki-root-certs` 1.0.11 has a `build.rs` or declares a procedural macro. The same review confirmed the crates.io `created_at` and checksum values in the table above, and that `rig-core`'s only filesystem I/O is in its OAuth token store, which the configs `ask` uses (`OpenAIConfig::new`, `AnthropicConfig::new`, `GeminiConfig::new`) were not traced to reach.
 - crates.io owner rosters, download counts, and the GitHub provenance of the `v0.45.0` tag were not examined.
 - The `websocket` feature is not enabled and was not exercised.
