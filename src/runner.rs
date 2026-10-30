@@ -87,7 +87,11 @@ pub async fn run<P: PromptProvider, W: io::Write>(
     output: &mut AnswerWriter<'_, W>,
 ) -> Outcome {
     let mut progress = Progress::new();
-    let error = progress.stream(provider, target, request, output).await;
+    let limit = Limit::new(target.timeout_ms);
+    let error = match limit.connect(provider, request).await {
+        Ok(stream) => progress.stream(stream, &limit, output).await,
+        Err(error) => Err(error),
+    };
     progress.into_outcome(error.err())
 }
 
@@ -114,16 +118,12 @@ impl Progress {
         }
     }
 
-    async fn stream<P: PromptProvider, W: io::Write>(
+    async fn stream<W: io::Write>(
         &mut self,
-        provider: &P,
-        target: &Target,
-        request: Request<'_>,
+        mut stream: EventStream,
+        limit: &Limit,
         output: &mut AnswerWriter<'_, W>,
     ) -> Result<(), RunError> {
-        let limit = Limit::new(target.timeout_ms);
-        let started = limit.within(provider.start(request)).await?;
-        let mut stream = started.map_err(RunError::provider)?;
         while let Some(event) = limit
             .next(&mut stream)
             .await
@@ -228,6 +228,16 @@ impl Limit {
         timeout_at(self.deadline, future)
             .await
             .map_err(|_| RunError::Timeout(self.timeout_ms))
+    }
+
+    async fn connect<P: PromptProvider>(
+        &self,
+        provider: &P,
+        request: Request<'_>,
+    ) -> Result<EventStream, RunError> {
+        self.within(provider.start(request))
+            .await?
+            .map_err(RunError::provider)
     }
 
     async fn next(&self, stream: &mut EventStream) -> Result<Option<Event>, RunError> {
