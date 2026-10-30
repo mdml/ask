@@ -23,7 +23,7 @@ libc = "=0.2.191"
 reqwest = { version = "=0.13.5", default-features = false }
 rig-core = { version = "=0.45.0", default-features = false, features = ["reqwest", "rustls"] }
 rig-reqwest = { version = "=0.45.0", default-features = false, features = ["rustls"] }
-rusqlite = { version = "=0.40.2", default-features = false, features = ["bundled"] }
+rusqlite = { version = "=0.41.0", default-features = false, features = ["bundled"] }
 serde = { version = "=1.0.229", features = ["derive"] }
 tokio = { version = "=1.53.3", features = ["macros", "rt", "time"] }
 toml = "=1.1.8"
