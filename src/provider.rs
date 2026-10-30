@@ -168,8 +168,11 @@ impl RigProvider {
         let http = DynHttpClient::new(ReqwestClient::from(http));
         let key = self.credential.as_deref().unwrap_or(NO_KEY_PLACEHOLDER);
         let url = self.base_url.as_str();
-        let limit = kind.max_output_tokens(self.max_output_tokens);
-        let credential = self.secret();
+        let options = |params| StreamOptions {
+            max_output_tokens: kind.max_output_tokens(self.max_output_tokens),
+            params,
+            credential: self.secret(),
+        };
         match kind {
             Kind::OpenAi => {
                 let client = OpenAIConfig::new(key).with_base_url(url).connect(http);
@@ -178,20 +181,12 @@ impl RigProvider {
                 stream(
                     client.responses(&self.model),
                     request,
-                    limit,
-                    Some(params),
-                    credential,
+                    options(Some(params)),
                 )
             }
             Kind::Anthropic => {
                 let client = AnthropicConfig::new(key).with_base_url(url).connect(http);
-                stream(
-                    client.completion(&self.model),
-                    request,
-                    limit,
-                    None,
-                    credential,
-                )
+                stream(client.completion(&self.model), request, options(None))
             }
             Kind::Gemini => {
                 // Rig inserts the key and model into the URL verbatim.
@@ -200,19 +195,17 @@ impl RigProvider {
                 stream(
                     client.completion(path_segment(&self.model)),
                     request,
-                    limit,
-                    None,
-                    credential,
+                    options(None),
                 )
             }
             Kind::OpenRouter => {
                 let config = OpenAIConfig::with_key(&openai::wire::OPENROUTER, key);
                 let client = config.with_base_url(url).connect(http);
-                stream(client.chat(&self.model), request, limit, None, credential)
+                stream(client.chat(&self.model), request, options(None))
             }
             Kind::OpenAiCompatible => {
                 let client = OpenAIConfig::new(key).with_base_url(url).connect(http);
-                stream(client.chat(&self.model), request, limit, None, credential)
+                stream(client.chat(&self.model), request, options(None))
             }
         }
     }
@@ -480,19 +473,30 @@ fn gemini_usage(value: &Value) -> Option<Usage> {
     (input != 0 || output != 0 || total != 0).then_some(Usage { input, output })
 }
 
+/// The per-call settings that accompany a streamed request.
+struct StreamOptions<'a> {
+    max_output_tokens: Option<u64>,
+    params: Option<Value>,
+    /// The text to redact from diagnostics.
+    credential: &'a str,
+}
+
 /// Opens the streamed completion on `model` and maps it to events: each text
 /// fragment, then one terminal record with the reported usage and ending.
 fn stream<W>(
     model: Model<W>,
     request: Request<'_>,
-    max_output_tokens: Option<u64>,
-    params: Option<Value>,
-    credential: &str,
+    options: StreamOptions<'_>,
 ) -> Result<EventStream, ProviderError>
 where
     W: Wire<Op = Completion>,
     DynHttpClient: Transport<W>,
 {
+    let StreamOptions {
+        max_output_tokens,
+        params,
+        credential,
+    } = options;
     let mut request = CompletionRequest::new(Message::user(request.prompt))
         .preamble(request.system_prompt.to_string())
         .messages(history(request.history))
