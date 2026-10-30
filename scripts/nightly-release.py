@@ -24,7 +24,7 @@ MAX_BINARY = 128 * 1024 * 1024
 NIGHTLY_TAG = re.compile(r"v[0-9]+\.[0-9]+\.[0-9]+-nightly\.([0-9]{8})\.([1-9][0-9]*)\.([1-9][0-9]*)")
 RELEASE_PAGE = 100
 MAX_RELEASE_PAGES = 20
-ACTION_REVIEW_DEADLINE = datetime.date(2026, 11, 1)
+ACTION_REVIEW_DEADLINE = datetime.date(2026, 11, 30)
 VALID_CONFIG = b'''default_profile = "offline"
 
 [providers.offline]
