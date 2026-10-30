@@ -1,3 +1,4 @@
 # Project-scoped codex configuration. Instructions live in AGENTS.md, which
-# codex reads natively; the mental model reaches codex as the user-level
-# ask-mental-model skill. Keep this file free of anything machine-specific.
+# codex reads natively; the mental model is read from the sibling ask-context
+# repository, as AGENTS.md describes. Keep this file free of anything
+# machine-specific.
