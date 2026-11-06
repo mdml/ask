@@ -12,7 +12,7 @@ dependencies = [
  "libc",
  "reqwest",
  "rig-core",
- "rig-reqwest",
+ "rig-reqwest 0.45.0",
  "rusqlite",
  "serde",
  "tokio",
@@ -1222,9 +1222,9 @@ dependencies = [
 
 [[package]]
 name = "rig-core"
-version = "0.45.0"
+version = "0.46.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d07ae8e85415d83f620eb4f519d03126227178ac67971b08368c087ce8f9052"
+checksum = "c46316e31b3e80a050ad35790f1b612b4dfdb46982293cc78641caf4271f1b05"
 dependencies = [
  "async-stream",
  "base64 0.22.1",
@@ -1238,8 +1238,8 @@ dependencies = [
  "mime",
  "mime_guess",
  "ordered-float",
- "rig-http",
- "rig-reqwest",
+ "rig-http 0.46.0",
+ "rig-reqwest 0.46.0",
  "rig-tungstenite",
  "schemars",
  "serde",
@@ -1270,6 +1270,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "rig-http"
+version = "0.46.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac927db714f03f383330e16ef360d4ab288fdf42eecab6156982fab90786d5bd"
+dependencies = [
+ "bytes",
+ "futures",
+ "futures-timer",
+ "http",
+ "mime",
+ "thiserror",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "rig-reqwest"
 version = "0.45.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1279,7 +1295,24 @@ dependencies = [
  "futures",
  "http",
  "reqwest",
- "rig-http",
+ "rig-http 0.45.0",
+ "thiserror",
+ "tracing",
+ "url",
+ "webpki-root-certs",
+]
+
+[[package]]
+name = "rig-reqwest"
+version = "0.46.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a203e5c50e5460024594cc4ccf6cfc99c7ff22aee57cbacef0fb52ea0c7abd10"
+dependencies = [
+ "bytes",
+ "futures",
+ "http",
+ "reqwest",
+ "rig-http 0.46.0",
  "thiserror",
  "tracing",
  "url",
@@ -1288,12 +1321,12 @@ dependencies = [
 
 [[package]]
 name = "rig-tungstenite"
-version = "0.45.0"
+version = "0.46.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ba7906f696aee0da3d24825330bb5ff2cf2af86d8e308120f81d9cf581d1e30"
+checksum = "4f64568ff4658f631da1f818e03bbe6a91087ac805314e2b4b5f546e589e7b05"
 dependencies = [
  "futures",
- "rig-http",
+ "rig-http 0.46.0",
  "thiserror",
  "tokio",
  "tokio-tungstenite",
@@ -1547,7 +1580,6 @@ version = "1.0.151"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14"
 dependencies = [
- "indexmap",
  "itoa",
  "memchr",
  "serde",
